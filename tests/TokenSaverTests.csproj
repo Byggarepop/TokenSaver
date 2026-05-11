@@ -12,6 +12,13 @@
   <ItemGroup>
     <!-- Link the emitter source from the parent project so tests run against the real implementation. -->
     <Compile Include="..\FocusedEmitter.cs" Link="FocusedEmitter.cs" />
+    <Compile Include="..\RazorPreprocessor.cs" Link="RazorPreprocessor.cs" />
+    <Compile Include="..\ILanguageEmitter.cs" Link="ILanguageEmitter.cs" />
+    <Compile Include="..\CSharpEmitter.cs" Link="CSharpEmitter.cs" />
+    <Compile Include="..\JsLikeMinifier.cs" Link="JsLikeMinifier.cs" />
+    <Compile Include="..\JavaScriptEmitter.cs" Link="JavaScriptEmitter.cs" />
+    <Compile Include="..\TypeScriptEmitter.cs" Link="TypeScriptEmitter.cs" />
+    <Compile Include="..\PythonEmitter.cs" Link="PythonEmitter.cs" />
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />
     <Compile Remove="fixtures\**\*.cs" />

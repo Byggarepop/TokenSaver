@@ -32,6 +32,21 @@ internal static class Program
         Run("TaskRealism_FocusOutputContainsAnswerableLogic", TaskRealism_FocusOutputContainsAnswerableLogic);
         Run("RealWorld_Minify_LargeSourceFile", RealWorld_Minify_LargeSourceFile);
         Run("RealWorld_Focus_LargeSourceFile", RealWorld_Focus_LargeSourceFile);
+        Run("Js_Minify_StripsComments", Js_Minify_StripsComments);
+        Run("Js_Minify_PreservesStringContents", Js_Minify_PreservesStringContents);
+        Run("Js_Minify_SavesTokens", Js_Minify_SavesTokens);
+        Run("Js_Registry_DispatchesByExtension", Js_Registry_DispatchesByExtension);
+        Run("Registry_ReturnsNullForUnsupportedExtensions", Registry_ReturnsNullForUnsupportedExtensions);
+        Run("Cs_Registry_DispatchesByExtension", Cs_Registry_DispatchesByExtension);
+        Run("Cs_Minify_DelegatesToRoslyn", Cs_Minify_DelegatesToRoslyn);
+        Run("Ts_Registry_DispatchesByExtension", Ts_Registry_DispatchesByExtension);
+        Run("Ts_Minify_PreservesTypeAnnotations", Ts_Minify_PreservesTypeAnnotations);
+        Run("Ts_Minify_StripsComments", Ts_Minify_StripsComments);
+        Run("Py_Registry_DispatchesByExtension", Py_Registry_DispatchesByExtension);
+        Run("Py_Minify_StripsHashComments", Py_Minify_StripsHashComments);
+        Run("Py_Minify_PreservesIndentation", Py_Minify_PreservesIndentation);
+        Run("Py_Minify_PreservesStringsWithHash", Py_Minify_PreservesStringsWithHash);
+        Run("Py_Minify_CollapsesBlankRuns", Py_Minify_CollapsesBlankRuns);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -307,6 +322,250 @@ internal static class Program
             ok ? $"Focus on Emit with depth=1: {saved.percent:F1}% reduction with helpers preserved"
                : $"found={r.Found} focusBody={hasFocusBody} helper={hasHelperBody} savedPct={saved.percent:F1}",
             saved);
+    }
+
+    // ---------- JavaScript emitter ----------
+
+    private static TestOutcome Js_Minify_StripsComments()
+    {
+        var path = Fixture("sample.js");
+        var r = new JavaScriptEmitter().Minify(path);
+
+        var hasLineComment = r.Output.Contains("Top-level line comment");
+        var hasBlockComment = r.Output.Contains("Block comment describing");
+        var hasDocComment = r.Output.Contains("doc comment");
+        var hasTrailingLine = r.Output.Contains("trailing comment after a string");
+        var hasInline = r.Output.Contains("inline note");
+
+        var ok = !hasLineComment && !hasBlockComment && !hasDocComment && !hasTrailingLine && !hasInline;
+        return new TestOutcome(ok,
+            ok ? "all // and /* */ comment forms stripped"
+               : $"residue line={hasLineComment} block={hasBlockComment} doc={hasDocComment} trailingLine={hasTrailingLine} inline={hasInline}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Js_Minify_PreservesStringContents()
+    {
+        var path = Fixture("sample.js");
+        var r = new JavaScriptEmitter().Minify(path);
+
+        // Comment-like sequences INSIDE strings must survive verbatim.
+        var hasFakeComment = r.Output.Contains("hello // not-a-comment /* nor this */ world");
+        // Escape sequences must survive (double-backslash in a path).
+        var hasEscapedPath = r.Output.Contains(@"'C:\\Users\\test'");
+        // Template literal contents preserved including interpolation.
+        var hasTemplate = r.Output.Contains("${greeting}");
+
+        var ok = hasFakeComment && hasEscapedPath && hasTemplate;
+        return new TestOutcome(ok,
+            ok ? "strings, escapes, and template literals preserved verbatim"
+               : $"fakeComment={hasFakeComment} escapedPath={hasEscapedPath} template={hasTemplate}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Js_Minify_SavesTokens()
+    {
+        var path = Fixture("sample.js");
+        var r = new JavaScriptEmitter().Minify(path);
+        var saved = TokenSaving(r.OriginalChars, r.OutputChars);
+        var ok = r.Found && saved.percent >= 25;
+        return new TestOutcome(ok,
+            ok ? $"sample.js minified; {saved.percent:F1}% saved"
+               : $"found={r.Found} savedPct={saved.percent:F1}",
+            saved);
+    }
+
+    private static TestOutcome Js_Registry_DispatchesByExtension()
+    {
+        var jsEmitter = LanguageEmitterRegistry.Find("foo/bar.js");
+        var mjsEmitter = LanguageEmitterRegistry.Find("foo/bar.mjs");
+        var jsxEmitter = LanguageEmitterRegistry.Find("foo/bar.jsx");
+
+        var ok = jsEmitter is JavaScriptEmitter
+              && mjsEmitter is JavaScriptEmitter
+              && jsxEmitter is JavaScriptEmitter;
+
+        return new TestOutcome(ok,
+            ok ? ".js, .mjs, .jsx all dispatched to JavaScriptEmitter"
+               : $"js={jsEmitter?.GetType().Name} mjs={mjsEmitter?.GetType().Name} jsx={jsxEmitter?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Registry_ReturnsNullForUnsupportedExtensions()
+    {
+        var rs = LanguageEmitterRegistry.Find("baz.rs");
+        var go = LanguageEmitterRegistry.Find("baz.go");
+        var txt = LanguageEmitterRegistry.Find("readme.txt");
+
+        var ok = rs is null && go is null && txt is null;
+        return new TestOutcome(ok,
+            ok ? "registry returns null for .rs/.go/.txt"
+               : $"rs={rs?.Language} go={go?.Language} txt={txt?.Language}",
+            (0, 0, 0));
+    }
+
+    // ---------- C# emitter (via the unified interface) ----------
+
+    private static TestOutcome Cs_Registry_DispatchesByExtension()
+    {
+        var cs = LanguageEmitterRegistry.Find("Foo.cs");
+        var razor = LanguageEmitterRegistry.Find("Bar.razor");
+        var razorCs = LanguageEmitterRegistry.Find("Bar.razor.cs"); // .cs extension wins
+
+        var ok = cs is CSharpEmitter && razor is CSharpEmitter && razorCs is CSharpEmitter;
+        return new TestOutcome(ok,
+            ok ? ".cs/.razor/.razor.cs dispatched to CSharpEmitter"
+               : $"cs={cs?.GetType().Name} razor={razor?.GetType().Name} razorCs={razorCs?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Cs_Minify_DelegatesToRoslyn()
+    {
+        // Round-trip: the unified Minify path must produce the same content as the Roslyn EmitMinified.
+        var path = Fixture("Calculator.cs");
+        var viaInterface = new CSharpEmitter().Minify(path);
+        var viaRoslyn = new FocusedEmitter(path).EmitMinified();
+
+        var ok = viaInterface.Found
+              && viaInterface.Output == viaRoslyn.Output
+              && viaInterface.OriginalChars == viaRoslyn.OriginalChars
+              && viaInterface.OutputChars == viaRoslyn.FocusedChars;
+
+        return new TestOutcome(ok,
+            ok ? "CSharpEmitter output matches FocusedEmitter.EmitMinified byte-for-byte"
+               : "C# interface adapter diverged from underlying Roslyn output",
+            TokenSaving(viaInterface.OriginalChars, viaInterface.OutputChars));
+    }
+
+    // ---------- TypeScript emitter ----------
+
+    private static TestOutcome Ts_Registry_DispatchesByExtension()
+    {
+        var ts = LanguageEmitterRegistry.Find("foo.ts");
+        var tsx = LanguageEmitterRegistry.Find("foo.tsx");
+        var mts = LanguageEmitterRegistry.Find("foo.mts");
+        var cts = LanguageEmitterRegistry.Find("foo.cts");
+
+        var ok = ts is TypeScriptEmitter
+              && tsx is TypeScriptEmitter
+              && mts is TypeScriptEmitter
+              && cts is TypeScriptEmitter;
+
+        return new TestOutcome(ok,
+            ok ? ".ts/.tsx/.mts/.cts dispatched to TypeScriptEmitter (not JS)"
+               : $"ts={ts?.GetType().Name} tsx={tsx?.GetType().Name} mts={mts?.GetType().Name} cts={cts?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Ts_Minify_PreservesTypeAnnotations()
+    {
+        var path = Fixture("sample.ts");
+        var r = new TypeScriptEmitter().Minify(path);
+
+        // Type annotations are just identifiers + punctuation, so they MUST survive a lexical pass.
+        var hasReturnType = r.Output.Contains(": string");
+        var hasParamType = r.Output.Contains("name: string");
+        var hasGeneric = r.Output.Contains("Box<T>");
+        var hasInterface = r.Output.Contains("interface User");
+
+        var ok = hasReturnType && hasParamType && hasGeneric && hasInterface;
+        return new TestOutcome(ok,
+            ok ? "type annotations, generics, and interface decls preserved"
+               : $"returnType={hasReturnType} paramType={hasParamType} generic={hasGeneric} interface={hasInterface}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Ts_Minify_StripsComments()
+    {
+        var path = Fixture("sample.ts");
+        var r = new TypeScriptEmitter().Minify(path);
+
+        var hasLine = r.Output.Contains("module-level note");
+        var hasBlock = r.Output.Contains("block describing User");
+
+        var ok = !hasLine && !hasBlock;
+        return new TestOutcome(ok,
+            ok ? "TS comments stripped, types intact"
+               : $"line={hasLine} block={hasBlock}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- Python emitter ----------
+
+    private static TestOutcome Py_Registry_DispatchesByExtension()
+    {
+        var py = LanguageEmitterRegistry.Find("script.py");
+        var pyi = LanguageEmitterRegistry.Find("stubs.pyi");
+
+        var ok = py is PythonEmitter && pyi is PythonEmitter;
+        return new TestOutcome(ok,
+            ok ? ".py and .pyi dispatched to PythonEmitter"
+               : $"py={py?.GetType().Name} pyi={pyi?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Py_Minify_StripsHashComments()
+    {
+        var path = Fixture("sample.py");
+        var r = new PythonEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("Module-level comment");
+        var hasInline = r.Output.Contains("inline note about x");
+        var hasTrailing = r.Output.Contains("end-of-line note");
+
+        var ok = !hasTopComment && !hasInline && !hasTrailing;
+        return new TestOutcome(ok,
+            ok ? "all '#' comment forms stripped"
+               : $"top={hasTopComment} inline={hasInline} trailing={hasTrailing}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Py_Minify_PreservesIndentation()
+    {
+        var path = Fixture("sample.py");
+        var r = new PythonEmitter().Minify(path);
+
+        // The method body line must keep its leading 8 spaces (class -> method -> body).
+        var hasIndented = r.Output.Contains("        return self.n");
+        // The class-level def must keep its 4 spaces.
+        var hasMethodDef = r.Output.Contains("    def increment(self):");
+
+        var ok = hasIndented && hasMethodDef;
+        return new TestOutcome(ok,
+            ok ? "leading indentation preserved verbatim (class+method)"
+               : $"bodyIndent={hasIndented} methodIndent={hasMethodDef}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Py_Minify_PreservesStringsWithHash()
+    {
+        var path = Fixture("sample.py");
+        var r = new PythonEmitter().Minify(path);
+
+        // A '#' inside a string must not be treated as a comment.
+        var hasHashInString = r.Output.Contains("\"this # is not a comment\"");
+        // Triple-quoted docstring (with a '#' inside) must survive verbatim.
+        var hasDocstring = r.Output.Contains("Docstring with a # inside that must survive");
+
+        var ok = hasHashInString && hasDocstring;
+        return new TestOutcome(ok,
+            ok ? "'#' inside strings and triple-quoted docstrings preserved"
+               : $"hashInString={hasHashInString} docstring={hasDocstring}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Py_Minify_CollapsesBlankRuns()
+    {
+        var path = Fixture("sample.py");
+        var r = new PythonEmitter().Minify(path);
+
+        // Source has three consecutive blank lines; output should have at most one.
+        var hasTripleBlank = r.Output.Contains("\n\n\n");
+        var ok = !hasTripleBlank;
+        return new TestOutcome(ok,
+            ok ? "blank-line runs collapsed to single blank"
+               : "still has 3+ consecutive newlines",
+            TokenSaving(r.OriginalChars, r.OutputChars));
     }
 
     // ---------- helpers ----------

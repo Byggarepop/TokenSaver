@@ -79,6 +79,37 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
+        "Auto-dispatch minifier for any supported language. Detects the language " +
+        "from the file extension and applies a language-appropriate minifier. " +
+        "Currently supports C# (.cs, .razor.cs, .razor), JavaScript (.js, .mjs, " +
+        ".cjs, .jsx), TypeScript (.ts, .tsx, .mts, .cts), and Python (.py, .pyi). " +
+        "Non-C# minifiers are simpler (no semantic model, no symbol resolution) " +
+        "but still strip comments and collapse whitespace for typical 30-50% " +
+        "reductions. Python preserves indentation since the language is " +
+        "indent-sensitive. Use this when you don't yet know what language a " +
+        "file is, or when working in a polyglot codebase.")]
+    public static string MinifyFile(
+        [Description("Absolute path to a source file. Language is detected by extension.")] string filePath)
+    {
+        try
+        {
+            var emitter = LanguageEmitterRegistry.Find(filePath);
+            if (emitter is null)
+                return $"ERROR: No minifier registered for extension '{Path.GetExtension(filePath)}'.";
+
+            var result = emitter.Minify(filePath);
+            return BuildHeader(result.OriginalTokensEstimate, result.OutputTokensEstimate, $"{emitter.Language} minify")
+                 + result.Notes
+                 + "\n"
+                 + result.Output;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Returns a minified C# file with PRIVATE methods, properties, fields, " +
         "and events renamed to short codes (M1, P1, F1, E1...). A symbol ledger " +
         "is prepended so the AI can map back. Public/internal/protected names are " +

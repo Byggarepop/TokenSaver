@@ -24,9 +24,12 @@ Each tool result starts with a token-comparison header:
 // [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)
 ```
 
-Every invocation also appends a line to
-`%LOCALAPPDATA%\RoslynLeanMcp\invocations.log` and emits the same line to
-stderr (visible in your MCP client's output channel).
+Every invocation also appends a JSON entry to
+`%USERPROFILE%\token-saver-report.json` (consumed by the TokenSaverViewer
+Blazor app) and emits a one-line summary to stderr (visible in your MCP
+client's output channel). Older `0.1.x` builds wrote to
+`%LOCALAPPDATA%\RoslynLeanMcp\invocations.log`; if you still see writes
+there, the installed global tool is stale — repack and reinstall.
 
 ---
 
@@ -81,8 +84,8 @@ auto-invoke the tools on C# work.
 In a new Claude Code session, ask something like:
 > Look at the `OnInitializedAsync` method in some C# file and explain it.
 
-Then check `%LOCALAPPDATA%\RoslynLeanMcp\invocations.log` — a new line means
-the tool was invoked.
+Then check `%USERPROFILE%\token-saver-report.json` — a new JSON entry means
+the tool was invoked. (Or open the TokenSaverViewer Blazor app.)
 
 ---
 
@@ -127,7 +130,7 @@ MCP tools.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
-- Check `%LOCALAPPDATA%\RoslynLeanMcp\invocations.log` for a new line.
+- Check `%USERPROFILE%\token-saver-report.json` for a new entry, or open the TokenSaverViewer.
 
 ### VS-specific gotchas
 
