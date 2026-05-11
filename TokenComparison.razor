@@ -1,0 +1,55 @@
+@* TokenComparison.razor — drop into PromptCoach/Components/Shared/.
+   Used by Playground and any future page that runs a tool. *@
+
+@using TokenStats
+
+<div class="token-comparison">
+    <div class="tc-header">
+        <span class="tc-tool">@Report.ToolName</span>
+        @if (Report.ReductionPercent > 0)
+        {
+            <span class="tc-saved">@Report.ReductionPercent.ToString("F0")% saved</span>
+        }
+        else
+        {
+            <span class="tc-flat">No reduction — already lean</span>
+        }
+    </div>
+
+    <div class="tc-row">
+        <div class="tc-label">Without tool</div>
+        <div class="tc-bar-wrap">
+            <div class="tc-bar tc-bar-without" style="width: 100%"></div>
+        </div>
+        <div class="tc-value">@Report.TokensWithoutTool.ToString("N0") <span>tokens</span></div>
+    </div>
+
+    <div class="tc-row">
+        <div class="tc-label">With tool</div>
+        <div class="tc-bar-wrap">
+            <div class="tc-bar tc-bar-with" style="width: @WithToolBarWidthPct%"></div>
+        </div>
+        <div class="tc-value">@Report.TokensWithTool.ToString("N0") <span>tokens</span></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Report.Notes))
+    {
+        <div class="tc-notes">@Report.Notes</div>
+    }
+
+    @if (ShowCost)
+    {
+        <div class="tc-cost">@Report.CostFraming(PricePerMillion)</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TokenReport Report { get; set; } = default!;
+    [Parameter] public bool ShowCost { get; set; } = false;
+    [Parameter] public double PricePerMillion { get; set; } = 3.0;
+
+    private double WithToolBarWidthPct =>
+        Report.TokensWithoutTool == 0
+            ? 0
+            : (double)Report.TokensWithTool / Report.TokensWithoutTool * 100;
+}

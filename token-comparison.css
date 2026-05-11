@@ -1,0 +1,109 @@
+/* ============================================================
+   TokenComparison component — append to app.css.
+   The visual that appears wherever a tool reports token savings.
+   ============================================================ */
+
+.token-comparison {
+  background: var(--paper-warm);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.tc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tc-tool {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.tc-saved {
+  color: var(--accent);
+  font-weight: 500;
+  background: var(--accent-soft);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.tc-flat {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.tc-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 130px;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tc-label {
+  color: var(--ink-soft);
+  text-align: right;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tc-bar-wrap {
+  height: 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tc-bar {
+  height: 100%;
+  transition: width 0.25s ease-out;
+}
+
+.tc-bar-without {
+  background: var(--ink-faint);
+}
+
+.tc-bar-with {
+  background: var(--accent);
+}
+
+.tc-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+
+.tc-value span {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-left: 0.25rem;
+}
+
+.tc-notes {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.tc-cost {
+  margin-top: 0.5rem;
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}

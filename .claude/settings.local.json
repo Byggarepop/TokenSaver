@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet run *)",
+      "Bash(timeout 6 ./bin/Release/net10.0/roslyn-lean-mcp.exe)",
+      "Bash(dotnet pack *)",
+      "Bash(dotnet tool *)",
+      "Bash(roslyn-lean-mcp print-instructions *)"
+    ]
+  }
+}

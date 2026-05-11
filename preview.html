@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Token Comparison Component — Preview</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #4a4a4a;
+  --ink-faint: #8a8a8a;
+  --paper: #fafaf7;
+  --paper-warm: #f3f1ea;
+  --rule: #d8d4c7;
+  --accent: #b84818;
+  --accent-soft: #f5e4dd;
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 3rem 4rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  max-width: 900px;
+}
+
+h1 {
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 144;
+  margin-bottom: 0.5rem;
+}
+
+.lead {
+  color: var(--ink-soft);
+  margin-bottom: 2rem;
+}
+
+.example {
+  margin-bottom: 2rem;
+}
+
+.example h3 {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 0.5rem;
+  margin-top: 2.5rem;
+}
+
+/* The TokenComparison component styles */
+.token-comparison {
+  background: var(--paper-warm);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.tc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tc-tool {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.tc-saved {
+  color: var(--accent);
+  font-weight: 500;
+  background: var(--accent-soft);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.tc-flat {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.tc-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 130px;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tc-label {
+  color: var(--ink-soft);
+  text-align: right;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tc-bar-wrap {
+  height: 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tc-bar {
+  height: 100%;
+  transition: width 0.25s ease-out;
+}
+
+.tc-bar-without { background: var(--ink-faint); }
+.tc-bar-with { background: var(--accent); }
+
+.tc-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+}
+
+.tc-value span {
+  color: var(--ink-faint);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-left: 0.25rem;
+}
+
+.tc-notes {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.tc-cost {
+  margin-top: 0.5rem;
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+}
+
+.cli {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: #1a1a1a;
+  color: #d8d4c7;
+  padding: 1.25rem;
+  border-radius: 6px;
+  white-space: pre;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.cli .green { color: #a3c87a; }
+.cli .accent { color: #ed8b50; }
+.cli .dim { color: #6a6a6a; }
+</style>
+</head>
+<body>
+
+<h1>Token comparison — unified across all tools</h1>
+<p class="lead">
+  Every tool — Roslyn focused emitter, prompt compressor, lean-context MCP —
+  reports its savings the same way. Same component, same numbers, same visual.
+  Users see the value at a glance, every time.
+</p>
+
+<div class="example">
+  <h3>Used in the Blazor playground</h3>
+  <div class="token-comparison">
+    <div class="tc-header">
+      <span class="tc-tool">Prompt Compressor</span>
+      <span class="tc-saved">49% saved</span>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">Without tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-without" style="width: 100%"></div></div>
+      <div class="tc-value">239 <span>tokens</span></div>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">With tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-with" style="width: 51%"></div></div>
+      <div class="tc-value">122 <span>tokens</span></div>
+    </div>
+    <div class="tc-notes">5 filler phrases, 1 path, 1 code block stripped.</div>
+  </div>
+</div>
+
+<div class="example">
+  <h3>Roslyn focused emitter on a Blazor component</h3>
+  <div class="token-comparison">
+    <div class="tc-header">
+      <span class="tc-tool">Focused Emitter</span>
+      <span class="tc-saved">50% saved</span>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">Without tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-without" style="width: 100%"></div></div>
+      <div class="tc-value">835 <span>tokens</span></div>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">With tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-with" style="width: 50%"></div></div>
+      <div class="tc-value">415 <span>tokens</span></div>
+    </div>
+    <div class="tc-notes">Focus method: OnInitializedAsync. Other members reduced to signatures.</div>
+    <div class="tc-cost">≈ $0.0025 → $0.0012 (saved $0.0013 per call at current rates)</div>
+  </div>
+</div>
+
+<div class="example">
+  <h3>Combined pipeline on a 500-line legacy file</h3>
+  <div class="token-comparison">
+    <div class="tc-header">
+      <span class="tc-tool">Combined Pipeline</span>
+      <span class="tc-saved">86% saved</span>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">Without tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-without" style="width: 100%"></div></div>
+      <div class="tc-value">7,364 <span>tokens</span></div>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">With tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-with" style="width: 14%"></div></div>
+      <div class="tc-value">1,031 <span>tokens</span></div>
+    </div>
+    <div class="tc-notes">Verbose prompt: 239→122. Attached file (focused on SubmitAsync): 7,125→909.</div>
+  </div>
+</div>
+
+<div class="example">
+  <h3>When the tool didn't help — the honest case</h3>
+  <div class="token-comparison">
+    <div class="tc-header">
+      <span class="tc-tool">Prompt Compressor</span>
+      <span class="tc-flat">No reduction — already lean</span>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">Without tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-without" style="width: 100%"></div></div>
+      <div class="tc-value">58 <span>tokens</span></div>
+    </div>
+    <div class="tc-row">
+      <div class="tc-label">With tool</div>
+      <div class="tc-bar-wrap"><div class="tc-bar tc-bar-with" style="width: 93%"></div></div>
+      <div class="tc-value">54 <span>tokens</span></div>
+    </div>
+    <div class="tc-notes">Already concise — only whitespace normalized.</div>
+  </div>
+</div>
+
+<div class="example">
+  <h3>CLI version — same numbers, different format</h3>
+<div class="cli">$ roslyn-lean focus OrderService.cs --method=SubmitAsync
+<span class="dim">// Focused emission of OrderService.cs ...</span>
+<span class="dim">[focused source goes to stdout]</span>
+
+<span class="green">┌─ Focused Emitter</span>
+<span class="green">│</span>  Without tool:  <span class="dim">████████████████████████████████████████</span> 7,125 tokens
+<span class="green">│</span>  With tool:     <span class="accent">██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░</span>   909 tokens
+<span class="green">│</span>  Saved:         <span class="accent">6,216 tokens (87%)</span>
+<span class="green">│</span>  Focus method: SubmitAsync. Other members: signatures only.
+<span class="green">└─</span>
+</div>
+</div>
+
+<div class="example">
+  <h3>One-line variant for MCP tool prefixes and log lines</h3>
+  <div class="cli"><span class="dim">// </span>[Focused Emitter] Tokens without tool: 835  →  with tool: 415  (50% saved)
+<span class="dim">// </span>[Prompt Compressor] Tokens without tool: 239  →  with tool: 122  (49% saved)
+<span class="dim">// </span>[Lean Context MCP / FindSymbol] Tokens without tool: 4,200  →  with tool: 380  (91% saved)</div>
+</div>
+
+</body>
+</html>
