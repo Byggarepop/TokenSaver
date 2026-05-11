@@ -35,6 +35,8 @@ public sealed class FocusedEmitter
             throw new FileNotFoundException("Source file not found", sourceFilePath);
 
         var source = File.ReadAllText(sourceFilePath);
+        if (RazorPreprocessor.IsRazor(sourceFilePath))
+            source = RazorPreprocessor.ExtractCSharp(source);
         _tree = CSharpSyntaxTree.ParseText(source, path: sourceFilePath);
 
         // Build a minimal compilation. For real use, you'd load the .csproj via
@@ -195,12 +197,13 @@ public sealed class FocusedEmitter
             if (declared is null) continue;
             if (declared.DeclaredAccessibility != Accessibility.Private) continue;
 
+            var containing = declared.ContainingType?.Name;
             string? alias = declared switch
             {
-                IMethodSymbol m when m.MethodKind == MethodKind.Ordinary => ledger.NewMethod(m.Name),
-                IPropertySymbol p => ledger.NewProperty(p.Name),
-                IFieldSymbol f when !f.IsImplicitlyDeclared => ledger.NewField(f.Name),
-                IEventSymbol e => ledger.NewEvent(e.Name),
+                IMethodSymbol m when m.MethodKind == MethodKind.Ordinary => ledger.NewMethod(m.Name, containing),
+                IPropertySymbol p => ledger.NewProperty(p.Name, containing),
+                IFieldSymbol f when !f.IsImplicitlyDeclared => ledger.NewField(f.Name, containing),
+                IEventSymbol e => ledger.NewEvent(e.Name, containing),
                 _ => null
             };
             if (alias is not null)
@@ -254,15 +257,17 @@ public sealed class FocusedEmitter
 
     private sealed class SymbolLedger
     {
-        private readonly List<(string Alias, string Original)> _methods = new();
-        private readonly List<(string Alias, string Original)> _props = new();
-        private readonly List<(string Alias, string Original)> _fields = new();
-        private readonly List<(string Alias, string Original)> _events = new();
+        private readonly List<Entry> _methods = new();
+        private readonly List<Entry> _props = new();
+        private readonly List<Entry> _fields = new();
+        private readonly List<Entry> _events = new();
 
-        public string NewMethod(string name)   { var a = $"M{_methods.Count + 1}"; _methods.Add((a, name)); return a; }
-        public string NewProperty(string name) { var a = $"P{_props.Count + 1}";   _props.Add((a, name));   return a; }
-        public string NewField(string name)    { var a = $"F{_fields.Count + 1}";  _fields.Add((a, name));  return a; }
-        public string NewEvent(string name)    { var a = $"E{_events.Count + 1}";  _events.Add((a, name));  return a; }
+        private readonly record struct Entry(string Alias, string Original, string? Container);
+
+        public string NewMethod(string name, string? container)   { var a = $"M{_methods.Count + 1}"; _methods.Add(new(a, name, container)); return a; }
+        public string NewProperty(string name, string? container) { var a = $"P{_props.Count + 1}";   _props.Add(new(a, name, container));   return a; }
+        public string NewField(string name, string? container)    { var a = $"F{_fields.Count + 1}";  _fields.Add(new(a, name, container));  return a; }
+        public string NewEvent(string name, string? container)    { var a = $"E{_events.Count + 1}";  _events.Add(new(a, name, container));  return a; }
 
         public string ToCommentBlock()
         {
@@ -275,8 +280,19 @@ public sealed class FocusedEmitter
             sb.AppendLine("// ===");
             return sb.ToString();
 
-            static string Format(List<(string A, string O)> list) =>
-                string.Join(", ", list.Select(p => $"{p.A}={p.O}"));
+            string Format(List<Entry> list)
+            {
+                // Qualify the original name with its containing type only when a name appears
+                // in more than one container. Avoids paying the qualifier cost when there's no ambiguity.
+                var duplicateNames = list.GroupBy(e => e.Original)
+                    .Where(g => g.Select(e => e.Container).Distinct().Count() > 1)
+                    .Select(g => g.Key)
+                    .ToHashSet();
+                return string.Join(", ", list.Select(e =>
+                    duplicateNames.Contains(e.Original) && e.Container is not null
+                        ? $"{e.Alias}={e.Container}.{e.Original}"
+                        : $"{e.Alias}={e.Original}"));
+            }
         }
     }
 

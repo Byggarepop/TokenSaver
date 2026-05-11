@@ -22,7 +22,7 @@ public static class FocusedEmitterTools
         "tasks where the AI needs to see real helper logic, not just signatures). " +
         "Set minify=true for an additional ~15-25% token reduction (lossless).")]
     public static string FocusMethod(
-        [Description("Absolute path to the .cs or .razor.cs file")] string filePath,
+        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
         [Description("The method name to focus on. Overloads are all included.")] string methodName,
         [Description("0 = signatures only for callees (default). 1 = include private helper bodies. 2+ = recursive.")] int depth = 0,
         [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
@@ -60,7 +60,7 @@ public static class FocusedEmitterTools
         "questions, multi-method analysis, or when you don't yet know which " +
         "method matters. Typical reduction: 20-50% depending on comment density.")]
     public static string MinifyCSharpFile(
-        [Description("Absolute path to the .cs or .razor.cs file")] string filePath)
+        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath)
     {
         try
         {
@@ -87,7 +87,7 @@ public static class FocusedEmitterTools
         "private members, the ledger overhead can outweigh savings — use the " +
         "plain minify tool instead in that case.")]
     public static string AliasCSharpFile(
-        [Description("Absolute path to the .cs or .razor.cs file")] string filePath)
+        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath)
     {
         try
         {
@@ -113,29 +113,39 @@ public static class FocusedEmitterTools
         return $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {after:N0}  ({pct}% saved) — mode: {mode}\n";
     }
 
-    // Writes one line per tool invocation to %LOCALAPPDATA%\RoslynLeanMcp\invocations.log
-    // so you can tail the file to confirm the AI is actually using these tools.
-    private static readonly string LogPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "RoslynLeanMcp", "invocations.log");
-
+    // Every invocation is appended to the shared report JSON at
+    // %USERPROFILE%\token-saver-report.json so the Blazor viewer (and any
+    // future surface) sees CLI and MCP traffic in one place.
     private static void LogInvocation(string mode, int beforeTokens, int afterTokens)
     {
         var saved = beforeTokens - afterTokens;
         var pct = beforeTokens == 0 ? 0 : saved * 100 / beforeTokens;
-        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {mode}  before={beforeTokens} after={afterTokens} saved={saved} ({pct}%)";
 
         // Stderr so VS Output → GitHub Copilot shows it live.
-        Console.Error.WriteLine($"[roslyn-lean] {line}");
+        Console.Error.WriteLine(
+            $"[roslyn-lean] {DateTime.Now:yyyy-MM-dd HH:mm:ss}  {mode}  " +
+            $"before={beforeTokens} after={afterTokens} saved={saved} ({pct}%)");
 
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
-            File.AppendAllText(LogPath, line + "\n");
+            TokenSaver.ReportWriter.Append(
+                toolName: ToolNameForMode(mode),
+                tokensWithoutTool: beforeTokens,
+                tokensWithTool: afterTokens,
+                notes: $"mode: {mode}",
+                source: "mcp");
         }
         catch
         {
-            // File logging must never break the tool response.
+            // Report writing must never break the tool response.
         }
     }
+
+    private static string ToolNameForMode(string mode) => mode switch
+    {
+        "focus" => "Focused Emitter",
+        "minified" => "Minify",
+        "aliased + minified" => "Alias",
+        _ => mode,
+    };
 }

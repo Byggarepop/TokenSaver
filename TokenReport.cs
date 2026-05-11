@@ -38,16 +38,44 @@ public sealed record TokenReport(
             : (double)TokensWithTool / TokensWithoutTool;
         var withBar = MakeBar(withRatio, barWidth);
 
-        var lines = new[]
+        var lines = new List<string>
         {
             $"┌─ {ToolName}",
             $"│  Without tool:  {withoutBar} {TokensWithoutTool:N0} tokens",
             $"│  With tool:     {withBar} {TokensWithTool:N0} tokens",
             $"│  Saved:         {TokensSaved:N0} tokens ({ReductionPercent:F0}%)",
-            Notes is null ? "└─" : $"│  {Notes}\n└─",
         };
+        if (Notes is not null)
+            lines.Add($"│  {Notes}");
+        lines.Add("└─");
         return string.Join("\n", lines);
     }
+
+    /// <summary>
+    /// Representative 2026 input-token prices per million tokens.
+    /// Illustrative only — real pricing varies by model and changes often.
+    /// </summary>
+    public static class InputPricePerMillion
+    {
+        public const double Opus = 15.0;
+        public const double Sonnet = 3.0;
+        public const double Haiku = 1.0;
+    }
+
+    /// <summary>
+    /// Illustrative energy + carbon factors for input-token inference on a
+    /// Sonnet-class model. Derived from third-party estimates of GPT-class
+    /// inference (~0.3–3 Wh per query); easily off by 5–10×. Treat as a
+    /// teaching figure, not a defensible measurement.
+    /// </summary>
+    public static class EnergyFactors
+    {
+        public const double KwhPerMillionTokens = 1.0;
+        public const double KgCo2PerKwh = 0.4;
+    }
+
+    public double EnergyKwhSaved => TokensSaved / 1_000_000.0 * EnergyFactors.KwhPerMillionTokens;
+    public double CarbonKgSaved  => EnergyKwhSaved * EnergyFactors.KgCo2PerKwh;
 
     /// <summary>
     /// Estimated cost framing. The price defaults to a representative
@@ -55,7 +83,7 @@ public sealed record TokenReport(
     /// pricing varies by model and changes often, so this is illustrative,
     /// not authoritative.
     /// </summary>
-    public string CostFraming(double pricePerMillionInputTokens = 3.0)
+    public string CostFraming(double pricePerMillionInputTokens = InputPricePerMillion.Sonnet)
     {
         var costBefore = TokensWithoutTool / 1_000_000.0 * pricePerMillionInputTokens;
         var costAfter  = TokensWithTool    / 1_000_000.0 * pricePerMillionInputTokens;
@@ -68,7 +96,7 @@ public sealed record TokenReport(
     {
         var filled = (int)Math.Round(ratio * width);
         filled = Math.Clamp(filled, 0, width);
-        return "█".PadRight(filled, '█').PadRight(width, '░');
+        return new string('█', filled).PadRight(width, '░');
     }
 
     /// <summary>

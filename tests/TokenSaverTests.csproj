@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>RoslynLean.Tests</RootNamespace>
+    <AssemblyName>token-saver-tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Link the emitter source from the parent project so tests run against the real implementation. -->
+    <Compile Include="..\FocusedEmitter.cs" Link="FocusedEmitter.cs" />
+    <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
+    <Compile Remove="AuiGrid.razor.cs" />
+    <Compile Remove="fixtures\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+  </ItemGroup>
+
+</Project>

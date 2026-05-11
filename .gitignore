@@ -3,3 +3,13 @@
 /mcp/bin
 /mcp/obj
 /obj
+/tests/bin
+/tests/obj
+/TokenSaverViewer/obj
+/TokenSaverViewer/bin
+/mcp/mcp/nupkg
+/mcp/nupkg
+/mcp/.vs
+/.vs
+/TokenSaverViewer/.vs
+.claude/settings.local.json

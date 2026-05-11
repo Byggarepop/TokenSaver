@@ -18,6 +18,10 @@
     <Compile Remove="RoslynLean.Program.cs" />
     <Compile Remove="FocusedEmissionTool.cs" />
     <Compile Remove="TokenReport.cs" />
+    <Compile Remove="TokenSaverViewer\**\*.cs" />
+    <Content Remove="TokenSaverViewer\**" />
+    <None Remove="TokenSaverViewer\**" />
+    <EmbeddedResource Remove="TokenSaverViewer\**" />
   </ItemGroup>
 
   <ItemGroup>
