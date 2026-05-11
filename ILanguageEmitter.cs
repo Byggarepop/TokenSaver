@@ -25,10 +25,16 @@ public static class LanguageEmitterRegistry
 {
     private static readonly List<ILanguageEmitter> _emitters = new()
     {
+        new RazorEmitter(),  // .razor must come before CSharpEmitter (which used to claim it)
         new CSharpEmitter(),
         new TypeScriptEmitter(),
         new JavaScriptEmitter(),
         new PythonEmitter(),
+        new JsonEmitter(),
+        new YamlEmitter(),
+        new XmlEmitter(),
+        new HtmlEmitter(),
+        new CssEmitter(),
     };
 
     public static ILanguageEmitter? Find(string filePath) =>

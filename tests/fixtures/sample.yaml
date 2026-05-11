@@ -1,0 +1,18 @@
+# top-level comment to strip
+name: TokenSaver
+
+
+
+version: 0.5.0
+description: "value with # not a comment"
+
+services:
+  web:
+    image: nginx  # trailing comment
+    ports:
+      - 80:80
+    environment:
+      - DEBUG=true
+
+  db:
+    image: postgres

@@ -9,39 +9,56 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 const string ServerInstructions = """
-This server (roslyn-lean) exposes three tools that produce a TOKEN-REDUCED
-view of C# files. PREFER these tools over reading whole files whenever the
-task involves C# source — they save 50-70% of tokens on typical files with
-no loss of logic.
+This server (roslyn-lean) exposes five tools that produce TOKEN-REDUCED views
+of source files. PREFER these tools over reading whole files whenever the
+task involves a supported file type — they save 30-95% of tokens with no
+loss of logic.
+
+SUPPORTED FILE TYPES (via MinifyFile, auto-dispatched by extension):
+  C# / Razor           .cs, .razor.cs (Roslyn), .razor (markup + @code combined)
+  JavaScript           .js, .mjs, .cjs, .jsx
+  TypeScript           .ts, .tsx, .mts, .cts
+  Python               .py, .pyi
+  HTML                 .html, .htm
+  CSS / SCSS / LESS    .css, .scss, .less
+  JSON / JSONC         .json, .jsonc
+  YAML                 .yaml, .yml
+  XML / .NET project   .xml, .csproj, .props, .targets, .config, .resx
 
 TOOL SELECTION RULES — follow by default, no need to ask the user:
 
-1. User references a specific method ("look at Foo in Bar.cs", "speed up X",
+1. User wants codebase navigation — "what's in this file?", "where would I
+   add X?", "list the methods on Foo" → call OutlineCSharpFile. Signatures
+   only, no bodies, typical 70-95% reduction. C# only.
+
+2. User references a specific C# method ("look at Foo in Bar.cs", "speed up X",
    "translate this WinForms method to Razor") → call FocusMethod with
    methodName set, depth=1, and minify=true. depth=1 includes the bodies of
    private helpers; without those, your suggestions will hallucinate helper
-   logic.
+   logic. C# only.
 
-2. User wants to read or analyze a whole C# file without naming a specific
-   method → call MinifyCSharpFile. Lossless, ~20-50% reduction.
+3. User wants to read or analyze a whole file of any supported type → call
+   MinifyFile. Auto-dispatches by extension. For C#, MinifyCSharpFile is
+   equivalent (back-compat).
 
-3. File is dominated by long private symbol names → consider AliasCSharpFile.
-   The result has private members renamed to short codes with a ledger.
+4. C# file dominated by long private symbol names → consider AliasCSharpFile.
+   Private members renamed to short codes with a ledger. C# only.
 
-SKIP these tools for: non-C# files, small files (<50 lines), or when the
-user explicitly asks you to read the raw file.
+SKIP these tools for: unsupported file types (.md, .txt, binary), small files
+(<50 lines), or when the user explicitly asks you to read the raw file.
 
 THE TOOL OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH:
-- Comments and XML docs are stripped from output; they exist in the real file.
-- Whitespace and indentation are collapsed; the real file is formatted.
-- AliasCSharpFile renames private symbols to short codes; the real file uses
-  the original names (the ledger maps back).
+- Comments are stripped from output; they exist in the real file.
+- Whitespace is collapsed (C#/JS/TS/JSON) or trailing/blank-runs trimmed
+  (Python/YAML/XML preserve indentation since those formats are
+  indent-sensitive); the real file is conventionally formatted.
+- AliasCSharpFile renames private C# symbols to short codes; the real file
+  uses the original names (the ledger maps back).
 
 When suggesting code or making edits, always:
-- Format suggested code in conventional idiomatic C# style (proper
-  indentation, blank lines, no minification carried into your output).
-- Preserve existing comments and XML docs when modifying a method.
-- Add XML doc comments to new public APIs following project convention.
+- Format suggested code in the language's idiomatic style (proper indentation,
+  blank lines, no minification carried into your output).
+- Preserve existing comments and doc comments when modifying a function.
 - Use original symbol names (not M1/P1/F1 aliases) in code the user will
   paste into their file.
 - In agent / edit mode, READ THE FILE FROM DISK before applying changes.
@@ -51,10 +68,9 @@ REPORTING TO THE USER:
 Each tool result starts with a header like
 "// [Focused Emitter] Tokens without tool: 7,083  →  with tool: 3,133 (55% saved)".
 Mention the savings to the user in your reply — one short sentence is enough.
-The user wants visibility into how much context was reduced.
 
-NOTE: If the user attaches a file via VS Copilot's #filename.cs syntax, the
-file content is already inlined by the IDE before this server is consulted —
+NOTE: If the user attaches a file via VS Copilot's #filename syntax, the file
+content is already inlined by the IDE before this server is consulted —
 calling our tools at that point is redundant. For token reduction, the user
 should reference files as plain text paths instead of #-attachments.
 """;

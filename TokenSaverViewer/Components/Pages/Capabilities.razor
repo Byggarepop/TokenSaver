@@ -1,0 +1,346 @@
+@page "/capabilities"
+
+<PageTitle>What TokenSaver can do</PageTitle>
+
+<section class="hero-small">
+    <div class="hero-inner">
+        <h1>What TokenSaver can do</h1>
+        <p class="lead">
+            Ten file types. Four tools. Typical reduction
+            <strong>30&nbsp;–&nbsp;95&nbsp;%</strong> with no loss of meaning.
+        </p>
+        <p class="how">
+            Just talk to your AI in plain text — reference a file by path or
+            ask about a method by name. TokenSaver picks the right tool
+            behind the scenes.
+        </p>
+    </div>
+</section>
+
+<section class="caveat">
+    <div class="caveat-title">Read operations only</div>
+    <p>
+        TokenSaver shortens what the AI <em>reads</em>. It doesn't change how
+        code is <em>written</em>. The tool output is a stripped-down view —
+        comments and formatting are gone — so when the AI is about to edit
+        your file, it usually has to re-read the original raw file to match
+        the exact text on disk.
+    </p>
+    <p class="caveat-takeaway">
+        Translation: big savings on understanding and discovery, smaller
+        savings on edit-heavy tasks. That's intentional — accuracy matters
+        more than tokens when code is changing.
+    </p>
+</section>
+
+<section class="tools">
+    <h2>The four tools</h2>
+    <div class="tool-grid">
+        <div class="tool-card">
+            <div class="tool-name">Outline</div>
+            <div class="tool-desc">Skeleton of a file — types and signatures, no bodies. For "what's in this file?" questions.</div>
+            <div class="tool-savings">70 – 95 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Focus method</div>
+            <div class="tool-desc">One method's body plus the signatures it references. Optionally pulls in private helpers.</div>
+            <div class="tool-savings">50 – 80 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Minify file</div>
+            <div class="tool-desc">Strips comments and collapses whitespace. Lossless. Works for every supported language.</div>
+            <div class="tool-savings">20 – 50 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Alias</div>
+            <div class="tool-desc">C#-only. Renames long private symbols (M1, P1...) with a ledger. Stacks with minify.</div>
+            <div class="tool-savings">+15 – 25 %</div>
+        </div>
+    </div>
+</section>
+
+<section class="examples">
+    <h2>Try saying things like…</h2>
+
+    @foreach (var ex in Examples)
+    {
+        <div class="example-card">
+            <div class="example-head">
+                <span class="badge-lang">@ex.Language</span>
+                <span class="badge-ext">@ex.Extensions</span>
+                <span class="badge-savings @SavingsTier(ex.SavingsHigh)">@ex.SavingsLow – @ex.SavingsHigh % saved</span>
+            </div>
+            <div class="example-prompt">&ldquo;@ex.Prompt&rdquo;</div>
+            <div class="example-explain">@ex.Explain</div>
+        </div>
+    }
+</section>
+
+<style>
+    .hero-small {
+        background: linear-gradient(135deg, #0d2b4e 0%, #1a4a7a 60%, #2d7dd2 100%);
+        color: #fff;
+        padding: 2.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(13, 43, 78, 0.25);
+    }
+
+    .hero-small .hero-inner {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .hero-small h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-small .lead {
+        font-size: 1.15rem;
+        margin: 0 0 0.5rem;
+        opacity: 0.95;
+    }
+
+    .hero-small .lead strong {
+        color: #b5f0c4;
+    }
+
+    .hero-small .how {
+        margin: 0;
+        opacity: 0.75;
+        font-size: 0.95rem;
+    }
+
+    .caveat {
+        border-left: 4px solid #d9a93c;
+        background: #fff8e7;
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .caveat-title {
+        font-weight: 700;
+        color: #8a6d1c;
+        margin-bottom: 0.4rem;
+        font-size: 1rem;
+    }
+
+    .caveat p {
+        margin: 0 0 0.5rem;
+        font-size: 0.95rem;
+        color: #4a4a4a;
+        line-height: 1.5;
+    }
+
+    .caveat p:last-child { margin-bottom: 0; }
+
+    .caveat-takeaway {
+        font-style: italic;
+        color: #5a5a5a;
+    }
+
+    .tools, .examples {
+        margin-bottom: 2.5rem;
+    }
+
+    h2 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin: 0 0 1rem;
+    }
+
+    .tool-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .tool-card {
+        border: 1px solid #e3e5e8;
+        border-radius: 10px;
+        padding: 1.1rem 1.2rem;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .tool-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .tool-name {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #1a4a7a;
+    }
+
+    .tool-desc {
+        font-size: 0.9rem;
+        color: #555;
+        line-height: 1.4;
+    }
+
+    .tool-savings {
+        margin-top: auto;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #2a9d4a;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .example-card {
+        border-left: 4px solid #2d7dd2;
+        background: #f9fafc;
+        border-radius: 6px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .example-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .badge-lang {
+        background: #1a4a7a;
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.15rem 0.6rem;
+        border-radius: 4px;
+    }
+
+    .badge-ext {
+        font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+        color: #555;
+        background: #eef0f3;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .badge-savings {
+        margin-left: auto;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 0.15rem 0.6rem;
+        border-radius: 4px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .badge-savings.tier-high   { background: #d4f4dc; color: #1f7a37; }
+    .badge-savings.tier-mid    { background: #fff2cc; color: #8a6d1c; }
+    .badge-savings.tier-low    { background: #e7f1fd; color: #1a4a7a; }
+
+    .example-prompt {
+        font-style: italic;
+        font-size: 1.02rem;
+        color: #222;
+        margin-bottom: 0.35rem;
+    }
+
+    .example-explain {
+        font-size: 0.85rem;
+        color: #666;
+    }
+</style>
+
+@code {
+    private record Example(
+        string Language,
+        string Extensions,
+        string Prompt,
+        string Explain,
+        int SavingsLow,
+        int SavingsHigh);
+
+    private static readonly List<Example> Examples = new()
+    {
+        new("C# outline",
+            ".cs",
+            "What's in FocusedEmitter.cs?",
+            "Outline tool returns just the type and method signatures — no bodies.",
+            70, 95),
+
+        new("C# focus",
+            ".cs",
+            "Look at the Run method in Calculator.cs and tell me what happens if total weight is zero.",
+            "Focus tool sends Run's body plus the signatures it calls. With depth=1, also includes private helper bodies.",
+            50, 80),
+
+        new("C# minify",
+            ".cs",
+            "Read InspectionReport.cs and explain how status transitions work.",
+            "Minify strips comments and whitespace, keeps every line of logic.",
+            20, 50),
+
+        new("C# alias",
+            ".cs",
+            "Refactor this repository class — it has lots of long private helper names.",
+            "Alias renames private members to M1/P1/F1 with a ledger. Stacks with minify.",
+            35, 70),
+
+        new("Razor",
+            ".razor",
+            "Translate this Blazor page to React.",
+            "Returns both the minified markup and the @code C# in two labeled sections.",
+            25, 50),
+
+        new("JavaScript / TypeScript",
+            ".js .ts .jsx .tsx",
+            "Read this React component and add a loading state.",
+            "Lexical strip of comments and whitespace, strings and template literals preserved.",
+            30, 50),
+
+        new("Python",
+            ".py",
+            "Explain what this Python script does and add type hints.",
+            "Strips # comments, keeps docstrings and indentation intact.",
+            25, 45),
+
+        new("HTML",
+            ".html .htm",
+            "Look at index.html and tell me where to add the analytics script.",
+            "Strips HTML comments, collapses attribute spacing.",
+            20, 40),
+
+        new("CSS / SCSS / LESS",
+            ".css .scss .less",
+            "Why is this stylesheet so big? Audit it.",
+            "Strips /* */ comments and whitespace. Bigger savings on heavily-commented design systems.",
+            10, 40),
+
+        new("JSON / JSONC",
+            ".json .jsonc",
+            "What does this tsconfig.json do?",
+            "Collapses pretty-printed JSON and strips // and /* */ comments (JSONC).",
+            30, 50),
+
+        new("YAML",
+            ".yaml .yml",
+            "Read this docker-compose.yml and explain the service graph.",
+            "Strips # comments, preserves indentation (YAML is indent-sensitive).",
+            20, 40),
+
+        new("XML / .NET projects",
+            ".csproj .props .config .xml",
+            "Look at App.csproj — why is this NuGet reference here?",
+            "Strips <!-- --> comments and collapses blank-line runs.",
+            20, 40),
+    };
+
+    private static string SavingsTier(int high) =>
+        high >= 70 ? "tier-high"
+      : high >= 45 ? "tier-mid"
+      : "tier-low";
+}

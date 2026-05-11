@@ -1,30 +1,50 @@
 # Copilot Instructions
 
-## Token-efficient C# context via the `roslyn-lean` MCP server
+## Token-efficient source context via the `roslyn-lean` MCP server
 
-This workspace has the `roslyn-lean` MCP server registered. It exposes three
-tools that produce a **token-reduced** view of C# files. **Prefer these tools
-over reading whole files** whenever the task involves C# source — they save
-50-70% of tokens on typical files with no loss of logic.
+This workspace has the `roslyn-lean` MCP server registered. It exposes
+**four** tools that produce token-reduced views of source files. **Prefer
+these tools over reading whole files** — they typically save 30-70% of
+tokens with no loss of logic.
+
+### Supported file types (via `MinifyFile`)
+
+| Format | Extensions | Method |
+|---|---|---|
+| C# | `.cs`, `.razor.cs` | Roslyn syntax-tree minify |
+| Razor | `.razor` | Markup (HTML) + @code (Roslyn), combined |
+| JavaScript | `.js`, `.mjs`, `.cjs`, `.jsx` | Lexical strip + collapse |
+| TypeScript | `.ts`, `.tsx`, `.mts`, `.cts` | Lexical strip + collapse |
+| Python | `.py`, `.pyi` | `#` strip, indent preserved |
+| HTML | `.html`, `.htm` | `<!-- -->` strip, whitespace collapse |
+| CSS / SCSS / LESS | `.css`, `.scss`, `.less` | `/* */` strip, whitespace collapse |
+| JSON / JSONC | `.json`, `.jsonc` | Whitespace collapse + comment strip |
+| YAML | `.yaml`, `.yml` | `#` strip, indent preserved |
+| XML / project files | `.xml`, `.csproj`, `.props`, `.targets`, `.config`, `.resx` | `<!-- -->` strip, blank-run collapse |
 
 ### Tool selection rules — follow these by default, no need to ask
 
-1. **The user references a specific method** ("look at `Foo` in `Bar.cs`",
+1. **The user wants codebase navigation** ("what's in this file?", "where would
+   I add X?", "list the methods on `Foo`") → call `OutlineCSharpFile`.
+   Signatures only, no bodies, typical 70-95% reduction. C# only.
+
+2. **The user references a specific C# method** ("look at `Foo` in `Bar.cs`",
    "speed up `OnInitializedAsync`", "translate this WinForms method to Razor")
    → call `FocusMethod` with `methodName` set, `depth=1`, and `minify=true`.
    Use `depth=1` so you see the bodies of private helpers the focus method
    calls — without those, your suggestions will hallucinate helper logic.
 
-2. **The user wants you to read or analyze a whole C# file** without naming a
-   specific method
-   → call `MinifyCSharpFile`. Lossless, ~20-50% reduction.
+3. **The user wants you to read or analyze a whole file of any supported type**
+   → call `MinifyFile`. It auto-dispatches by extension and works for every
+   format in the table above. For C# specifically, `MinifyCSharpFile` is
+   equivalent (back-compat).
 
-3. **The user is working with a file dominated by long private symbol names**
+4. **The user is working with a C# file dominated by long private symbol names**
    (repositories, validators, mappers with verbose internal naming)
-   → consider `AliasCSharpFile` instead of `MinifyCSharpFile`. The result has
-   private members renamed to short codes (M1, P1, F1...) with a ledger at the
-   top. Worth it only when private names are long; on small files the ledger
-   overhead can wipe out the savings.
+   → consider `AliasCSharpFile` instead. The result has private members
+   renamed to short codes (M1, P1, F1...) with a ledger at the top. Worth it
+   only when private names are long; on small files the ledger overhead can
+   wipe out the savings. C# only — no equivalent for other languages.
 
 ### Note on `#` references (user-facing reminder)
 
@@ -70,9 +90,10 @@ not a representation of the file's real content.
 
 ### When NOT to use these tools
 
-- Non-C# files (`.razor` templates, `.json`, `.csproj`, etc.) — read normally.
+- File type not in the supported table above (e.g. `.md`, `.txt`, binary).
 - The user explicitly asks you to read the raw file.
 - The file is already small (< 50 lines).
+- You need exact on-disk text for an `Edit` call — read raw so the diff matches.
 
 ### Reporting
 

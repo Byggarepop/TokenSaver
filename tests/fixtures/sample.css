@@ -1,0 +1,20 @@
+/* top-level comment */
+.container {
+    display: flex;
+    padding: 1rem;
+    /* inline comment */
+    background: url("img/bg.png");
+}
+
+/* multi-line
+   block comment
+   spanning lines */
+.btn-primary {
+    color: #fff;
+    background-color: #007bff;
+    content: "/* not a comment */";
+}
+
+@media (max-width: 600px) {
+    .container { flex-direction: column; }
+}

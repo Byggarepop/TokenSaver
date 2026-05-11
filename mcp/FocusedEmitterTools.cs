@@ -79,15 +79,17 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Auto-dispatch minifier for any supported language. Detects the language " +
-        "from the file extension and applies a language-appropriate minifier. " +
-        "Currently supports C# (.cs, .razor.cs, .razor), JavaScript (.js, .mjs, " +
-        ".cjs, .jsx), TypeScript (.ts, .tsx, .mts, .cts), and Python (.py, .pyi). " +
-        "Non-C# minifiers are simpler (no semantic model, no symbol resolution) " +
-        "but still strip comments and collapse whitespace for typical 30-50% " +
-        "reductions. Python preserves indentation since the language is " +
-        "indent-sensitive. Use this when you don't yet know what language a " +
-        "file is, or when working in a polyglot codebase.")]
+        "Auto-dispatch minifier for any supported file type. Detects format from " +
+        "the file extension and applies a format-appropriate minifier. Currently " +
+        "supports C# (.cs, .razor.cs), Razor components (.razor — markup + @code " +
+        "combined), JavaScript (.js, .mjs, .cjs, .jsx), TypeScript (.ts, .tsx, " +
+        ".mts, .cts), Python (.py, .pyi), HTML (.html, .htm), CSS/SCSS/LESS " +
+        "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
+        "and XML/.NET project files (.xml, .csproj, .props, .targets, .config, " +
+        ".resx). Code minifiers strip comments and collapse whitespace. " +
+        "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
+        "Use this when working in a polyglot codebase or when reading " +
+        "config/project files.")]
     public static string MinifyFile(
         [Description("Absolute path to a source file. Language is detected by extension.")] string filePath)
     {
@@ -99,6 +101,31 @@ public static class FocusedEmitterTools
 
             var result = emitter.Minify(filePath);
             return BuildHeader(result.OriginalTokensEstimate, result.OutputTokensEstimate, $"{emitter.Language} minify")
+                 + result.Notes
+                 + "\n"
+                 + result.Output;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Returns a skeleton of a C# file: every type and every member as a " +
+        "signature, with NO method/property bodies. Useful for codebase " +
+        "navigation questions like 'what's in this file?' or 'where would I " +
+        "add X?' where bodies aren't needed. Typical reduction: 70-95% on " +
+        "large files. Much cheaper than MinifyCSharpFile when the task is " +
+        "discovery rather than understanding implementation.")]
+    public static string OutlineCSharpFile(
+        [Description("Absolute path to a .cs, .razor.cs, or .razor file.")] string filePath)
+    {
+        try
+        {
+            var emitter = new FocusedEmitter(filePath);
+            var result = emitter.EmitOutline();
+            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "outline (signatures only)")
                  + result.Notes
                  + "\n"
                  + result.Output;

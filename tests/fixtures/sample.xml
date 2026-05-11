@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- top comment -->
+<root>
+    <item id="1">first</item>
+
+
+    <!-- another comment -->
+    <item id="2">second</item>
+    <nested>
+        <child>value</child>
+    </nested>
+</root>

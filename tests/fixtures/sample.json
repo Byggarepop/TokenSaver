@@ -1,0 +1,13 @@
+{
+    "name": "Token Saver",
+    "version": "0.5.0",
+    "description": "A # symbol and // sequence inside a string",
+    "items": [
+        1,
+        2,
+        3
+    ],
+    "nested": {
+        "key": "value with spaces and \"escaped quotes\""
+    }
+}

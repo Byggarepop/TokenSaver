@@ -47,6 +47,22 @@ internal static class Program
         Run("Py_Minify_PreservesIndentation", Py_Minify_PreservesIndentation);
         Run("Py_Minify_PreservesStringsWithHash", Py_Minify_PreservesStringsWithHash);
         Run("Py_Minify_CollapsesBlankRuns", Py_Minify_CollapsesBlankRuns);
+        Run("Json_Registry_DispatchesByExtension", Json_Registry_DispatchesByExtension);
+        Run("Json_Minify_CollapsesWhitespacePreservesStrings", Json_Minify_CollapsesWhitespacePreservesStrings);
+        Run("Jsonc_Minify_StripsComments", Jsonc_Minify_StripsComments);
+        Run("Yaml_Registry_DispatchesByExtension", Yaml_Registry_DispatchesByExtension);
+        Run("Yaml_Minify_StripsHashCommentsKeepsIndent", Yaml_Minify_StripsHashCommentsKeepsIndent);
+        Run("Yaml_Minify_CollapsesBlankRuns", Yaml_Minify_CollapsesBlankRuns);
+        Run("Xml_Registry_DispatchesByExtension", Xml_Registry_DispatchesByExtension);
+        Run("Xml_Minify_StripsCommentsKeepsElements", Xml_Minify_StripsCommentsKeepsElements);
+        Run("Html_Registry_DispatchesByExtension", Html_Registry_DispatchesByExtension);
+        Run("Html_Minify_StripsCommentsCollapsesAttrs", Html_Minify_StripsCommentsCollapsesAttrs);
+        Run("Css_Registry_DispatchesByExtension", Css_Registry_DispatchesByExtension);
+        Run("Css_Minify_StripsCommentsPreservesStrings", Css_Minify_StripsCommentsPreservesStrings);
+        Run("Razor_Registry_DispatchesByExtension", Razor_Registry_DispatchesByExtension);
+        Run("Razor_Minify_CombinesMarkupAndCode", Razor_Minify_CombinesMarkupAndCode);
+        Run("Outline_EmitsSignaturesOnly_NoBodies", Outline_EmitsSignaturesOnly_NoBodies);
+        Run("Outline_IncludesAllTopLevelTypes", Outline_IncludesAllTopLevelTypes);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -408,14 +424,15 @@ internal static class Program
 
     private static TestOutcome Cs_Registry_DispatchesByExtension()
     {
+        // .razor now belongs to RazorEmitter (covers markup + @code).
+        // .razor.cs ends in .cs and stays with CSharpEmitter (pure code-behind).
         var cs = LanguageEmitterRegistry.Find("Foo.cs");
-        var razor = LanguageEmitterRegistry.Find("Bar.razor");
-        var razorCs = LanguageEmitterRegistry.Find("Bar.razor.cs"); // .cs extension wins
+        var razorCs = LanguageEmitterRegistry.Find("Bar.razor.cs");
 
-        var ok = cs is CSharpEmitter && razor is CSharpEmitter && razorCs is CSharpEmitter;
+        var ok = cs is CSharpEmitter && razorCs is CSharpEmitter;
         return new TestOutcome(ok,
-            ok ? ".cs/.razor/.razor.cs dispatched to CSharpEmitter"
-               : $"cs={cs?.GetType().Name} razor={razor?.GetType().Name} razorCs={razorCs?.GetType().Name}",
+            ok ? ".cs and .razor.cs dispatched to CSharpEmitter (.razor → RazorEmitter)"
+               : $"cs={cs?.GetType().Name} razorCs={razorCs?.GetType().Name}",
             (0, 0, 0));
     }
 
@@ -566,6 +583,283 @@ internal static class Program
             ok ? "blank-line runs collapsed to single blank"
                : "still has 3+ consecutive newlines",
             TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- JSON emitter ----------
+
+    private static TestOutcome Json_Registry_DispatchesByExtension()
+    {
+        var json = LanguageEmitterRegistry.Find("config.json");
+        var jsonc = LanguageEmitterRegistry.Find("tsconfig.jsonc");
+        var ok = json is JsonEmitter && jsonc is JsonEmitter;
+        return new TestOutcome(ok,
+            ok ? ".json and .jsonc dispatched to JsonEmitter"
+               : $"json={json?.GetType().Name} jsonc={jsonc?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Json_Minify_CollapsesWhitespacePreservesStrings()
+    {
+        var path = Fixture("sample.json");
+        var r = new JsonEmitter().Minify(path);
+
+        // No spaces between structural tokens after minify.
+        var compact = r.Output.Contains("\"name\":\"Token Saver\"");
+        // # and // inside strings preserved.
+        var stringIntact = r.Output.Contains("\"A # symbol and // sequence inside a string\"");
+        // Escaped quotes survive.
+        var escapeIntact = r.Output.Contains("\\\"escaped quotes\\\"");
+        // Output is shorter and well-formed (starts with { and ends with }).
+        var brackets = r.Output.StartsWith("{") && r.Output.EndsWith("}");
+
+        var ok = compact && stringIntact && escapeIntact && brackets;
+        return new TestOutcome(ok,
+            ok ? "structural whitespace collapsed; string contents and escapes intact"
+               : $"compact={compact} string={stringIntact} escape={escapeIntact} brackets={brackets}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Jsonc_Minify_StripsComments()
+    {
+        var path = Fixture("sample.jsonc");
+        var r = new JsonEmitter().Minify(path);
+
+        var hasLine = r.Output.Contains("line comment");
+        var hasBlock = r.Output.Contains("block comment");
+        var keysIntact = r.Output.Contains("\"compilerOptions\"") && r.Output.Contains("\"include\"");
+
+        var ok = !hasLine && !hasBlock && keysIntact;
+        return new TestOutcome(ok,
+            ok ? "JSONC // and /* */ comments stripped, keys intact"
+               : $"line={hasLine} block={hasBlock} keys={keysIntact}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- YAML emitter ----------
+
+    private static TestOutcome Yaml_Registry_DispatchesByExtension()
+    {
+        var yaml = LanguageEmitterRegistry.Find("config.yaml");
+        var yml = LanguageEmitterRegistry.Find("docker-compose.yml");
+        var ok = yaml is YamlEmitter && yml is YamlEmitter;
+        return new TestOutcome(ok,
+            ok ? ".yaml and .yml dispatched to YamlEmitter"
+               : $"yaml={yaml?.GetType().Name} yml={yml?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Yaml_Minify_StripsHashCommentsKeepsIndent()
+    {
+        var path = Fixture("sample.yaml");
+        var r = new YamlEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("top-level comment");
+        var hasTrailing = r.Output.Contains("trailing comment");
+        // Indentation must survive — nested 'web:' under 'services:' is 2-space indented.
+        var hasNestedKey = r.Output.Contains("  web:");
+        var hasDeepKey = r.Output.Contains("    image: nginx");
+        // '#' inside a quoted string survives.
+        var hasHashInString = r.Output.Contains("\"value with # not a comment\"");
+
+        var ok = !hasTopComment && !hasTrailing && hasNestedKey && hasDeepKey && hasHashInString;
+        return new TestOutcome(ok,
+            ok ? "comments stripped; indentation preserved; '#' in strings intact"
+               : $"top={hasTopComment} trail={hasTrailing} nest={hasNestedKey} deep={hasDeepKey} hashStr={hasHashInString}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Yaml_Minify_CollapsesBlankRuns()
+    {
+        var path = Fixture("sample.yaml");
+        var r = new YamlEmitter().Minify(path);
+        var ok = !r.Output.Contains("\n\n\n");
+        return new TestOutcome(ok,
+            ok ? "no 3+ consecutive newlines"
+               : "blank-line runs not collapsed",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- XML emitter ----------
+
+    private static TestOutcome Xml_Registry_DispatchesByExtension()
+    {
+        var xml = LanguageEmitterRegistry.Find("config.xml");
+        var csproj = LanguageEmitterRegistry.Find("App.csproj");
+        var props = LanguageEmitterRegistry.Find("Directory.Build.props");
+        var targets = LanguageEmitterRegistry.Find("Custom.targets");
+        var config = LanguageEmitterRegistry.Find("App.config");
+
+        var ok = xml is XmlEmitter
+              && csproj is XmlEmitter
+              && props is XmlEmitter
+              && targets is XmlEmitter
+              && config is XmlEmitter;
+        return new TestOutcome(ok,
+            ok ? ".xml/.csproj/.props/.targets/.config dispatched to XmlEmitter"
+               : $"xml={xml?.GetType().Name} csproj={csproj?.GetType().Name} props={props?.GetType().Name} targets={targets?.GetType().Name} config={config?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Xml_Minify_StripsCommentsKeepsElements()
+    {
+        var path = Fixture("sample.xml");
+        var r = new XmlEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("top comment");
+        var hasMidComment = r.Output.Contains("another comment");
+        var hasElements = r.Output.Contains("<item id=\"1\">first</item>")
+                       && r.Output.Contains("<item id=\"2\">second</item>")
+                       && r.Output.Contains("<child>value</child>");
+        var noTripleBlank = !r.Output.Contains("\n\n\n");
+
+        var ok = !hasTopComment && !hasMidComment && hasElements && noTripleBlank;
+        return new TestOutcome(ok,
+            ok ? "<!-- --> comments stripped; elements intact; blank runs collapsed"
+               : $"top={hasTopComment} mid={hasMidComment} elements={hasElements} noTriple={noTripleBlank}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- HTML emitter ----------
+
+    private static TestOutcome Html_Registry_DispatchesByExtension()
+    {
+        var html = LanguageEmitterRegistry.Find("page.html");
+        var htm = LanguageEmitterRegistry.Find("legacy.htm");
+        var ok = html is HtmlEmitter && htm is HtmlEmitter;
+        return new TestOutcome(ok,
+            ok ? ".html and .htm dispatched to HtmlEmitter"
+               : $"html={html?.GetType().Name} htm={htm?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Html_Minify_StripsCommentsCollapsesAttrs()
+    {
+        var path = Fixture("sample.html");
+        var r = new HtmlEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("top of file comment");
+        var hasMainComment = r.Output.Contains("main content");
+        // The original has multiple spaces between attributes — must collapse.
+        var hasCollapsedAttrs = r.Output.Contains("<div class=\"container\" id=\"root\">");
+        var hasElementsIntact = r.Output.Contains("<h1>Hello</h1>");
+
+        var ok = !hasTopComment && !hasMainComment && hasCollapsedAttrs && hasElementsIntact;
+        return new TestOutcome(ok,
+            ok ? "<!-- --> comments stripped; attribute spacing collapsed; elements intact"
+               : $"top={hasTopComment} main={hasMainComment} attrs={hasCollapsedAttrs} elems={hasElementsIntact}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- CSS emitter ----------
+
+    private static TestOutcome Css_Registry_DispatchesByExtension()
+    {
+        var css = LanguageEmitterRegistry.Find("site.css");
+        var scss = LanguageEmitterRegistry.Find("vars.scss");
+        var less = LanguageEmitterRegistry.Find("theme.less");
+        var ok = css is CssEmitter && scss is CssEmitter && less is CssEmitter;
+        return new TestOutcome(ok,
+            ok ? ".css/.scss/.less dispatched to CssEmitter"
+               : $"css={css?.GetType().Name} scss={scss?.GetType().Name} less={less?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Css_Minify_StripsCommentsPreservesStrings()
+    {
+        var path = Fixture("sample.css");
+        var r = new CssEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("top-level comment");
+        var hasInlineComment = r.Output.Contains("inline comment");
+        var hasMultiComment = r.Output.Contains("multi-line");
+        // /* */ inside a string content value must survive.
+        var hasStringIntact = r.Output.Contains("\"/* not a comment */\"");
+        // URL() values intact.
+        var hasUrl = r.Output.Contains("url(\"img/bg.png\")");
+
+        var ok = !hasTopComment && !hasInlineComment && !hasMultiComment && hasStringIntact && hasUrl;
+        return new TestOutcome(ok,
+            ok ? "comments stripped; strings and url() intact"
+               : $"top={hasTopComment} inline={hasInlineComment} multi={hasMultiComment} string={hasStringIntact} url={hasUrl}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- Razor emitter ----------
+
+    private static TestOutcome Razor_Registry_DispatchesByExtension()
+    {
+        var razor = LanguageEmitterRegistry.Find("Page.razor");
+        var razorCs = LanguageEmitterRegistry.Find("Page.razor.cs"); // .cs extension → CSharpEmitter
+        var ok = razor is RazorEmitter && razorCs is CSharpEmitter;
+        return new TestOutcome(ok,
+            ok ? ".razor → RazorEmitter; .razor.cs → CSharpEmitter"
+               : $"razor={razor?.GetType().Name} razorCs={razorCs?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Razor_Minify_CombinesMarkupAndCode()
+    {
+        var path = Fixture("sample.razor");
+        var r = new RazorEmitter().Minify(path);
+
+        // Markup half: stripped of <!-- --> comments, elements preserved.
+        var hasMarkupHeader = r.Output.Contains("RAZOR MARKUP");
+        var hasButton = r.Output.Contains("<button @onclick=\"Increment\">+1</button>");
+        var hasMarkupCommentStripped = !r.Output.Contains("markup comment to be stripped");
+
+        // Code half: @code body preserved, comments stripped.
+        var hasCodeHeader = r.Output.Contains("RAZOR @code");
+        var hasIncrement = r.Output.Contains("_count++");
+        var hasCommentStripped = !r.Output.Contains("line comment in C#")
+                              && !r.Output.Contains("Increment the counter");
+
+        var ok = hasMarkupHeader && hasButton && hasMarkupCommentStripped
+              && hasCodeHeader && hasIncrement && hasCommentStripped;
+        return new TestOutcome(ok,
+            ok ? "Razor output contains BOTH minified markup AND minified C# @code"
+               : $"markupHdr={hasMarkupHeader} btn={hasButton} mkComStripped={hasMarkupCommentStripped} codeHdr={hasCodeHeader} incr={hasIncrement} codeComStripped={hasCommentStripped}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- C# Outline ----------
+
+    private static TestOutcome Outline_EmitsSignaturesOnly_NoBodies()
+    {
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        // Public/private method signatures present.
+        var hasRunSig = r.Output.Contains("Run");
+        var hasWeightedSumSig = r.Output.Contains("WeightedSum");
+        // Bodies must be ABSENT.
+        var noRunBody = !r.Output.Contains("Math.Max(0, biased)");
+        var noWeightedSumBody = !r.Output.Contains("s += values[i] * weights[i]");
+
+        var saved = TokenSaving(r.OriginalChars, r.FocusedChars);
+        var significantSaving = saved.percent >= 50;
+
+        var ok = r.Found && hasRunSig && hasWeightedSumSig && noRunBody && noWeightedSumBody && significantSaving;
+        return new TestOutcome(ok,
+            ok ? $"all signatures present; no bodies; {saved.percent:F1}% saved"
+               : $"runSig={hasRunSig} wsSig={hasWeightedSumSig} noRunBody={noRunBody} noWsBody={noWeightedSumBody} saved={saved.percent:F1}",
+            saved);
+    }
+
+    private static TestOutcome Outline_IncludesAllTopLevelTypes()
+    {
+        var path = Fixture("AmbiguousNested.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        // AmbiguousNested has three classes: outer + nested Inner + sibling Other.
+        var hasOuter = r.Output.Contains("class AmbiguousNested");
+        var hasInner = r.Output.Contains("class Inner");
+        var hasOther = r.Output.Contains("class Other");
+
+        var ok = hasOuter && hasInner && hasOther;
+        return new TestOutcome(ok,
+            ok ? "outer, nested Inner, and sibling Other all present"
+               : $"outer={hasOuter} inner={hasInner} other={hasOther}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
     // ---------- helpers ----------

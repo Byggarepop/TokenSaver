@@ -1,0 +1,11 @@
+{
+    // line comment that should be stripped
+    "name": "tsconfig-like",
+    /* block comment
+       spanning lines */
+    "compilerOptions": {
+        "target": "ES2022",
+        "strict": true
+    },
+    "include": ["src/**/*"]
+}

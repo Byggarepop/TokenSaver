@@ -19,6 +19,12 @@
     <Compile Include="..\JavaScriptEmitter.cs" Link="JavaScriptEmitter.cs" />
     <Compile Include="..\TypeScriptEmitter.cs" Link="TypeScriptEmitter.cs" />
     <Compile Include="..\PythonEmitter.cs" Link="PythonEmitter.cs" />
+    <Compile Include="..\JsonEmitter.cs" Link="JsonEmitter.cs" />
+    <Compile Include="..\YamlEmitter.cs" Link="YamlEmitter.cs" />
+    <Compile Include="..\XmlEmitter.cs" Link="XmlEmitter.cs" />
+    <Compile Include="..\HtmlEmitter.cs" Link="HtmlEmitter.cs" />
+    <Compile Include="..\CssEmitter.cs" Link="CssEmitter.cs" />
+    <Compile Include="..\RazorEmitter.cs" Link="RazorEmitter.cs" />
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />
     <Compile Remove="fixtures\**\*.cs" />

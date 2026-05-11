@@ -183,6 +183,67 @@ public sealed class FocusedEmitter
     /// collapsed in the same pass, so this is the most aggressive lossless
     /// mode the CLI offers.
     /// </summary>
+    /// <summary>
+    /// Emit a skeleton of the file: every type and every member as a signature,
+    /// no bodies. Useful for "what's in this file" navigation questions where
+    /// the model doesn't need to read any specific implementation.
+    /// </summary>
+    public FocusResult EmitOutline()
+    {
+        var root = _tree.GetCompilationUnitRoot();
+        var sb = new StringBuilder();
+
+        AppendUsings(sb, root);
+
+        var typeCount = 0;
+        var memberCount = 0;
+        foreach (var type in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
+        {
+            // Only top-level type declarations in the file get their own block;
+            // nested types are emitted as part of their containing type's block.
+            if (type.Parent is TypeDeclarationSyntax) continue;
+            AppendTypeOutline(sb, type, ref typeCount, ref memberCount, indent: "");
+            sb.AppendLine();
+        }
+
+        var output = sb.ToString().TrimEnd() + "\n";
+        var originalLength = _tree.GetText().Length;
+        var notes =
+            $"// Outline of {Path.GetFileName(_tree.FilePath)}\n" +
+            $"// {typeCount} type(s), {memberCount} member(s) — signatures only, no bodies\n";
+
+        return new FocusResult(
+            Found: true,
+            Output: output,
+            OriginalChars: originalLength,
+            FocusedChars: output.Length,
+            FocusMethodName: "(outline)",
+            Notes: notes);
+    }
+
+    private void AppendTypeOutline(StringBuilder sb, TypeDeclarationSyntax type, ref int typeCount, ref int memberCount, string indent)
+    {
+        typeCount++;
+        var modifiers = string.Join(" ", type.Modifiers.Select(m => m.Text));
+        var kind = type.Keyword.Text;
+        var baseList = type.BaseList?.ToString() ?? "";
+        sb.AppendLine($"{indent}{modifiers} {kind} {type.Identifier}{type.TypeParameterList} {baseList}".TrimEnd().Replace("  ", " "));
+        sb.AppendLine($"{indent}{{");
+        foreach (var member in type.Members)
+        {
+            if (member is TypeDeclarationSyntax nested)
+            {
+                AppendTypeOutline(sb, nested, ref typeCount, ref memberCount, indent + "    ");
+                continue;
+            }
+            var sig = ToSignature(member);
+            if (sig is null) continue;
+            sb.AppendLine($"{indent}    {sig}");
+            memberCount++;
+        }
+        sb.AppendLine($"{indent}}}");
+    }
+
     public FocusResult EmitAliased()
     {
         var root = _tree.GetCompilationUnitRoot();

@@ -1,10 +1,49 @@
 ﻿@inherits LayoutComponentBase
 
 <main>
+    <nav class="top-bar">
+        <a href="/" class="brand">TokenSaver</a>
+        <div class="links">
+            <NavLink href="" Match="NavLinkMatch.All">Report</NavLink>
+            <NavLink href="capabilities">What it does</NavLink>
+        </div>
+    </nav>
     <article class="content px-4">
         @Body
     </article>
 </main>
+
+<style>
+    .top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.65rem 1.5rem;
+        border-bottom: 1px solid #e3e5e8;
+        margin-bottom: 1rem;
+        background: #fff;
+    }
+    .top-bar .brand {
+        font-weight: 700;
+        color: #1a4a7a;
+        text-decoration: none;
+        font-size: 1.05rem;
+        letter-spacing: -0.01em;
+    }
+    .top-bar .links { display: flex; gap: 1.25rem; }
+    .top-bar .links a {
+        color: #555;
+        text-decoration: none;
+        font-size: 0.95rem;
+        padding: 0.25rem 0;
+        border-bottom: 2px solid transparent;
+    }
+    .top-bar .links a:hover { color: #1a4a7a; }
+    .top-bar .links a.active {
+        color: #1a4a7a;
+        border-bottom-color: #2d7dd2;
+    }
+</style>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

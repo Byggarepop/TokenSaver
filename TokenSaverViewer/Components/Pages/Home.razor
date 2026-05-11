@@ -24,14 +24,14 @@
                 <span class="dot">·</span>
                 <span>≈ $@_dollarsSaved.ToString("F2") saved at Sonnet input rate ($3 per 1M tokens)</span>
             </div>
-            <div class="hero-eco" title="Illustrative only — derived from third-party estimates of GPT-class inference. Easily off by 5–10×.">
-                <span class="eco-label">Environmental footprint avoided</span>
+            <div class="hero-eco" title="Illustrative only — derived from third-party estimates of large-model inference. Easily off by 5–10 times.">
+                <span class="eco-label">Energy and carbon dioxide you didn't have to spend</span>
                 <span class="eco-values">
                     @FormatKwh(_kwhSaved)
                     <span class="dot">·</span>
                     @FormatCo2(_co2KgSaved)
                 </span>
-                <div class="eco-disclaimer">illustrative — ~1 kWh per 1M tokens, US grid avg 0.4 kg CO₂/kWh</div>
+                <div class="eco-disclaimer">illustrative — roughly 1 kilowatt-hour per 1 million tokens, United States grid average 0.4 kilograms of carbon dioxide per kilowatt-hour</div>
             </div>
         }
     </div>
@@ -178,10 +178,8 @@
 
     .hero-eco .eco-label {
         display: block;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        opacity: 0.7;
-        font-size: 0.75rem;
+        opacity: 0.8;
+        font-size: 0.85rem;
         margin-bottom: 0.35rem;
     }
 
@@ -300,17 +298,17 @@
 
     private static string FormatKwh(double kwh) => kwh switch
     {
-        < 0.001 => $"{kwh * 1_000_000:F0} mWh",
-        < 1.0   => $"{kwh * 1_000:F1} Wh",
-        < 1_000 => $"{kwh:F2} kWh",
-        _       => $"{kwh / 1_000:F2} MWh",
+        < 0.001 => $"{kwh * 1_000_000:F0} milliwatt-hours",
+        < 1.0   => $"{kwh * 1_000:F1} watt-hours",
+        < 1_000 => $"{kwh:F2} kilowatt-hours",
+        _       => $"{kwh / 1_000:F2} megawatt-hours",
     };
 
     private static string FormatCo2(double kg) => kg switch
     {
-        < 0.001 => $"{kg * 1_000_000:F0} mg CO₂",
-        < 1.0   => $"{kg * 1_000:F0} g CO₂",
-        < 1_000 => $"{kg:F2} kg CO₂",
-        _       => $"{kg / 1_000:F2} t CO₂",
+        < 0.001 => $"{kg * 1_000_000:F0} milligrams of carbon dioxide",
+        < 1.0   => $"{kg * 1_000:F0} grams of carbon dioxide",
+        < 1_000 => $"{kg:F2} kilograms of carbon dioxide",
+        _       => $"{kg / 1_000:F2} tonnes of carbon dioxide",
     };
 }

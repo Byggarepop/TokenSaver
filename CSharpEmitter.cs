@@ -15,9 +15,10 @@ public sealed class CSharpEmitter : ILanguageEmitter
 
     public bool CanHandle(string filePath)
     {
+        // .razor is handled by RazorEmitter, which combines markup + @code.
+        // .razor.cs ends in .cs so it's still ours.
         var ext = Path.GetExtension(filePath);
-        return ext.Equals(".cs",    StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".razor", StringComparison.OrdinalIgnoreCase);
+        return ext.Equals(".cs", StringComparison.OrdinalIgnoreCase);
     }
 
     public LanguageEmitResult Minify(string filePath)
