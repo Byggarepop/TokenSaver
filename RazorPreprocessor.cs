@@ -48,20 +48,87 @@ internal static class RazorPreprocessor
             var idx = source.IndexOf(directive, i, StringComparison.Ordinal);
             if (idx < 0)
                 yield break;
-            var brace = source.IndexOf('{', idx + directive.Length);
+
+            // Don't match "@codeblock", "@functions2", etc.
+            var after = idx + directive.Length;
+            if (after < source.Length && (char.IsLetterOrDigit(source[after]) || source[after] == '_'))
+            {
+                i = idx + 1;
+                continue;
+            }
+
+            var brace = source.IndexOf('{', after);
             if (brace < 0)
                 yield break;
 
             int depth = 1;
             int pos = brace + 1;
+
             while (pos < source.Length && depth > 0)
             {
-                var c = source[pos];
-                if (c == '{') depth++;
-                else if (c == '}') depth--;
-                if (depth == 0) break;
-                pos++;
+                char c = source[pos];
+                char next = pos + 1 < source.Length ? source[pos + 1] : '\0';
+
+                if (c == '/' && next == '/')
+                {
+                    // line comment — skip to end of line
+                    pos += 2;
+                    while (pos < source.Length && source[pos] != '\n') pos++;
+                }
+                else if (c == '/' && next == '*')
+                {
+                    // block comment — skip to */
+                    pos += 2;
+                    while (pos + 1 < source.Length && !(source[pos] == '*' && source[pos + 1] == '/')) pos++;
+                    pos += 2;
+                }
+                else if (c == '@' && next == '"')
+                {
+                    // verbatim string @"..." — "" is escaped quote inside
+                    pos += 2;
+                    while (pos < source.Length)
+                    {
+                        if (source[pos] == '"')
+                        {
+                            pos++;
+                            if (pos < source.Length && source[pos] == '"') pos++; // escaped ""
+                            else break;
+                        }
+                        else pos++;
+                    }
+                }
+                else if (c == '"')
+                {
+                    // regular string — backslash escaping
+                    pos++;
+                    while (pos < source.Length && source[pos] != '"')
+                    {
+                        if (source[pos] == '\\') pos++;
+                        pos++;
+                    }
+                    pos++; // closing "
+                }
+                else if (c == '\'')
+                {
+                    // character literal
+                    pos++;
+                    while (pos < source.Length && source[pos] != '\'')
+                    {
+                        if (source[pos] == '\\') pos++;
+                        pos++;
+                    }
+                    pos++; // closing '
+                }
+                else if (c == '{') { depth++; pos++; }
+                else if (c == '}')
+                {
+                    depth--;
+                    if (depth == 0) break;
+                    pos++;
+                }
+                else pos++;
             }
+
             if (depth != 0)
                 yield break;
 
