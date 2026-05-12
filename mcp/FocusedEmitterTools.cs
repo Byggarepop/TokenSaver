@@ -34,8 +34,8 @@ public static class FocusedEmitterTools
 
             if (!result.Found)
             {
-                LogInvocation("Focused Emitter", "C#", $"focus={methodName} depth={depth} NOT FOUND", result.OriginalTokensEstimate, result.OriginalTokensEstimate);
                 var outline = emitter.EmitOutline();
+                LogInvocation("Focused Emitter", "C#", $"focus={methodName} depth={depth} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
                 return $"ERROR: Method '{methodName}' not found in {Path.GetFileName(filePath)}.\n" +
                        $"Available members:\n{outline.Output}";
             }
@@ -53,6 +53,7 @@ public static class FocusedEmitterTools
         }
         catch (Exception ex)
         {
+            LogInvocation("Focused Emitter", "C#", $"focus={methodName} EXCEPTION", 0, 0);
             return $"ERROR: {ex.Message}";
         }
     }
