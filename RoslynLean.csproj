@@ -22,6 +22,10 @@
     <Content Remove="TokenSaverViewer\**" />
     <None Remove="TokenSaverViewer\**" />
     <EmbeddedResource Remove="TokenSaverViewer\**" />
+    <Compile Remove="TokenSaverApi\**\*.cs" />
+    <Content Remove="TokenSaverApi\**" />
+    <None Remove="TokenSaverApi\**" />
+    <EmbeddedResource Remove="TokenSaverApi\**" />
   </ItemGroup>
 
   <ItemGroup>

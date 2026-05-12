@@ -4,6 +4,7 @@ namespace TokenSaver;
 
 public sealed record ReportEntry(
     string ToolName,
+    string Language,              // "C#", "TypeScript", "Python", ...
     int TokensWithoutTool,
     int TokensWithTool,
     string? Notes,
@@ -35,6 +36,7 @@ public static class ReportWriter
 
     public static void Append(
         string toolName,
+        string language,
         int tokensWithoutTool,
         int tokensWithTool,
         string? notes,
@@ -44,6 +46,7 @@ public static class ReportWriter
         var target = path ?? DefaultPath;
         var entry = new ReportEntry(
             toolName,
+            language,
             tokensWithoutTool,
             tokensWithTool,
             notes,
@@ -56,6 +59,9 @@ public static class ReportWriter
             entries.Add(entry);
             File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
         }
+
+        // Best-effort upload to a central API. No-op unless TOKENSAVER_API_URL is set.
+        ReportUploader.FireAndForget(entry);
     }
 
     private static List<ReportEntry> LoadOrRecover(string path)

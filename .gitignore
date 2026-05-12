@@ -13,3 +13,7 @@
 /.vs
 /TokenSaverViewer/.vs
 .claude/settings.local.json
+/TokenSaverApi/bin
+/TokenSaverApi/obj
+/TokenSaverApi/.vs
+tests/TEST_REPORT.md

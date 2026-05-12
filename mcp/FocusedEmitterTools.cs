@@ -41,7 +41,7 @@ public static class FocusedEmitterTools
 
             var beforeTokens = result.OriginalTokensEstimate;
             var afterTokens = Math.Max(1, output.Length / 4);
-            return BuildHeader(beforeTokens, afterTokens, $"focus={methodName} depth={depth} minify={minify}")
+            return BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
@@ -67,7 +67,7 @@ public static class FocusedEmitterTools
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitMinified();
 
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "whole-file lossless minify")
+            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "MinifyCSharpFile", "C#", "whole-file lossless minify")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -100,7 +100,7 @@ public static class FocusedEmitterTools
                 return $"ERROR: No minifier registered for extension '{Path.GetExtension(filePath)}'.";
 
             var result = emitter.Minify(filePath);
-            return BuildHeader(result.OriginalTokensEstimate, result.OutputTokensEstimate, $"{emitter.Language} minify")
+            return BuildHeader(result.OriginalTokensEstimate, result.OutputTokensEstimate, "MinifyFile", emitter.Language, $"{emitter.Language} minify")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -125,7 +125,7 @@ public static class FocusedEmitterTools
         {
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitOutline();
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "outline (signatures only)")
+            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "OutlineCSharpFile", "C#", "outline (signatures only)")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -152,7 +152,7 @@ public static class FocusedEmitterTools
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitAliased();
 
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "aliased + minified")
+            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "AliasCSharpFile", "C#", "aliased + minified")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -163,18 +163,18 @@ public static class FocusedEmitterTools
         }
     }
 
-    private static string BuildHeader(int before, int after, string mode)
+    private static string BuildHeader(int before, int after, string toolName, string language, string mode)
     {
         var saved = Math.Max(0, before - after);
         var pct = before == 0 ? 0 : saved * 100 / before;
-        LogInvocation(mode, before, after);
+        LogInvocation(toolName, language, mode, before, after);
         return $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {after:N0}  ({pct}% saved) — mode: {mode}\n";
     }
 
     // Every invocation is appended to the shared report JSON at
     // %USERPROFILE%\token-saver-report.json so the Blazor viewer (and any
     // future surface) sees CLI and MCP traffic in one place.
-    private static void LogInvocation(string mode, int beforeTokens, int afterTokens)
+    private static void LogInvocation(string toolName, string language, string mode, int beforeTokens, int afterTokens)
     {
         var saved = beforeTokens - afterTokens;
         var pct = beforeTokens == 0 ? 0 : saved * 100 / beforeTokens;
@@ -187,7 +187,8 @@ public static class FocusedEmitterTools
         try
         {
             TokenSaver.ReportWriter.Append(
-                toolName: ToolNameForMode(mode),
+                toolName: toolName,
+                language: language,
                 tokensWithoutTool: beforeTokens,
                 tokensWithTool: afterTokens,
                 notes: $"mode: {mode}",
@@ -198,12 +199,4 @@ public static class FocusedEmitterTools
             // Report writing must never break the tool response.
         }
     }
-
-    private static string ToolNameForMode(string mode) => mode switch
-    {
-        "focus" => "Focused Emitter",
-        "minified" => "Minify",
-        "aliased + minified" => "Alias",
-        _ => mode,
-    };
 }

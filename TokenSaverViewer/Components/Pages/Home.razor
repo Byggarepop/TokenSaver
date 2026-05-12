@@ -1,8 +1,13 @@
 @page "/"
 @using System.IO
 @using System.Text.Json
+@using Microsoft.EntityFrameworkCore
 @using TokenStats
 @using TokenSaver
+@using TokenSaverViewer
+@inject IConfiguration Config
+@inject IServiceScopeFactory ScopeFactory
+@implements IDisposable
 @rendermode InteractiveServer
 
 <PageTitle>TokenSaver</PageTitle>
@@ -15,14 +20,19 @@
             <div class="hero-stat-number">@_totalSaved.ToString("N0")</div>
             <div class="hero-stat-label">total tokens saved</div>
         </div>
-        @if (_reports is not null && _reports.Count > 0)
+        @if (_runCount > 0)
         {
             <div class="hero-meta">
-                <span>@_reports.Count tool runs</span>
+                <span>@_runCount.ToString("N0") tool runs</span>
                 <span class="dot">·</span>
                 <span>@_avgReduction.ToString("F0")% average reduction</span>
                 <span class="dot">·</span>
                 <span>≈ $@_dollarsSaved.ToString("F2") saved at Sonnet input rate ($3 per 1M tokens)</span>
+                @if (_distinctClients > 0)
+                {
+                    <span class="dot">·</span>
+                    <span>@_distinctClients.ToString("N0") installs reporting</span>
+                }
             </div>
             <div class="hero-eco" title="Illustrative only — derived from third-party estimates of large-model inference. Easily off by 5–10 times.">
                 <span class="eco-label">Energy and carbon dioxide you didn't have to spend</span>
@@ -41,7 +51,12 @@
     <div class="report-header">
         <h2>Activity</h2>
         <div class="report-controls">
-            <code class="path">@_path</code>
+            <span class="badge bg-secondary">@_mode mode</span>
+            @if (_lastLoaded is not null)
+            {
+                <span class="updated-at" title="@_lastLoaded.Value.ToLocalTime()">updated @RelativeTime(_lastLoaded.Value)</span>
+            }
+            <code class="path">@_source</code>
             <button class="btn btn-sm btn-outline-secondary" @onclick="Load">Reload</button>
         </div>
     </div>
@@ -50,17 +65,20 @@
     {
         <div class="alert alert-warning">
             <strong>Couldn't load report:</strong> @_error
-            <details class="mt-2">
-                <summary>Expected format</summary>
-                <pre>@_sampleJson</pre>
-            </details>
+            @if (_mode == "local")
+            {
+                <details class="mt-2">
+                    <summary>Expected format</summary>
+                    <pre>@_sampleJson</pre>
+                </details>
+            }
         </div>
     }
-    else if (_reports is null)
+    else if (_loading && _aggregates.Count == 0)
     {
         <p><em>Loading…</em></p>
     }
-    else if (_reports.Count == 0)
+    else if (_aggregates.Count == 0)
     {
         <p class="text-muted">No entries yet. Run the CLI with <code>--report</code> or invoke an MCP tool to populate it.</p>
     }
@@ -69,41 +87,29 @@
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>When (UTC)</th>
-                    <th>Source</th>
                     <th>Tool</th>
-                    <th class="text-end">Without</th>
-                    <th class="text-end">With</th>
-                    <th class="text-end">Saved</th>
-                    <th style="width: 25%;">Reduction</th>
-                    <th>Notes</th>
+                    <th>Language</th>
+                    <th class="text-end">Runs</th>
+                    <th class="text-end">Tokens saved</th>
+                    <th style="width: 30%;">Avg reduction</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in _reports.OrderByDescending(r => r.Entry.TimestampUtc))
+                @foreach (var row in _aggregates)
                 {
-                    var e = row.Entry;
-                    var r = row.Report;
                     <tr>
-                        <td class="small text-muted">@e.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                        <td>
-                            <span class="badge @(e.Source == "mcp" ? "bg-primary" : "bg-secondary")">
-                                @e.Source
-                            </span>
-                        </td>
-                        <td><strong>@r.ToolName</strong></td>
-                        <td class="text-end">@r.TokensWithoutTool.ToString("N0")</td>
-                        <td class="text-end">@r.TokensWithTool.ToString("N0")</td>
-                        <td class="text-end text-success">@r.TokensSaved.ToString("N0")</td>
+                        <td><strong>@row.ToolName</strong></td>
+                        <td>@(string.IsNullOrEmpty(row.Language) ? "—" : row.Language)</td>
+                        <td class="text-end">@row.RunCount.ToString("N0")</td>
+                        <td class="text-end text-success">@row.TokensSaved.ToString("N0")</td>
                         <td>
                             <div class="progress" style="height: 1.25rem;">
                                 <div class="progress-bar bg-success" role="progressbar"
-                                     style="width: @r.ReductionPercent.ToString("F0")%;">
-                                    @r.ReductionPercent.ToString("F0")%
+                                     style="width: @row.AvgReductionPercent.ToString("F0")%;">
+                                    @row.AvgReductionPercent.ToString("F0")%
                                 </div>
                             </div>
                         </td>
-                        <td class="text-muted small">@r.Notes</td>
                     </tr>
                 }
             </tbody>
@@ -121,125 +127,70 @@
         box-shadow: 0 8px 24px rgba(13, 43, 78, 0.25);
     }
 
-    .hero-inner {
-        max-width: 900px;
-        margin: 0 auto;
-        text-align: center;
-    }
-
-    .hero-title {
-        font-size: 3rem;
-        font-weight: 700;
-        margin: 0;
-        letter-spacing: -0.02em;
-    }
-
-    .hero-tagline {
-        font-size: 1.1rem;
-        opacity: 0.85;
-        margin: 0.25rem 0 2rem;
-        font-style: italic;
-    }
+    .hero-inner { max-width: 900px; margin: 0 auto; text-align: center; }
+    .hero-title { font-size: 3rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+    .hero-tagline { font-size: 1.1rem; opacity: 0.85; margin: 0.25rem 0 2rem; font-style: italic; }
 
     .hero-stat-number {
-        font-size: 4rem;
-        font-weight: 800;
-        line-height: 1;
-        color: #b5f0c4;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        font-variant-numeric: tabular-nums;
+        font-size: 4rem; font-weight: 800; line-height: 1; color: #b5f0c4;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-variant-numeric: tabular-nums;
     }
 
     .hero-stat-label {
-        font-size: 0.95rem;
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        opacity: 0.8;
-        margin-top: 0.5rem;
+        font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.15em;
+        opacity: 0.8; margin-top: 0.5rem;
     }
 
-    .hero-meta {
-        margin-top: 1.5rem;
-        font-size: 0.95rem;
-        opacity: 0.85;
-    }
-
-    .hero-meta .dot {
-        margin: 0 0.6rem;
-        opacity: 0.5;
-    }
+    .hero-meta { margin-top: 1.5rem; font-size: 0.95rem; opacity: 0.85; }
+    .hero-meta .dot { margin: 0 0.6rem; opacity: 0.5; }
 
     .hero-eco {
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.15);
-        font-size: 0.9rem;
+        margin-top: 1.25rem; padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.15); font-size: 0.9rem;
     }
 
-    .hero-eco .eco-label {
-        display: block;
-        opacity: 0.8;
-        font-size: 0.85rem;
-        margin-bottom: 0.35rem;
-    }
+    .hero-eco .eco-label { display: block; opacity: 0.8; font-size: 0.85rem; margin-bottom: 0.35rem; }
+    .hero-eco .eco-values { font-size: 1.05rem; color: #c8ecd4; font-variant-numeric: tabular-nums; }
+    .hero-eco .eco-disclaimer { margin-top: 0.4rem; font-size: 0.75rem; opacity: 0.55; font-style: italic; }
 
-    .hero-eco .eco-values {
-        font-size: 1.05rem;
-        color: #c8ecd4;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .hero-eco .eco-disclaimer {
-        margin-top: 0.4rem;
-        font-size: 0.75rem;
-        opacity: 0.55;
-        font-style: italic;
-    }
-
-    .report-section {
-        padding: 0 0.25rem;
-    }
+    .report-section { padding: 0 0.25rem; }
 
     .report-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-        gap: 0.75rem;
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;
     }
 
-    .report-header h2 {
-        margin: 0;
-        font-size: 1.4rem;
-        font-weight: 600;
-    }
-
-    .report-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
+    .report-header h2 { margin: 0; font-size: 1.4rem; font-weight: 600; }
+    .report-controls { display: flex; align-items: center; gap: 0.75rem; }
 
     .report-controls .path {
-        font-size: 0.8rem;
-        color: #6c757d;
-        background: #f4f4f6;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        font-size: 0.8rem; color: #6c757d; background: #f4f4f6;
+        padding: 0.25rem 0.5rem; border-radius: 4px;
     }
+
+    .updated-at { font-size: 0.8rem; color: #6c757d; }
 </style>
 
 @code {
-    private readonly string _path = ReportWriter.DefaultPath;
+    private const int RefreshSeconds = 30;
 
-    private List<Row>? _reports;
+    private string _mode = "local";
+    private string _source = "";
+
+    private List<AggregateRow> _aggregates = new();
     private string? _error;
-    private int _totalSaved;
+    private bool _loading = true;
+    private DateTime? _lastLoaded;
+
+    private long _totalSaved;
+    private int _runCount;
+    private int _distinctClients;
     private double _avgReduction;
     private double _dollarsSaved;
     private double _kwhSaved;
     private double _co2KgSaved;
+
+    private Timer? _refreshTimer;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -250,6 +201,7 @@
         [
           {
             "ToolName": "Focused Emitter",
+            "Language": "C#",
             "TokensWithoutTool": 7083,
             "TokensWithTool": 3133,
             "Notes": "Bar.cs / FooMethod",
@@ -259,42 +211,152 @@
         ]
         """;
 
-    protected override void OnInitialized() => Load();
-
-    private void Load()
+    protected override async Task OnInitializedAsync()
     {
-        _error = null;
-        _reports = null;
+        _mode = (Config["TokenSaver:Mode"] ?? "local").ToLowerInvariant();
+        await Load();
+
+        _refreshTimer = new Timer(async _ => await InvokeAsync(async () =>
+        {
+            await Load();
+            StateHasChanged();
+        }), null, TimeSpan.FromSeconds(RefreshSeconds), TimeSpan.FromSeconds(RefreshSeconds));
+    }
+
+    public void Dispose() => _refreshTimer?.Dispose();
+
+    private async Task Load()
+    {
         try
         {
-            if (!File.Exists(_path))
-            {
-                _error = $"File not found at {_path}. Run `roslyn-lean focus ... --report` or invoke the MCP server to create it.";
-                return;
-            }
+            if (_mode == "server")
+                await LoadFromDb();
+            else
+                LoadFromFile();
 
-            var json = File.ReadAllText(_path);
-            var entries = JsonSerializer.Deserialize<List<ReportEntry>>(json, JsonOpts)
-                          ?? new List<ReportEntry>();
-
-            _reports = entries.Select(e => new Row(
-                e,
-                new TokenReport(e.ToolName ?? "(unnamed)", e.TokensWithoutTool, e.TokensWithTool, e.Notes)
-            )).ToList();
-
-            _totalSaved = _reports.Sum(r => r.Report.TokensSaved);
-            _avgReduction = _reports.Count == 0 ? 0 : _reports.Average(r => r.Report.ReductionPercent);
             _dollarsSaved = _totalSaved / 1_000_000.0 * TokenReport.InputPricePerMillion.Sonnet;
             _kwhSaved = _totalSaved / 1_000_000.0 * TokenReport.EnergyFactors.KwhPerMillionTokens;
             _co2KgSaved = _kwhSaved * TokenReport.EnergyFactors.KgCo2PerKwh;
+            _error = null;
+            _lastLoaded = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
             _error = ex.Message;
         }
+        finally
+        {
+            _loading = false;
+        }
     }
 
-    private sealed record Row(ReportEntry Entry, TokenReport Report);
+    private async Task LoadFromDb()
+    {
+        _source = "tokensaver.db";
+
+        // Scope per load: ReportsDb is scoped, but a Blazor Server circuit is long-lived.
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
+
+        var raw = await db.Reports
+            .GroupBy(r => new { r.ToolName, r.Language })
+            .Select(g => new
+            {
+                g.Key.ToolName,
+                g.Key.Language,
+                RunCount = g.Count(),
+                TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
+                TokensWith = g.Sum(r => (long)r.TokensWithTool),
+            })
+            .ToListAsync();
+
+        _aggregates = raw
+            .Select(r =>
+            {
+                var saved = r.TokensWithout - r.TokensWith;
+                var pct = r.TokensWithout == 0 ? 0 : (double)saved / r.TokensWithout * 100;
+                return new AggregateRow(r.ToolName, r.Language, r.RunCount, saved, pct);
+            })
+            .OrderByDescending(r => r.TokensSaved)
+            .ToList();
+
+        var summary = await db.Reports
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                RunCount = g.Count(),
+                Saved = g.Sum(r => (long)(r.TokensWithoutTool - r.TokensWithTool)),
+                Without = g.Sum(r => (long)r.TokensWithoutTool),
+                Clients = g.Select(r => r.ClientId).Distinct().Count(),
+            })
+            .FirstOrDefaultAsync();
+
+        if (summary is null)
+        {
+            _totalSaved = 0; _runCount = 0; _distinctClients = 0; _avgReduction = 0;
+        }
+        else
+        {
+            _totalSaved = summary.Saved;
+            _runCount = summary.RunCount;
+            _distinctClients = summary.Clients;
+            _avgReduction = summary.Without == 0 ? 0 : (double)summary.Saved / summary.Without * 100;
+        }
+    }
+
+    private void LoadFromFile()
+    {
+        var path = ReportWriter.DefaultPath;
+        _source = path;
+        _distinctClients = 0;
+
+        if (!File.Exists(path))
+        {
+            _aggregates = new();
+            _totalSaved = 0; _runCount = 0; _avgReduction = 0;
+            _error = $"File not found at {path}. Run `roslyn-lean focus ... --report` or invoke the MCP server to create it.";
+            return;
+        }
+
+        var json = File.ReadAllText(path);
+        var entries = JsonSerializer.Deserialize<List<ReportEntry>>(json, JsonOpts)
+                      ?? new List<ReportEntry>();
+
+        _aggregates = entries
+            .GroupBy(e => (Tool: e.ToolName ?? "(unnamed)", Lang: e.Language ?? ""))
+            .Select(g =>
+            {
+                var without = g.Sum(e => (long)e.TokensWithoutTool);
+                var with = g.Sum(e => (long)e.TokensWithTool);
+                var saved = without - with;
+                var pct = without == 0 ? 0 : (double)saved / without * 100;
+                return new AggregateRow(g.Key.Tool, g.Key.Lang, g.Count(), saved, pct);
+            })
+            .OrderByDescending(r => r.TokensSaved)
+            .ToList();
+
+        _totalSaved = entries.Sum(e => (long)(e.TokensWithoutTool - e.TokensWithTool));
+        _runCount = entries.Count;
+        var totalWithout = entries.Sum(e => (long)e.TokensWithoutTool);
+        _avgReduction = totalWithout == 0 ? 0 : (double)_totalSaved / totalWithout * 100;
+    }
+
+    private sealed record AggregateRow(
+        string ToolName,
+        string Language,
+        int RunCount,
+        long TokensSaved,
+        double AvgReductionPercent);
+
+    private static string RelativeTime(DateTime utc)
+    {
+        var delta = DateTime.UtcNow - utc;
+        if (delta.TotalSeconds < 5) return "just now";
+        if (delta.TotalSeconds < 60) return $"{(int)delta.TotalSeconds}s ago";
+        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes}m ago";
+        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours}h ago";
+        return utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    }
 
     private static string FormatKwh(double kwh) => kwh switch
     {

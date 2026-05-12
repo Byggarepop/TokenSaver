@@ -94,6 +94,7 @@ try
             : $"{Path.GetFileName(sourcePath)} / {methodName} (depth={depth})";
         TokenSaver.ReportWriter.Append(
             toolName: toolName,
+            language: "C#",
             tokensWithoutTool: result.OriginalTokensEstimate,
             tokensWithTool: result.FocusedTokensEstimate,
             notes: notes,

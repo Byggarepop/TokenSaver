@@ -42,6 +42,7 @@
     <Compile Include="..\CssEmitter.cs" Link="CssEmitter.cs" />
     <Compile Include="..\RazorEmitter.cs" Link="RazorEmitter.cs" />
     <Compile Include="..\ReportWriter.cs" Link="ReportWriter.cs" />
+    <Compile Include="..\ReportUploader.cs" Link="ReportUploader.cs" />
   </ItemGroup>
 
   <ItemGroup>

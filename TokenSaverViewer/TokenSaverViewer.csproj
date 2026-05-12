@@ -10,6 +10,11 @@
   <ItemGroup>
     <Compile Include="..\TokenReport.cs" Link="TokenReport.cs" />
     <Compile Include="..\ReportWriter.cs" Link="ReportWriter.cs" />
+    <Compile Include="..\ReportUploader.cs" Link="ReportUploader.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
   </ItemGroup>
 
 </Project>
