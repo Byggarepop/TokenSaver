@@ -201,12 +201,33 @@ MCP tools.
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
 - Check `%USERPROFILE%\token-saver-report.json` for a new entry.
 
-### VS-specific gotchas
+### How to prompt — plain text, not # references
 
-- **Don't use `#filename.cs` references** when you want token reduction.
-  `#` is a VS feature that inlines the *entire* file into the prompt before
-  Copilot ever sees your message — our tool can't intercept that. Use plain
-  text paths instead.
+VS Copilot's `#filename.cs` syntax and the **Active Document** context
+button both inline the entire file content into the prompt *before* Copilot
+sees your message. The MCP tool can't intercept that — by the time the model
+decides whether to call a tool, the file is already in context. Both bypass
+token reduction entirely and send the full raw file to the model.
+
+**To benefit from token reduction, reference files and methods as plain text:**
+
+```
+Look at the OnInitializedAsync method in MyPage.razor and explain it.
+```
+
+Not:
+
+```
+#MyPage.razor explain OnInitializedAsync    ← sends the whole file, bypasses the tool
+```
+
+Reserve `#` references and Active Document for small files where the overhead
+doesn't matter.
+
+> This applies to Visual Studio 2026 Copilot Chat. VS Code Copilot behaviour
+> may differ — verify with your version.
+
+### VS-specific gotchas
 - **VS caches MCP server metadata** keyed by server name. If you change the
   server's tool definitions or instructions, VS may keep using cached state
   (you'll see `Loaded cached state for MCP server 'tokensaver'...` in the
