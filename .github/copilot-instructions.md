@@ -40,6 +40,13 @@ tokens with no loss of logic.
    Use `depth=1` so you see the bodies of private helpers the focus method
    calls — without those, your suggestions will hallucinate helper logic.
 
+   **The user references two or more C# methods at once**, or you already know
+   from a prior outline/NOT FOUND which methods are relevant
+   → call `FocusMultipleMethods` with a comma-separated `methodNames` list
+   (e.g. `"ExecSql,ClearGrid,SetBusy"`). The file is parsed once and shared
+   signatures are deduplicated — smaller output than N separate `FocusMethod`
+   calls and one round-trip instead of N.
+
 3. **The user wants you to read or analyze a whole file of any supported type**
    → call `MinifyFile`. It auto-dispatches by extension and works for every
    format in the table above. For C# specifically, `MinifyCSharpFile` is

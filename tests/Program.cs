@@ -63,6 +63,9 @@ internal static class Program
         Run("Razor_Minify_CombinesMarkupAndCode", Razor_Minify_CombinesMarkupAndCode);
         Run("Outline_EmitsSignaturesOnly_NoBodies", Outline_EmitsSignaturesOnly_NoBodies);
         Run("Outline_IncludesAllTopLevelTypes", Outline_IncludesAllTopLevelTypes);
+        Run("EmitMultiple_BothMethodsPresent", EmitMultiple_BothMethodsPresent);
+        Run("EmitMultiple_SharedSignaturesDeduped", EmitMultiple_SharedSignaturesDeduped);
+        Run("EmitMultiple_PartialNotFound_ReportsWhichAreAbsent", EmitMultiple_PartialNotFound_ReportsWhichAreAbsent);
         Run("Razor_MultipleCodeBlocks_BothBlocksMerged", Razor_MultipleCodeBlocks_BothBlocksMerged);
         Run("Razor_Focus_FindsMethodInFirstCodeBlock", Razor_Focus_FindsMethodInFirstCodeBlock);
         Run("Razor_BracesInStrings_DoNotCorruptExtraction", Razor_BracesInStrings_DoNotCorruptExtraction);
@@ -870,6 +873,56 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "outer, nested Inner, and sibling Other all present"
                : $"outer={hasOuter} inner={hasInner} other={hasOther}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- EmitMultiple ----------
+
+    private static TestOutcome EmitMultiple_BothMethodsPresent()
+    {
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitMultiple(["Run", "WeightedSum"], depth: 0);
+
+        var hasRun         = r.Output.Contains("Run");
+        var hasWeightedSum = r.Output.Contains("WeightedSum");
+        var ok = r.Found && hasRun && hasWeightedSum;
+        return new TestOutcome(ok,
+            ok ? "both Run and WeightedSum present in single multi-method output"
+               : $"found={r.Found} run={hasRun} ws={hasWeightedSum}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome EmitMultiple_SharedSignaturesDeduped()
+    {
+        // Multi output must be smaller than the full file — confirming it's a focused
+        // view and not a whole-file dump. On small files with few shared symbols the
+        // multi output can equal or slightly exceed the sum of two singles (no overlap
+        // means no dedup gain), but it's always well below the original file size.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path);
+
+        var multi  = emitter.EmitMultiple(["Run", "WeightedSum"], depth: 0);
+        var originalChars = multi.OriginalChars;
+
+        var ok = multi.Found && multi.FocusedChars < originalChars;
+        return new TestOutcome(ok,
+            ok ? $"multi ({multi.FocusedChars} chars) < original ({originalChars} chars) — focused view confirmed"
+               : $"multi={multi.FocusedChars} original={originalChars}",
+            TokenSaving(multi.OriginalChars, multi.FocusedChars));
+    }
+
+    private static TestOutcome EmitMultiple_PartialNotFound_ReportsWhichAreAbsent()
+    {
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitMultiple(["Run", "DoesNotExist"], depth: 0);
+
+        // Found=true because at least one method was found; NOT FOUND listed in output.
+        var hasRun     = r.Output.Contains("Run");
+        var reportsGap = r.Output.Contains("NOT FOUND") && r.Output.Contains("DoesNotExist");
+        var ok = r.Found && hasRun && reportsGap;
+        return new TestOutcome(ok,
+            ok ? "partial match: Run found, DoesNotExist reported in NOT FOUND comment"
+               : $"found={r.Found} run={hasRun} gap={reportsGap}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

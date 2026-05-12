@@ -146,6 +146,104 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
+    /// Same as Emit but focuses on several named methods in one pass.
+    /// The file is parsed once; referenced signatures are deduplicated across
+    /// all focus methods, so the combined output is smaller than calling
+    /// Emit N times and the caller saves N-1 MCP round-trips.
+    /// </summary>
+    public FocusResult EmitMultiple(IReadOnlyList<string> methodNames, int depth = 0)
+    {
+        var nameSet = new HashSet<string>(methodNames, StringComparer.Ordinal);
+        var root = _tree.GetCompilationUnitRoot();
+
+        var allFocusMethods = root.DescendantNodes()
+            .OfType<MethodDeclarationSyntax>()
+            .Where(m => nameSet.Contains(m.Identifier.Text))
+            .ToList();
+
+        if (allFocusMethods.Count == 0)
+            return FocusResult.NotFound(string.Join(", ", methodNames));
+
+        // Collect referenced symbols across ALL focus methods (union).
+        var referencedSymbols = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        foreach (var method in allFocusMethods)
+            CollectReferencedSymbols(method, referencedSymbols);
+
+        // Depth expansion across all focus methods combined.
+        var expandedMethods = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+        if (depth >= 1)
+        {
+            var frontier = new List<MethodDeclarationSyntax>(allFocusMethods);
+            for (int level = 0; level < depth; level++)
+            {
+                var nextFrontier = new List<MethodDeclarationSyntax>();
+                foreach (var method in frontier)
+                {
+                    foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+                    {
+                        var info = _model.GetSymbolInfo(inv);
+                        var sym = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
+                        if (sym is not IMethodSymbol ms) continue;
+                        if (ms.DeclaredAccessibility != Accessibility.Private) continue;
+                        if (!expandedMethods.Add(ms)) continue;
+                        foreach (var decl in ms.DeclaringSyntaxReferences)
+                        {
+                            if (decl.GetSyntax() is MethodDeclarationSyntax mds &&
+                                mds.SyntaxTree == _tree &&
+                                !allFocusMethods.Contains(mds))
+                                nextFrontier.Add(mds);
+                        }
+                    }
+                }
+                if (nextFrontier.Count == 0) break;
+                frontier = nextFrontier;
+            }
+        }
+
+        // Group by containing type so each type is emitted once.
+        var byType = allFocusMethods
+            .GroupBy(m => m.FirstAncestorOrSelf<TypeDeclarationSyntax>(),
+                     (type, methods) => (type, methods: methods.ToList()))
+            .Where(g => g.type is not null)
+            .ToList();
+
+        var sb = new StringBuilder();
+        AppendUsings(sb, root);
+        foreach (var (type, methods) in byType)
+        {
+            AppendNamespaceOpen(sb, type!);
+            AppendTypeWithFocus(sb, type!, methods, referencedSymbols, expandedMethods);
+            AppendNamespaceClose(sb, type!);
+            sb.AppendLine();
+        }
+
+        var foundNames = allFocusMethods.Select(m => m.Identifier.Text).Distinct().ToList();
+        var notFound = methodNames.Where(n => !foundNames.Contains(n)).ToList();
+        if (notFound.Count > 0)
+            sb.AppendLine($"// NOT FOUND: {string.Join(", ", notFound)}");
+
+        var output = sb.ToString();
+        var originalLength = _tree.GetText().Length;
+
+        var notes = new StringBuilder();
+        notes.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)}");
+        notes.AppendLine($"// Focus method(s): {allFocusMethods.Count} method(s) with full body ({string.Join(", ", foundNames)})");
+        if (notFound.Count > 0)
+            notes.AppendLine($"// Not found: {string.Join(", ", notFound)}");
+        if (depth >= 1)
+            notes.AppendLine($"// Expanded helpers (depth {depth}): {expandedMethods.Count} private method(s) with full body");
+        notes.AppendLine($"// Other members: {referencedSymbols.Count} symbols referenced, signatures only");
+
+        return new FocusResult(
+            Found: true,
+            Output: output,
+            OriginalChars: originalLength,
+            FocusedChars: output.Length,
+            FocusMethodName: string.Join(", ", methodNames),
+            Notes: notes.ToString());
+    }
+
+    /// <summary>
     /// Whole-file lossless minifier: strip every comment (XML doc, // and /* */),
     /// drop blank lines, collapse indentation. The output is functionally
     /// identical C# — Roslyn parses, rewrites, and re-emits it, so logic

@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-12 14:10_
+_Generated: 2026-05-12 16:42_
 
-**58/58 scenarios passed.**
+**61/61 scenarios passed.**
 
 ## Results
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-12 14:10_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 353 | 19,9% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 7135 | 4258 | 40,3% | FocusedEmitter.cs minified losslessly; 40,3% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 7135 | 2544 | 64,3% | Focus on Emit with depth=1: 64,3% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 8279 | 5010 | 39,5% | FocusedEmitter.cs minified losslessly; 39,5% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 8279 | 2544 | 69,3% | Focus on Emit with depth=1: 69,3% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -55,6 +55,9 @@ _Generated: 2026-05-12 14:10_
 | Razor_Minify_CombinesMarkupAndCode | PASS | 98 | 97 | 0,8% | Razor output contains BOTH minified markup AND minified C# @code |
 | Outline_EmitsSignaturesOnly_NoBodies | PASS | 441 | 97 | 78,0% | all signatures present; no bodies; 78,0% saved |
 | Outline_IncludesAllTopLevelTypes | PASS | 131 | 94 | 27,9% | outer, nested Inner, and sibling Other all present |
+| EmitMultiple_BothMethodsPresent | PASS | 441 | 304 | 31,1% | both Run and WeightedSum present in single multi-method output |
+| EmitMultiple_SharedSignaturesDeduped | PASS | 441 | 304 | 31,1% | multi (1217 chars) < original (1766 chars) — focused view confirmed |
+| EmitMultiple_PartialNotFound_ReportsWhichAreAbsent | PASS | 441 | 269 | 38,9% | partial match: Run found, DoesNotExist reported in NOT FOUND comment |
 | Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 69 | 42,9% | members from both @code blocks visible in outline |
 | Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 48 | 59,8% | focus_method found ExecSql inside the first @code block |
 | Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 69 | 42,9% | } inside string literal did not truncate first @code block |

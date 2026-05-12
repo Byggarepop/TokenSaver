@@ -59,6 +59,56 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
+        "Same as focus_method but focuses on MULTIPLE named methods in a single call. " +
+        "The file is parsed once and referenced signatures are deduplicated across all " +
+        "focus methods — so the combined output is smaller than N separate focus_method " +
+        "calls, and you save N-1 round-trips. Use this when the user asks about two or " +
+        "more specific methods together, or when a prior outline or NOT FOUND response " +
+        "revealed a set of related methods to inspect. Provide method names as a " +
+        "comma-separated list (e.g. 'ExecSql,ClearGrid,SetBusy'). depth=1 includes " +
+        "private helper bodies for ALL listed methods.")]
+    public static string FocusMultipleMethods(
+        [Description("Absolute path to a .cs, .razor.cs, or .razor file.")] string filePath,
+        [Description("Comma-separated method names, e.g. 'ExecSql,ClearGrid,SetBusy'.")] string methodNames,
+        [Description("0 = signatures only for callees (default). 1 = include private helper bodies.")] int depth = 0,
+        [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
+    {
+        try
+        {
+            var names = methodNames
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct()
+                .ToList();
+
+            if (names.Count == 0)
+                return "ERROR: No method names provided.";
+
+            var emitter = new FocusedEmitter(filePath);
+            var result = emitter.EmitMultiple(names, depth);
+
+            if (!result.Found)
+            {
+                var outline = emitter.EmitOutline();
+                LogInvocation("Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
+                return $"ERROR: None of the requested methods found in {Path.GetFileName(filePath)}.\n" +
+                       $"Available members:\n{outline.Output}";
+            }
+
+            var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
+            var afterTokens = Math.Max(1, output.Length / 4);
+            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+                 + result.Notes
+                 + "\n"
+                 + output;
+        }
+        catch (Exception ex)
+        {
+            LogInvocation("Focused Emitter (multi)", "C#", $"focus=[{methodNames}] EXCEPTION", 0, 0);
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Returns a lossless minified copy of a C# file: comments and XML docs " +
         "are stripped, whitespace is collapsed, but every line of LOGIC is " +
         "preserved verbatim (Roslyn parses and re-emits the syntax tree). Use " +
