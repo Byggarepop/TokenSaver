@@ -1,0 +1,27 @@
+@page "/multi-block"
+@using System.Collections.Generic
+
+<h1>Multi Block</h1>
+<button @onclick="ExecSql">Run</button>
+<button @onclick="ClearGrid">Clear</button>
+
+@code {
+    // A } inside a string literal — the old preprocessor stopped here prematurely.
+    private string _tag = "closing }";
+    private List<string> _results = new();
+
+    private void ExecSql()
+    {
+        _results.Clear();
+        _results.Add(_tag);
+    }
+
+    private void ClearGrid()
+    {
+        _results.Clear();
+    }
+}
+
+@code {
+    private record GridFilterMenuItem(string Label, string Value);
+}

@@ -63,6 +63,9 @@ internal static class Program
         Run("Razor_Minify_CombinesMarkupAndCode", Razor_Minify_CombinesMarkupAndCode);
         Run("Outline_EmitsSignaturesOnly_NoBodies", Outline_EmitsSignaturesOnly_NoBodies);
         Run("Outline_IncludesAllTopLevelTypes", Outline_IncludesAllTopLevelTypes);
+        Run("Razor_MultipleCodeBlocks_BothBlocksMerged", Razor_MultipleCodeBlocks_BothBlocksMerged);
+        Run("Razor_Focus_FindsMethodInFirstCodeBlock", Razor_Focus_FindsMethodInFirstCodeBlock);
+        Run("Razor_BracesInStrings_DoNotCorruptExtraction", Razor_BracesInStrings_DoNotCorruptExtraction);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -859,6 +862,54 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "outer, nested Inner, and sibling Other all present"
                : $"outer={hasOuter} inner={hasInner} other={hasOther}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Razor multi-@code block ----------
+
+    private static TestOutcome Razor_MultipleCodeBlocks_BothBlocksMerged()
+    {
+        var path = Fixture("multi-code-block.razor");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasExecSql     = r.Output.Contains("ExecSql");
+        var hasClearGrid   = r.Output.Contains("ClearGrid");
+        var hasMenuItem    = r.Output.Contains("GridFilterMenuItem");
+
+        var ok = r.Found && hasExecSql && hasClearGrid && hasMenuItem;
+        return new TestOutcome(ok,
+            ok ? "members from both @code blocks visible in outline"
+               : $"ExecSql={hasExecSql} ClearGrid={hasClearGrid} GridFilterMenuItem={hasMenuItem}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Razor_Focus_FindsMethodInFirstCodeBlock()
+    {
+        var path = Fixture("multi-code-block.razor");
+        var r = new FocusedEmitter(path).Emit("ExecSql", depth: 0);
+
+        var ok = r.Found && r.Output.Contains("ExecSql");
+        return new TestOutcome(ok,
+            ok ? "focus_method found ExecSql inside the first @code block"
+               : $"found={r.Found}",
+            TokenSaving(r.OriginalChars, r.Output.Length));
+    }
+
+    private static TestOutcome Razor_BracesInStrings_DoNotCorruptExtraction()
+    {
+        // The first @code block has  private string _tag = "closing }";
+        // The lone } inside the string literal used to make the naive brace counter
+        // hit depth=0 early, truncating the first block before ExecSql and ClearGrid.
+        var path = Fixture("multi-code-block.razor");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasExecSql   = r.Output.Contains("ExecSql");
+        var hasClearGrid = r.Output.Contains("ClearGrid");
+
+        var ok = r.Found && hasExecSql && hasClearGrid;
+        return new TestOutcome(ok,
+            ok ? "} inside string literal did not truncate first @code block"
+               : $"ExecSql={hasExecSql} ClearGrid={hasClearGrid} (brace-in-string corruption likely)",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-11 22:25_
+_Generated: 2026-05-12 10:14_
 
-**47/47 scenarios passed.**
+**50/50 scenarios passed.**
 
 ## Results
 
@@ -55,6 +55,9 @@ _Generated: 2026-05-11 22:25_
 | Razor_Minify_CombinesMarkupAndCode | PASS | 98 | 97 | 0,8% | Razor output contains BOTH minified markup AND minified C# @code |
 | Outline_EmitsSignaturesOnly_NoBodies | PASS | 441 | 97 | 78,0% | all signatures present; no bodies; 78,0% saved |
 | Outline_IncludesAllTopLevelTypes | PASS | 131 | 94 | 27,9% | outer, nested Inner, and sibling Other all present |
+| Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 69 | 42,9% | members from both @code blocks visible in outline |
+| Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 48 | 59,8% | focus_method found ExecSql inside the first @code block |
+| Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 69 | 42,9% | } inside string literal did not truncate first @code block |
 
 ## What each scenario proves
 
