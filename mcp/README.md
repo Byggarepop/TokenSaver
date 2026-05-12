@@ -187,49 +187,6 @@ MCP tools.
 
 ---
 
-## Building the NuGet package from source
-
-If you're modifying the server and need to publish an updated package.
-
-**1. Bump the version.** In `TokenSaver.Mcp.csproj`:
-```xml
-<Version>0.1.0</Version>  <!-- increment -->
-```
-
-**2. Pack.** From the `mcp/` folder:
-```
-dotnet pack -c Release
-```
-Produces `bin\Release\TokenSaver.Mcp.<version>.nupkg`.
-
-**3. Distribute** — pick one:
-
-- **Local install for yourself** (no network):
-  ```
-  dotnet tool update --global --add-source .\bin\Release TokenSaver.Mcp
-  ```
-  (Use `install` instead of `update` the first time.)
-
-- **Hand someone the .nupkg file:**
-  ```
-  dotnet tool install --global --add-source <folder-containing-nupkg> TokenSaver.Mcp
-  ```
-
-- **Push to NuGet.org** (requires an API key):
-  ```
-  dotnet nuget push bin\Release\TokenSaver.Mcp.<version>.nupkg --source https://api.nuget.org/v3/index.json --api-key <YOUR_KEY>
-  ```
-  Then anyone can install with `dotnet tool install --global TokenSaver.Mcp`.
-
-- **Push to a private feed** (Azure DevOps, GitHub Packages):
-  same `dotnet nuget push` command, swap the `--source` URL.
-
-**4. After updating, restart the MCP client** (Claude Code session or VS) so
-it picks up the new tool definitions. Server name keying may require a
-cache-bust on VS — see the gotchas above.
-
----
-
 ## Uninstalling
 
 ```
