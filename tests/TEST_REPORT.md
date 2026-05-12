@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-12 10:14_
+_Generated: 2026-05-12 13:43_
 
-**50/50 scenarios passed.**
+**58/58 scenarios passed.**
 
 ## Results
 
@@ -58,6 +58,14 @@ _Generated: 2026-05-12 10:14_
 | Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 69 | 42,9% | members from both @code blocks visible in outline |
 | Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 48 | 59,8% | focus_method found ExecSql inside the first @code block |
 | Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 69 | 42,9% | } inside string literal did not truncate first @code block |
+| C_Registry_DispatchesByExtension | PASS | — | — | — | .c and .h dispatched to CEmitter |
+| C_Minify_StripsComments | PASS | 145 | 73 | 49,5% | all // and /* */ comment forms stripped |
+| C_Minify_PreservesPreprocessorDirectives | PASS | 145 | 73 | 49,5% | #include and #define directives preserved |
+| C_Minify_BracesInStringsDoNotCorrupt | PASS | 145 | 73 | 49,5% | } inside string literal did not corrupt output |
+| Cpp_Registry_DispatchesByExtension | PASS | — | — | — | .cpp/.cc/.cxx/.hpp/.hh/.inl dispatched to CppEmitter |
+| Cpp_Minify_StripsComments | PASS | 189 | 98 | 47,8% | all // and /* */ comment forms stripped |
+| Cpp_Minify_PreservesPreprocessorDirectives | PASS | 189 | 98 | 47,8% | #include and #define directives preserved |
+| Cpp_Minify_BracesInStringsDoNotCorrupt | PASS | 189 | 98 | 47,8% | } inside string literal did not corrupt output |
 
 ## What each scenario proves
 

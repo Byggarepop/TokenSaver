@@ -24,6 +24,9 @@
     <Compile Include="..\XmlEmitter.cs" Link="XmlEmitter.cs" />
     <Compile Include="..\HtmlEmitter.cs" Link="HtmlEmitter.cs" />
     <Compile Include="..\CssEmitter.cs" Link="CssEmitter.cs" />
+    <Compile Include="..\CppMinifier.cs" Link="CppMinifier.cs" />
+    <Compile Include="..\CEmitter.cs" Link="CEmitter.cs" />
+    <Compile Include="..\CppEmitter.cs" Link="CppEmitter.cs" />
     <Compile Include="..\RazorEmitter.cs" Link="RazorEmitter.cs" />
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />

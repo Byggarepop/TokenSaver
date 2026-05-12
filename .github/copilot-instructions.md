@@ -25,6 +25,8 @@ tokens with no loss of logic.
 | JSON / JSONC | `.json`, `.jsonc` | Whitespace collapse + comment strip |
 | YAML | `.yaml`, `.yml` | `#` strip, indent preserved |
 | XML / project files | `.xml`, `.csproj`, `.props`, `.targets`, `.config`, `.resx` | `<!-- -->` strip, blank-run collapse |
+| C | `.c`, `.h` | `//` + `/* */` strip, whitespace collapse, `#directives` preserved |
+| C++ | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`, `.inl` | same as C |
 
 ### Tool selection rules — follow these by default, no need to ask
 

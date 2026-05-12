@@ -91,8 +91,9 @@ public static class FocusedEmitterTools
         "combined), JavaScript (.js, .mjs, .cjs, .jsx), TypeScript (.ts, .tsx, " +
         ".mts, .cts), Python (.py, .pyi), HTML (.html, .htm), CSS/SCSS/LESS " +
         "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
-        "and XML/.NET project files (.xml, .csproj, .props, .targets, .config, " +
-        ".resx). Code minifiers strip comments and collapse whitespace. " +
+        "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
+        "C (.c, .h), and C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl). " +
+        "Code minifiers strip comments and collapse whitespace. " +
         "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
         "Use this when working in a polyglot codebase or when reading " +
         "config/project files.")]

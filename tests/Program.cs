@@ -66,6 +66,14 @@ internal static class Program
         Run("Razor_MultipleCodeBlocks_BothBlocksMerged", Razor_MultipleCodeBlocks_BothBlocksMerged);
         Run("Razor_Focus_FindsMethodInFirstCodeBlock", Razor_Focus_FindsMethodInFirstCodeBlock);
         Run("Razor_BracesInStrings_DoNotCorruptExtraction", Razor_BracesInStrings_DoNotCorruptExtraction);
+        Run("C_Registry_DispatchesByExtension", C_Registry_DispatchesByExtension);
+        Run("C_Minify_StripsComments", C_Minify_StripsComments);
+        Run("C_Minify_PreservesPreprocessorDirectives", C_Minify_PreservesPreprocessorDirectives);
+        Run("C_Minify_BracesInStringsDoNotCorrupt", C_Minify_BracesInStringsDoNotCorrupt);
+        Run("Cpp_Registry_DispatchesByExtension", Cpp_Registry_DispatchesByExtension);
+        Run("Cpp_Minify_StripsComments", Cpp_Minify_StripsComments);
+        Run("Cpp_Minify_PreservesPreprocessorDirectives", Cpp_Minify_PreservesPreprocessorDirectives);
+        Run("Cpp_Minify_BracesInStringsDoNotCorrupt", Cpp_Minify_BracesInStringsDoNotCorrupt);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -911,6 +919,139 @@ internal static class Program
             ok ? "} inside string literal did not truncate first @code block"
                : $"ExecSql={hasExecSql} ClearGrid={hasClearGrid} (brace-in-string corruption likely)",
             TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- C emitter ----------
+
+    private static TestOutcome C_Registry_DispatchesByExtension()
+    {
+        var c = LanguageEmitterRegistry.Find("main.c");
+        var h = LanguageEmitterRegistry.Find("utils.h");
+        var ok = c is CEmitter && h is CEmitter;
+        return new TestOutcome(ok,
+            ok ? ".c and .h dispatched to CEmitter"
+               : $"c={c?.GetType().Name} h={h?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome C_Minify_StripsComments()
+    {
+        var path = Fixture("sample.c");
+        var r = new CEmitter().Minify(path);
+
+        var hasBlock   = r.Output.Contains("top-level block comment");
+        var hasLine    = r.Output.Contains("line comment about MAX");
+        var hasInline  = r.Output.Contains("inline note");
+        var hasMulti   = r.Output.Contains("multi-line block comment");
+        var hasTrail   = r.Output.Contains("another comment");
+
+        var ok = !hasBlock && !hasLine && !hasInline && !hasMulti && !hasTrail;
+        return new TestOutcome(ok,
+            ok ? "all // and /* */ comment forms stripped"
+               : $"block={hasBlock} line={hasLine} inline={hasInline} multi={hasMulti} trail={hasTrail}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome C_Minify_PreservesPreprocessorDirectives()
+    {
+        var path = Fixture("sample.c");
+        var r = new CEmitter().Minify(path);
+
+        var hasInclude = r.Output.Contains("#include <stdio.h>");
+        var hasDefine  = r.Output.Contains("#define MAX 100");
+        var hasMacro   = r.Output.Contains("#define GREET(name)");
+
+        var ok = hasInclude && hasDefine && hasMacro;
+        return new TestOutcome(ok,
+            ok ? "#include and #define directives preserved"
+               : $"include={hasInclude} define={hasDefine} macro={hasMacro}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome C_Minify_BracesInStringsDoNotCorrupt()
+    {
+        var path = Fixture("sample.c");
+        var r = new CEmitter().Minify(path);
+
+        // The string "result = %d }" has a lone } — must not end extraction early.
+        var hasMain    = r.Output.Contains("int main(");
+        var hasAdd     = r.Output.Contains("int add(");
+        var hasString  = r.Output.Contains("result = %d }");
+
+        var ok = hasMain && hasAdd && hasString;
+        return new TestOutcome(ok,
+            ok ? "} inside string literal did not corrupt output"
+               : $"main={hasMain} add={hasAdd} string={hasString}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- C++ emitter ----------
+
+    private static TestOutcome Cpp_Registry_DispatchesByExtension()
+    {
+        var cpp = LanguageEmitterRegistry.Find("app.cpp");
+        var cc  = LanguageEmitterRegistry.Find("app.cc");
+        var cxx = LanguageEmitterRegistry.Find("app.cxx");
+        var hpp = LanguageEmitterRegistry.Find("app.hpp");
+        var hh  = LanguageEmitterRegistry.Find("app.hh");
+        var inl = LanguageEmitterRegistry.Find("app.inl");
+
+        var ok = cpp is CppEmitter && cc is CppEmitter && cxx is CppEmitter
+              && hpp is CppEmitter && hh is CppEmitter && inl is CppEmitter;
+        return new TestOutcome(ok,
+            ok ? ".cpp/.cc/.cxx/.hpp/.hh/.inl dispatched to CppEmitter"
+               : $"cpp={cpp?.GetType().Name} cc={cc?.GetType().Name} hpp={hpp?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Cpp_Minify_StripsComments()
+    {
+        var path = Fixture("sample.cpp");
+        var r = new CppEmitter().Minify(path);
+
+        var hasLine   = r.Output.Contains("top-level line comment");
+        var hasBlock  = r.Output.Contains("block comment describing");
+        var hasInline = r.Output.Contains("constructor comment");
+        var hasMulti  = r.Output.Contains("multi-line block comment");
+        var hasTrail  = r.Output.Contains("trailing comment");
+
+        var ok = !hasLine && !hasBlock && !hasInline && !hasMulti && !hasTrail;
+        return new TestOutcome(ok,
+            ok ? "all // and /* */ comment forms stripped"
+               : $"line={hasLine} block={hasBlock} inline={hasInline} multi={hasMulti} trail={hasTrail}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Cpp_Minify_PreservesPreprocessorDirectives()
+    {
+        var path = Fixture("sample.cpp");
+        var r = new CppEmitter().Minify(path);
+
+        var hasInclude = r.Output.Contains("#include <iostream>");
+        var hasDefine  = r.Output.Contains("#define VERSION");
+
+        var ok = hasInclude && hasDefine;
+        return new TestOutcome(ok,
+            ok ? "#include and #define directives preserved"
+               : $"include={hasInclude} define={hasDefine}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Cpp_Minify_BracesInStringsDoNotCorrupt()
+    {
+        var path = Fixture("sample.cpp");
+        var r = new CppEmitter().Minify(path);
+
+        // The string "Calculator v... offset=} end" has a lone } — must survive intact.
+        var hasClass   = r.Output.Contains("class Calculator");
+        var hasAdd     = r.Output.Contains("int add(");
+        var hasString  = r.Output.Contains("offset=} end");
+
+        var ok = hasClass && hasAdd && hasString;
+        return new TestOutcome(ok,
+            ok ? "} inside string literal did not corrupt output"
+               : $"class={hasClass} add={hasAdd} string={hasString}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
     }
 
     // ---------- helpers ----------

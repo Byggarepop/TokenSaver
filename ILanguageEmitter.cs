@@ -35,6 +35,8 @@ public static class LanguageEmitterRegistry
         new XmlEmitter(),
         new HtmlEmitter(),
         new CssEmitter(),
+        new CEmitter(),
+        new CppEmitter(),
     };
 
     public static ILanguageEmitter? Find(string filePath) =>
