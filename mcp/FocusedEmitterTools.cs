@@ -73,10 +73,17 @@ public static class FocusedEmitterTools
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitMinified();
 
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "MinifyCSharpFile", "C#", "whole-file lossless minify")
+            var afterCharsCs = result.FocusedChars >= result.OriginalChars
+                ? result.OriginalChars
+                : result.FocusedChars;
+            var bodyCs = result.FocusedChars >= result.OriginalChars
+                ? File.ReadAllText(filePath)
+                : result.Output;
+
+            return BuildHeader(result.OriginalTokensEstimate, Math.Max(1, afterCharsCs / 4), "MinifyCSharpFile", "C#", "whole-file lossless minify")
                  + result.Notes
                  + "\n"
-                 + result.Output;
+                 + bodyCs;
         }
         catch (Exception ex)
         {
@@ -107,10 +114,18 @@ public static class FocusedEmitterTools
                 return $"ERROR: No minifier registered for extension '{Path.GetExtension(filePath)}'.";
 
             var result = emitter.Minify(filePath);
-            return BuildHeader(result.OriginalTokensEstimate, result.OutputTokensEstimate, "MinifyFile", emitter.Language, $"{emitter.Language} minify")
+
+            var afterChars = result.OutputChars >= result.OriginalChars
+                ? result.OriginalChars
+                : result.OutputChars;
+            var body = result.OutputChars >= result.OriginalChars
+                ? File.ReadAllText(filePath)
+                : result.Output;
+
+            return BuildHeader(result.OriginalTokensEstimate, Math.Max(1, afterChars / 4), "MinifyFile", emitter.Language, $"{emitter.Language} minify")
                  + result.Notes
                  + "\n"
-                 + result.Output;
+                 + body;
         }
         catch (Exception ex)
         {
@@ -172,6 +187,7 @@ public static class FocusedEmitterTools
 
     private static string BuildHeader(int before, int after, string toolName, string language, string mode)
     {
+        after = Math.Min(after, before); // never log that the tool increased token count
         var saved = Math.Max(0, before - after);
         var pct = before == 0 ? 0 : saved * 100 / before;
         LogInvocation(toolName, language, mode, before, after);
