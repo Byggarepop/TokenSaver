@@ -50,17 +50,20 @@ tokens with no loss of logic.
    only when private names are long; on small files the ledger overhead can
    wipe out the savings. C# only — no equivalent for other languages.
 
-### Note on `#` references (user-facing reminder)
+### Note on `#` references and Active Document (user-facing reminder)
 
-VS Copilot's `#FileName.cs` syntax inlines the entire file content into the
-prompt **before** Copilot sees the message. The MCP tool can't intercept
-that — by the time the model decides whether to call a tool, the file is
-already in context. Result: `#FileName.cs` bypasses our token-reduction
-tools entirely.
+VS Copilot's `#FileName.cs` syntax and the **Active Document** context button
+both inline the entire file content into the prompt **before** Copilot sees
+the message. The MCP tool can't intercept that — by the time the model decides
+whether to call a tool, the file is already in context. Result: both bypass
+our token-reduction tools entirely and send the full raw file to the model.
 
-**To benefit from token reduction, type the file path as plain text** — e.g.
-`Analyze InspectionReport.cs` or `Look at C:\path\to\Foo.cs`. Reserve `#`
-references for small files where reduction doesn't matter.
+**To benefit from token reduction, type the file or method name as plain
+text and remove any Active Document / `#` reference** — e.g.
+`"Why does OnRunSql hang on the second call in SqlQuery.razor?"`.
+Copilot will then invoke `focus_method` and only pull in the relevant slice.
+Reserve `#` references or Active Document for small files where reduction
+doesn't matter.
 
 ### Important: the tool output is a summary view, not the source of truth
 
