@@ -54,6 +54,41 @@ stderr (visible in your MCP client's output channel).
 
 ---
 
+## What this looks like in practice
+
+Measured against this project's own `FocusedEmitter.cs` (8,279 tokens raw):
+
+| Question type | Tool used | Tokens sent to AI | Reduction |
+|---|---|---|---|
+| "What's in this file?" | `OutlineCSharpFile` | 941 | **88 %** |
+| "Explain the `Emit` method" | `FocusMethod` (depth=1, minify) | 1,353 | **83 %** |
+| "Audit the whole file" | `MinifyCSharpFile` | 5,010 | 39 % |
+
+The focus example includes `Emit`'s full body, the bodies of 6 private
+helpers it calls, and signatures of 39 other referenced symbols — enough
+context for the AI to reason accurately, without the 6,900 tokens of
+unrelated members.
+
+### Important: this helps with READ operations, not EDITS
+
+These tools strip comments, collapse whitespace, and sometimes rename
+private symbols. The output is a **reasoning aid** — perfect for
+understanding code, explaining it, designing a refactor, translating it
+to another language, or finding a bug.
+
+It is **not** a faithful representation of the file on disk. When the AI
+is actually editing your code, it needs the real text — original
+indentation, blank lines between members, XML doc comments, and original
+symbol names — so the edit matches what's there and your formatting
+survives the change. A good agent will read the raw file before writing
+back to it.
+
+In short: **big savings on understanding, smaller savings on editing.**
+That's intentional — correctness matters more than tokens when code is
+changing.
+
+---
+
 ## Install and register (zero-config)
 
 ```
