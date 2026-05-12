@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 const string ServerInstructions = """
-This server (roslyn-lean) exposes five tools that produce TOKEN-REDUCED views
+This server (tokensaver) exposes six tools that produce TOKEN-REDUCED views
 of source files. PREFER these tools over reading whole files whenever the
 task involves a supported file type — they save 30-95% of tokens with no
 loss of logic.
@@ -24,6 +24,8 @@ SUPPORTED FILE TYPES (via MinifyFile, auto-dispatched by extension):
   JSON / JSONC         .json, .jsonc
   YAML                 .yaml, .yml
   XML / .NET project   .xml, .csproj, .props, .targets, .config, .resx
+  C                    .c, .h
+  C++                  .cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl
 
 TOOL SELECTION RULES — follow by default, no need to ask the user:
 
@@ -36,6 +38,12 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    methodName set, depth=1, and minify=true. depth=1 includes the bodies of
    private helpers; without those, your suggestions will hallucinate helper
    logic. C# only.
+
+   User references TWO OR MORE C# methods at once, or a prior outline/NOT FOUND
+   revealed which methods are relevant → call FocusMultipleMethods with a
+   comma-separated methodNames list (e.g. "ExecSql,ClearGrid,SetBusy"). The
+   file is parsed once and shared signatures are deduplicated — smaller output
+   than N separate FocusMethod calls and one round-trip instead of N. C# only.
 
 3. User wants to read or analyze a whole file of any supported type → call
    MinifyFile. Auto-dispatches by extension. For C#, MinifyCSharpFile is
@@ -54,6 +62,8 @@ THE TOOL OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH:
   indent-sensitive); the real file is conventionally formatted.
 - AliasCSharpFile renames private C# symbols to short codes; the real file
   uses the original names (the ledger maps back).
+- Tools NEVER return more tokens than the original file — if minification
+  yields no gain, the original file content is returned unchanged.
 
 When suggesting code or making edits, always:
 - Format suggested code in the language's idiomatic style (proper indentation,
@@ -69,18 +79,29 @@ Each tool result starts with a header like
 "// [Focused Emitter] Tokens without tool: 7,083  →  with tool: 3,133 (55% saved)".
 Mention the savings to the user in your reply — one short sentence is enough.
 
-NOTE: If the user attaches a file via VS Copilot's #filename syntax, the file
-content is already inlined by the IDE before this server is consulted —
-calling our tools at that point is redundant. For token reduction, the user
-should reference files as plain text paths instead of #-attachments.
+NOTE: VS Copilot's #filename syntax AND the Active Document context button
+both inline the entire file into the prompt BEFORE this server is consulted —
+our tools cannot intercept that content. For token reduction, the user should
+reference files as plain text (e.g. "look at OnRunSql in SqlQuery.razor")
+and remove any # or Active Document reference. Reserve those for small files
+where reduction doesn't matter.
 """;
 
-// `roslyn-lean-mcp print-instructions` emits the copilot-instructions content
+// `tokensaver-mcp print-instructions` emits the copilot-instructions content
 // to stdout, so users can pipe it into their repo's .github/ folder during setup:
-//   roslyn-lean-mcp print-instructions > .github/copilot-instructions.md
+//   tokensaver-mcp print-instructions > .github/copilot-instructions.md
 if (args.Length > 0 && args[0] == "print-instructions")
 {
     Console.WriteLine(ServerInstructions);
+    return;
+}
+
+// `tokensaver-mcp register [--local] [--claude-desktop] [--vs]`
+// Injects the server entry into Claude Desktop and/or VS 2026 MCP config files.
+if (args.Length > 0 && args[0] == "register")
+{
+    int exitCode = TokenSaver.Mcp.RegisterCommand.Run(args[1..]);
+    Environment.Exit(exitCode);
     return;
 }
 

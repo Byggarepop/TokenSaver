@@ -7,7 +7,7 @@ using System.ComponentModel;
 using ModelContextProtocol.Server;
 using RoslynLean;
 
-namespace RoslynLean.Mcp;
+namespace TokenSaver.Mcp;
 
 [McpServerToolType]
 public static class FocusedEmitterTools

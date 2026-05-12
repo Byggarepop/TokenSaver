@@ -1,9 +1,9 @@
 # Copilot Instructions
 
-## Token-efficient source context via the `roslyn-lean` MCP server
+## Token-efficient source context via the `tokensaver` MCP server
 
-This workspace has the `roslyn-lean` MCP server registered. It exposes
-**five** tools that produce token-reduced views of source files. **Prefer
+This workspace has the `tokensaver` MCP server registered. It exposes
+**six** tools that produce token-reduced views of source files. **Prefer
 these tools over reading whole files** — they typically save 30-70% of
 tokens with no loss of logic.
 

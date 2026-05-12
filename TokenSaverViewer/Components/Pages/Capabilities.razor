@@ -6,13 +6,19 @@
     <div class="hero-inner">
         <h1>What TokenSaver can do</h1>
         <p class="lead">
-            Ten file types. Four tools. Typical reduction
-            <strong>30&nbsp;–&nbsp;95&nbsp;%</strong> with no loss of meaning.
+            Built for <strong>.NET</strong> — C#, Razor, and .NET project files
+            get the full treatment. Typical reduction
+            <strong>30&nbsp;–&nbsp;95&nbsp;%</strong> with no loss of logic.
         </p>
         <p class="how">
             Just talk to your AI in plain text — reference a file by path or
             ask about a method by name. TokenSaver picks the right tool
             behind the scenes.
+        </p>
+        <p class="how how-secondary">
+            Some non-.NET file types (JS, TS, Python, HTML, CSS, JSON, YAML, XML)
+            also have basic minification support, but those paths are not actively
+            tested and results may vary.
         </p>
     </div>
 </section>
@@ -62,9 +68,17 @@
 <section class="examples">
     <h2>Try saying things like…</h2>
 
+    @{bool shownAdditionalHeader = false;}
     @foreach (var ex in Examples)
     {
-        <div class="example-card">
+        @if (!ex.Primary && !shownAdditionalHeader)
+        {
+            shownAdditionalHeader = true;
+            <div class="section-divider">
+                <span>Additional support — basic minification, not actively tested</span>
+            </div>
+        }
+        <div class="example-card @(ex.Primary ? "" : "example-card-secondary")">
             <div class="example-head">
                 <span class="badge-lang">@ex.Language</span>
                 <span class="badge-ext">@ex.Extensions</span>
@@ -253,6 +267,36 @@
         font-size: 0.85rem;
         color: #666;
     }
+
+    .hero-small .how-secondary {
+        margin-top: 0.6rem;
+        font-size: 0.875rem;
+        opacity: 0.65;
+        font-style: italic;
+    }
+
+    .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1.5rem 0 0.75rem;
+        color: #888;
+        font-size: 0.82rem;
+        font-style: italic;
+    }
+
+    .section-divider::before,
+    .section-divider::after {
+        content: "";
+        flex: 1;
+        border-top: 1px solid #dde1e7;
+    }
+
+    .example-card-secondary {
+        border-left-color: #b0bec5;
+        background: #f4f5f7;
+        opacity: 0.85;
+    }
 </style>
 
 @code {
@@ -262,10 +306,12 @@
         string Prompt,
         string Explain,
         int SavingsLow,
-        int SavingsHigh);
+        int SavingsHigh,
+        bool Primary = true);
 
     private static readonly List<Example> Examples = new()
     {
+        // ----- Primary: .NET / C# / Razor — fully supported and tested -----
         new("C# outline",
             ".cs",
             "What's in FocusedEmitter.cs?",
@@ -296,47 +342,48 @@
             "Returns both the minified markup and the @code C# in two labeled sections.",
             25, 50),
 
-        new("JavaScript / TypeScript",
-            ".js .ts .jsx .tsx",
-            "Read this React component and add a loading state.",
-            "Lexical strip of comments and whitespace, strings and template literals preserved.",
-            30, 50),
-
-        new("Python",
-            ".py",
-            "Explain what this Python script does and add type hints.",
-            "Strips # comments, keeps docstrings and indentation intact.",
-            25, 45),
-
-        new("HTML",
-            ".html .htm",
-            "Look at index.html and tell me where to add the analytics script.",
-            "Strips HTML comments, collapses attribute spacing.",
-            20, 40),
-
-        new("CSS / SCSS / LESS",
-            ".css .scss .less",
-            "Why is this stylesheet so big? Audit it.",
-            "Strips /* */ comments and whitespace. Bigger savings on heavily-commented design systems.",
-            10, 40),
-
-        new("JSON / JSONC",
-            ".json .jsonc",
-            "What does this tsconfig.json do?",
-            "Collapses pretty-printed JSON and strips // and /* */ comments (JSONC).",
-            30, 50),
-
-        new("YAML",
-            ".yaml .yml",
-            "Read this docker-compose.yml and explain the service graph.",
-            "Strips # comments, preserves indentation (YAML is indent-sensitive).",
-            20, 40),
-
         new("XML / .NET projects",
             ".csproj .props .config .xml",
             "Look at App.csproj — why is this NuGet reference here?",
             "Strips <!-- --> comments and collapses blank-line runs.",
             20, 40),
+
+        // ----- Additional: basic minification, not actively tested -----
+        new("JavaScript / TypeScript",
+            ".js .ts .jsx .tsx",
+            "Read this React component and add a loading state.",
+            "Lexical strip of comments and whitespace, strings and template literals preserved.",
+            30, 50, Primary: false),
+
+        new("Python",
+            ".py",
+            "Explain what this Python script does and add type hints.",
+            "Strips # comments, keeps docstrings and indentation intact.",
+            25, 45, Primary: false),
+
+        new("HTML",
+            ".html .htm",
+            "Look at index.html and tell me where to add the analytics script.",
+            "Strips HTML comments, collapses attribute spacing.",
+            20, 40, Primary: false),
+
+        new("CSS / SCSS / LESS",
+            ".css .scss .less",
+            "Why is this stylesheet so big? Audit it.",
+            "Strips /* */ comments and whitespace. Bigger savings on heavily-commented design systems.",
+            10, 40, Primary: false),
+
+        new("JSON / JSONC",
+            ".json .jsonc",
+            "What does this tsconfig.json do?",
+            "Collapses pretty-printed JSON and strips // and /* */ comments (JSONC).",
+            30, 50, Primary: false),
+
+        new("YAML",
+            ".yaml .yml",
+            "Read this docker-compose.yml and explain the service graph.",
+            "Strips # comments, preserves indentation (YAML is indent-sensitive).",
+            20, 40, Primary: false),
     };
 
     private static string SavingsTier(int high) =>
