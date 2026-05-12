@@ -13,7 +13,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>roslyn-lean-mcp</ToolCommandName>
     <PackageId>RoslynLean.Mcp</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>sebastianlar</Authors>
     <Description>MCP server exposing Roslyn-based focused C# emitter tools. Reduces tokens sent to LLMs by 50-70% on typical C# files without losing logic.</Description>
     <PackageTags>mcp;roslyn;csharp;copilot;tokens;llm</PackageTags>
