@@ -49,11 +49,8 @@ Each tool result starts with a token-comparison header:
 ```
 
 Every invocation also appends a JSON entry to
-`%USERPROFILE%\token-saver-report.json` (consumed by the TokenSaverViewer
-Blazor app) and emits a one-line summary to stderr (visible in your MCP
-client's output channel). Older `0.1.x` builds wrote to
-`%LOCALAPPDATA%\TokenSaverMcp\invocations.log`; if you still see writes
-there, the installed global tool is stale — repack and reinstall.
+`%USERPROFILE%\token-saver-report.json` and emits a one-line summary to
+stderr (visible in your MCP client's output channel).
 
 ---
 
@@ -121,7 +118,7 @@ In a new Claude Code session, ask something like:
 > Look at the `OnInitializedAsync` method in some C# file and explain it.
 
 Then check `%USERPROFILE%\token-saver-report.json` — a new JSON entry means
-the tool was invoked. (Or open the TokenSaverViewer Blazor app.)
+the tool was invoked.
 
 ---
 
@@ -167,7 +164,7 @@ MCP tools.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
-- Check `%USERPROFILE%\token-saver-report.json` for a new entry, or open the TokenSaverViewer.
+- Check `%USERPROFILE%\token-saver-report.json` for a new entry.
 
 ### VS-specific gotchas
 
