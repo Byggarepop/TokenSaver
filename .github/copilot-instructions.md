@@ -3,9 +3,13 @@
 ## Token-efficient source context via the `roslyn-lean` MCP server
 
 This workspace has the `roslyn-lean` MCP server registered. It exposes
-**four** tools that produce token-reduced views of source files. **Prefer
+**five** tools that produce token-reduced views of source files. **Prefer
 these tools over reading whole files** — they typically save 30-70% of
 tokens with no loss of logic.
+
+> **Visual Studio 2026 — use Copilot Chat.**  MCP tools fire in both Ask
+> and Agent mode. Open the Copilot Chat panel and ask your question there;
+> inline completions do not invoke MCP tools.
 
 ### Supported file types (via `MinifyFile`)
 
