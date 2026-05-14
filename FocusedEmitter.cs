@@ -90,10 +90,12 @@ public sealed class FocusedEmitter
     {
         var root = _tree.GetCompilationUnitRoot();
 
-        // 1) Find the focus method. If multiple match (overloads), take all.
+        // 1) Find the focus member. Matches methods AND constructors so that callers
+        //    can focus on a constructor by passing the class name as focusMethodName.
         var focusMethods = root.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>()
-            .Where(m => m.Identifier.Text == focusMethodName)
+            .Where(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == focusMethodName)
+                     || (n is ConstructorDeclarationSyntax c && c.Identifier.Text == focusMethodName))
+            .Cast<MemberDeclarationSyntax>()
             .ToList();
 
         if (focusMethods.Count == 0)
@@ -116,10 +118,10 @@ public sealed class FocusedEmitter
         var expandedMethods = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         if (depth >= 1)
         {
-            var frontier = new List<MethodDeclarationSyntax>(focusMethods);
+            var frontier = new List<MemberDeclarationSyntax>(focusMethods);
             for (int level = 0; level < depth; level++)
             {
-                var nextFrontier = new List<MethodDeclarationSyntax>();
+                var nextFrontier = new List<MemberDeclarationSyntax>();
                 foreach (var method in frontier)
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
@@ -179,8 +181,9 @@ public sealed class FocusedEmitter
         var root = _tree.GetCompilationUnitRoot();
 
         var allFocusMethods = root.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>()
-            .Where(m => nameSet.Contains(m.Identifier.Text))
+            .Where(n => (n is MethodDeclarationSyntax m && nameSet.Contains(m.Identifier.Text))
+                     || (n is ConstructorDeclarationSyntax c && nameSet.Contains(c.Identifier.Text)))
+            .Cast<MemberDeclarationSyntax>()
             .ToList();
 
         if (allFocusMethods.Count == 0)
@@ -195,10 +198,10 @@ public sealed class FocusedEmitter
         var expandedMethods = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         if (depth >= 1)
         {
-            var frontier = new List<MethodDeclarationSyntax>(allFocusMethods);
+            var frontier = new List<MemberDeclarationSyntax>(allFocusMethods);
             for (int level = 0; level < depth; level++)
             {
-                var nextFrontier = new List<MethodDeclarationSyntax>();
+                var nextFrontier = new List<MemberDeclarationSyntax>();
                 foreach (var method in frontier)
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
@@ -239,7 +242,7 @@ public sealed class FocusedEmitter
             sb.AppendLine();
         }
 
-        var foundNames = allFocusMethods.Select(m => m.Identifier.Text).Distinct().ToList();
+        var foundNames = allFocusMethods.Select(GetMemberName).Distinct().ToList();
         var notFound = methodNames.Where(n => !foundNames.Contains(n)).ToList();
         if (notFound.Count > 0)
             sb.AppendLine($"// NOT FOUND: {string.Join(", ", notFound)}");
@@ -595,7 +598,7 @@ public sealed class FocusedEmitter
     /// SemanticModel to resolve identifiers to their declaring symbols — that's
     /// what makes this compiler-grade rather than regex-grade.
     /// </summary>
-    private void CollectReferencedSymbols(MethodDeclarationSyntax method, HashSet<ISymbol> sink)
+    private void CollectReferencedSymbols(MemberDeclarationSyntax method, HashSet<ISymbol> sink)
     {
         foreach (var node in method.DescendantNodes())
         {
@@ -654,7 +657,7 @@ public sealed class FocusedEmitter
     private void AppendTypeWithFocus(
         StringBuilder sb,
         TypeDeclarationSyntax type,
-        List<MethodDeclarationSyntax> focusMethods,
+        List<MemberDeclarationSyntax> focusMethods,
         HashSet<ISymbol> referenced,
         HashSet<ISymbol> expandedMethods)
     {
@@ -675,7 +678,7 @@ public sealed class FocusedEmitter
                 continue;
             }
 
-            var memberSymbol = _model.GetDeclaredSymbol(member);
+            var memberSymbol = Model.GetDeclaredSymbol(member);
             if (memberSymbol is null) continue;
 
             // Expanded helper: emit full body so the AI sees real logic, not a guess
@@ -700,6 +703,13 @@ public sealed class FocusedEmitter
     /// <summary>
     /// Reduce a member declaration to its signature (no body, no initializer).
     /// </summary>
+    private static string GetMemberName(MemberDeclarationSyntax member) => member switch
+    {
+        MethodDeclarationSyntax m => m.Identifier.Text,
+        ConstructorDeclarationSyntax c => c.Identifier.Text,
+        _ => throw new InvalidOperationException($"Unexpected focus member type: {member.GetType().Name}")
+    };
+
     private static string? ToSignature(MemberDeclarationSyntax member) => member switch
     {
         MethodDeclarationSyntax m =>

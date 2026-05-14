@@ -83,6 +83,8 @@ internal static class Program
         Run("LazyModel_AliasLoadsModel", LazyModel_AliasLoadsModel);
         Run("LazyModel_Focus_OutputUnchanged", LazyModel_Focus_OutputUnchanged);
         Run("LazyModel_Outline_OutputUnchanged", LazyModel_Outline_OutputUnchanged);
+        Run("Focus_Constructor_FoundByClassName", Focus_Constructor_FoundByClassName);
+        Run("FocusMultiple_Constructor_IncludedWithMethods", FocusMultiple_Constructor_IncludedWithMethods);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1215,6 +1217,34 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "lazy model: EmitOutline output unchanged — signatures present, bodies absent"
                : $"found={r.Found} sig={hasSig} noBody={noBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Focus_Constructor_FoundByClassName()
+    {
+        // Passing the class name as focusMethodName should now find the constructor.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("Calculator", depth: 0);
+
+        var ok = r.Found && r.Output.Contains("Calculator");
+        return new TestOutcome(ok,
+            ok ? "constructor found by class name — no longer returns NOT FOUND"
+               : $"found={r.Found} output snippet: {r.Output[..Math.Min(120, r.Output.Length)]}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FocusMultiple_Constructor_IncludedWithMethods()
+    {
+        // EmitMultiple should include both the constructor and a regular method.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitMultiple(["Calculator", "Run"], depth: 0);
+
+        var hasConstructor = r.Found && r.Output.Contains("Calculator");
+        var hasRun         = r.Output.Contains("Run");
+        var ok = hasConstructor && hasRun;
+        return new TestOutcome(ok,
+            ok ? "constructor and method both present in multi-focus output"
+               : $"found={r.Found} ctor={hasConstructor} run={hasRun}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
