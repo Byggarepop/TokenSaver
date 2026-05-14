@@ -93,6 +93,13 @@ internal static class Program
         Run("PropertySignature_ExpressionBodied_ShowsGetOnly", PropertySignature_ExpressionBodied_ShowsGetOnly);
         Run("PropertySignature_ReadWrite_ShowsBothAccessors", PropertySignature_ReadWrite_ShowsBothAccessors);
         Run("PropertySignature_PrivateSetter_ShowsModifier", PropertySignature_PrivateSetter_ShowsModifier);
+        Run("FieldSignature_InitializerStripped", FieldSignature_InitializerStripped);
+        Run("FieldSignature_TypeAndNamePreserved", FieldSignature_TypeAndNamePreserved);
+        Run("FieldSignature_MultipleDeclaratorsHandled", FieldSignature_MultipleDeclaratorsHandled);
+        Run("Outline_Indexer_AppearsInSignature", Outline_Indexer_AppearsInSignature);
+        Run("Outline_Operator_AppearsInSignature", Outline_Operator_AppearsInSignature);
+        Run("Outline_ConversionOperator_AppearsInSignature", Outline_ConversionOperator_AppearsInSignature);
+        Run("Outline_IndexerWithAccessorList_ShowsAccessors", Outline_IndexerWithAccessorList_ShowsAccessors);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1303,6 +1310,116 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "private-setter property shows { get; private set; }"
                : $"found={r.Found} hasPrivateSet={hasPrivateSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Missing member types in outline ----------
+
+    private static TestOutcome Outline_Indexer_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasIndexer = r.Output.Contains("this[int index]");
+        var ok = r.Found && hasIndexer;
+        return new TestOutcome(ok,
+            ok ? "expression-bodied indexer appears in outline"
+               : $"found={r.Found} hasIndexer={hasIndexer}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_Operator_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasOperator = r.Output.Contains("operator +");
+        var ok = r.Found && hasOperator;
+        return new TestOutcome(ok,
+            ok ? "binary operator overload appears in outline"
+               : $"found={r.Found} hasOperator={hasOperator}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_ConversionOperator_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasImplicit = r.Output.Contains("implicit operator");
+        var hasExplicit = r.Output.Contains("explicit operator");
+        var ok = r.Found && hasImplicit && hasExplicit;
+        return new TestOutcome(ok,
+            ok ? "implicit and explicit conversion operators both appear in outline"
+               : $"found={r.Found} implicit={hasImplicit} explicit={hasExplicit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_IndexerWithAccessorList_ShowsAccessors()
+    {
+        // The string indexer has { get; set; } — both accessors must appear.
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasGetSet = r.Output.Contains("this[string key] { get; set; }");
+        var ok = r.Found && hasGetSet;
+        return new TestOutcome(ok,
+            ok ? "indexer with explicit get+set shows { get; set; }"
+               : $"found={r.Found} hasGetSet={hasGetSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Field initializer stripping ----------
+
+    private static TestOutcome FieldSignature_InitializerStripped()
+    {
+        // Initializers must be absent from field signatures in focused output.
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var noSimpleInit   = !r.Output.Contains("_count = 0");
+        var noComplexInit  = !r.Output.Contains("new(StringComparer");
+        var noStringInit   = !r.Output.Contains("\"default label value\"");
+        var noConstInit    = !r.Output.Contains("= 100");
+
+        var ok = r.Found && noSimpleInit && noComplexInit && noStringInit && noConstInit;
+        return new TestOutcome(ok,
+            ok ? "all field initializers stripped from signatures"
+               : $"simpleInit={!noSimpleInit} complexInit={!noComplexInit} stringInit={!noStringInit} constInit={!noConstInit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FieldSignature_TypeAndNamePreserved()
+    {
+        // Type and identifier must survive even when initializer is stripped.
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasCount  = r.Output.Contains("int _count");
+        var hasCache  = r.Output.Contains("Dictionary<string, List<string>> _cache");
+        var hasLabel  = r.Output.Contains("string _label");
+
+        var ok = r.Found && hasCount && hasCache && hasLabel;
+        return new TestOutcome(ok,
+            ok ? "type and name preserved after initializer strip"
+               : $"count={hasCount} cache={hasCache} label={hasLabel}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FieldSignature_MultipleDeclaratorsHandled()
+    {
+        // "int _min = 0, _max = 100;" must become "int _min, _max;"
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasMulti   = r.Output.Contains("_min, _max");
+        var noMinInit  = !r.Output.Contains("int.MinValue");
+        var noMaxInit  = !r.Output.Contains("int.MaxValue");
+
+        var ok = r.Found && hasMulti && noMinInit && noMaxInit;
+        return new TestOutcome(ok,
+            ok ? "multi-declarator field collapsed to \"type name1, name2;\" with no initializers"
+               : $"multi={hasMulti} noMinInit={noMinInit} noMaxInit={noMaxInit}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

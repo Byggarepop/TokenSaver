@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-14 17:42_
+_Generated: 2026-05-14 17:53_
 
-**77/77 scenarios passed.**
+**84/84 scenarios passed.**
 
 ## Results
 
@@ -12,7 +12,7 @@ _Generated: 2026-05-14 17:42_
 | Minify_OutputReparsesCleanly | PASS | 441 | 222 | 49,7% | minified output parses with zero errors |
 | Minify_StripsAllComments | PASS | 441 | 222 | 49,7% | no //, ///, or /* survived in body |
 | Focus_IncludesFocusMethodBody | PASS | 441 | 264 | 40,1% | focus body present verbatim |
-| Focus_DropsUnrelatedMembers | PASS | 168 | 53 | 68,1% | unrelated 'Classify' arms not present; focus body present |
+| Focus_DropsUnrelatedMembers | PASS | 168 | 66 | 60,7% | unrelated 'Classify' arms not present; focus body present |
 | Focus_Depth0_HelpersAreSignaturesOnly | PASS | 441 | 264 | 40,1% | helper bodies absent; signatures present |
 | Focus_Depth1_IncludesPrivateHelperBodies | PASS | 441 | 355 | 19,4% | WeightedSum/Sum/ApplyBias bodies all present at depth=1 |
 | Focus_NotFound_ReturnsNotFoundResult | PASS | — | — | — | returned NotFound with diagnostic comment |
@@ -22,8 +22,8 @@ _Generated: 2026-05-14 17:42_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 355 | 19,4% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 8991 | 5328 | 40,7% | FocusedEmitter.cs minified losslessly; 40,7% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 8991 | 2613 | 70,9% | Focus on Emit with depth=1: 70,9% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 9261 | 5525 | 40,3% | FocusedEmitter.cs minified losslessly; 40,3% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 9261 | 2736 | 70,5% | Focus on Emit with depth=1: 70,5% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -58,9 +58,9 @@ _Generated: 2026-05-14 17:42_
 | EmitMultiple_BothMethodsPresent | PASS | 441 | 306 | 30,6% | both Run and WeightedSum present in single multi-method output |
 | EmitMultiple_SharedSignaturesDeduped | PASS | 441 | 306 | 30,6% | multi (1225 chars) < original (1766 chars) — focused view confirmed |
 | EmitMultiple_PartialNotFound_ReportsWhichAreAbsent | PASS | 441 | 271 | 38,4% | partial match: Run found, DoesNotExist reported in NOT FOUND comment |
-| Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 69 | 42,9% | members from both @code blocks visible in outline |
-| Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 48 | 59,8% | focus_method found ExecSql inside the first @code block |
-| Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 69 | 42,9% | } inside string literal did not truncate first @code block |
+| Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 63 | 47,4% | members from both @code blocks visible in outline |
+| Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 64 | 47,0% | focus_method found ExecSql inside the first @code block |
+| Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 63 | 47,4% | } inside string literal did not truncate first @code block |
 | C_Registry_DispatchesByExtension | PASS | — | — | — | .c and .h dispatched to CEmitter |
 | C_Minify_StripsComments | PASS | 145 | 73 | 49,5% | all // and /* */ comment forms stripped |
 | C_Minify_PreservesPreprocessorDirectives | PASS | 145 | 73 | 49,5% | #include and #define directives preserved |
@@ -75,16 +75,23 @@ _Generated: 2026-05-14 17:42_
 | LazyModel_AliasLoadsModel | PASS | 441 | 246 | 44,3% | IsModelLoaded: false before EmitAliased, true after — lazy build confirmed |
 | LazyModel_Focus_OutputUnchanged | PASS | 441 | 355 | 19,4% | lazy model: Emit output unchanged — focus body and depth=1 helper both present |
 | LazyModel_Outline_OutputUnchanged | PASS | 441 | 99 | 77,5% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
-| Focus_Constructor_FoundByClassName | PASS | 441 | 53 | 87,9% | constructor found by class name — no longer returns NOT FOUND |
-| FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 298 | 32,4% | constructor and method both present in multi-focus output |
+| Focus_Constructor_FoundByClassName | PASS | 441 | 62 | 85,9% | constructor found by class name — no longer returns NOT FOUND |
+| FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 307 | 30,4% | constructor and method both present in multi-focus output |
 | Region_Minify_StripsRegionDirectives | PASS | 186 | 76 | 59,0% | #region/#endregion stripped; logic intact; 59,0% saved |
-| Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 186 | 21 | 88,3% | #region/#endregion absent after MinifyText; focus body intact |
+| Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 186 | 26 | 85,6% | #region/#endregion absent after MinifyText; focus body intact |
 | Region_LogicPreservedAfterStrip | PASS | 186 | 76 | 59,0% | fields, constructor, public methods, and private helpers all survived region strip |
 | PropertySignature_GetOnly_NoSetInSignature | PASS | 179 | 133 | 25,5% | get-only property shows { get; } — no spurious set; |
 | PropertySignature_InitOnly_ShowsInit | PASS | 179 | 133 | 25,5% | init-only property shows { get; init; } |
 | PropertySignature_ExpressionBodied_ShowsGetOnly | PASS | 179 | 133 | 25,5% | expression-bodied property shows { get; } |
 | PropertySignature_ReadWrite_ShowsBothAccessors | PASS | 179 | 133 | 25,5% | read-write property still shows { get; set; } |
 | PropertySignature_PrivateSetter_ShowsModifier | PASS | 179 | 133 | 25,5% | private-setter property shows { get; private set; } |
+| FieldSignature_InitializerStripped | PASS | 178 | 106 | 40,3% | all field initializers stripped from signatures |
+| FieldSignature_TypeAndNamePreserved | PASS | 178 | 106 | 40,3% | type and name preserved after initializer strip |
+| FieldSignature_MultipleDeclaratorsHandled | PASS | 178 | 106 | 40,3% | multi-declarator field collapsed to "type name1, name2;" with no initializers |
+| Outline_Indexer_AppearsInSignature | PASS | 296 | 114 | 61,3% | expression-bodied indexer appears in outline |
+| Outline_Operator_AppearsInSignature | PASS | 296 | 114 | 61,3% | binary operator overload appears in outline |
+| Outline_ConversionOperator_AppearsInSignature | PASS | 296 | 114 | 61,3% | implicit and explicit conversion operators both appear in outline |
+| Outline_IndexerWithAccessorList_ShowsAccessors | PASS | 296 | 114 | 61,3% | indexer with explicit get+set shows { get; set; } |
 
 ## What each scenario proves
 

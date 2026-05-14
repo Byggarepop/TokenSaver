@@ -39,11 +39,15 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    private helpers; without those, your suggestions will hallucinate helper
    logic. C# only.
 
+   methodName also accepts a CLASS NAME to target a constructor — e.g.
+   methodName="MyService" focuses on the MyService(...) constructor body.
+
    User references TWO OR MORE C# methods at once, or a prior outline/NOT FOUND
    revealed which methods are relevant → call FocusMultipleMethods with a
    comma-separated methodNames list (e.g. "ExecSql,ClearGrid,SetBusy"). The
    file is parsed once and shared signatures are deduplicated — smaller output
    than N separate FocusMethod calls and one round-trip instead of N. C# only.
+   Class names are accepted here too (mixed with method names is fine).
 
 3. User wants to read or analyze a whole file of any supported type → call
    MinifyFile. Auto-dispatches by extension. For C#, MinifyCSharpFile is
@@ -56,10 +60,12 @@ SKIP these tools for: unsupported file types (.md, .txt, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.
 
 THE TOOL OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH:
-- Comments are stripped from output; they exist in the real file.
+- Comments and XML doc comments are stripped from output; they exist in the real file.
+- #region / #endregion directives are stripped — pure organisation, no logic.
 - Whitespace is collapsed (C#/JS/TS/JSON) or trailing/blank-runs trimmed
   (Python/YAML/XML preserve indentation since those formats are
   indent-sensitive); the real file is conventionally formatted.
+- Field signatures omit initializers (e.g. "private int _count;" not "= 0").
 - AliasCSharpFile renames private C# symbols to short codes; the real file
   uses the original names (the ledger maps back).
 - Tools NEVER return more tokens than the original file — if minification

@@ -688,7 +688,13 @@ public sealed class FocusedEmitter
                 continue;
             }
 
-            var memberSymbol = Model.GetDeclaredSymbol(member);
+            // GetDeclaredSymbol returns null for FieldDeclarationSyntax — the symbol
+            // lives on each inner VariableDeclaratorSyntax. Check all declarators.
+            ISymbol? memberSymbol = member is FieldDeclarationSyntax fieldDecl
+                ? fieldDecl.Declaration.Variables
+                    .Select(v => Model.GetDeclaredSymbol(v))
+                    .FirstOrDefault(s => s is not null && referenced.Contains(s))
+                : Model.GetDeclaredSymbol(member);
             if (memberSymbol is null) continue;
 
             // Expanded helper: emit full body so the AI sees real logic, not a guess
@@ -713,13 +719,14 @@ public sealed class FocusedEmitter
     /// <summary>
     /// Reduce a member declaration to its signature (no body, no initializer).
     /// </summary>
-    private static string PropertyAccessors(PropertyDeclarationSyntax p)
+    private static string PropertyAccessors(PropertyDeclarationSyntax p) =>
+        AccessorBlock(p.AccessorList, p.ExpressionBody is not null);
+
+    private static string AccessorBlock(AccessorListSyntax? accessorList, bool hasExpressionBody)
     {
-        if (p.ExpressionBody is not null)
+        if (hasExpressionBody || accessorList is null)
             return "{ get; }";
-        if (p.AccessorList is null)
-            return "{ get; }";
-        var accessors = string.Join(" ", p.AccessorList.Accessors.Select(a =>
+        var accessors = string.Join(" ", accessorList.Accessors.Select(a =>
         {
             var mods = Mods(a.Modifiers);
             var kw = a.Keyword.Text;
@@ -742,11 +749,17 @@ public sealed class FocusedEmitter
         PropertyDeclarationSyntax p =>
             $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {PropertyAccessors(p)}",
         FieldDeclarationSyntax f =>
-            $"{Mods(f.Modifiers)} {f.Declaration};",
+            $"{Mods(f.Modifiers)} {f.Declaration.Type} {string.Join(", ", f.Declaration.Variables.Select(v => v.Identifier.Text))};",
         ConstructorDeclarationSyntax c =>
             $"{Mods(c.Modifiers)} {c.Identifier}{c.ParameterList};",
         EventFieldDeclarationSyntax e =>
             $"{Mods(e.Modifiers)} event {e.Declaration};",
+        IndexerDeclarationSyntax i =>
+            $"{Mods(i.Modifiers)} {i.Type} this{i.ParameterList} {AccessorBlock(i.AccessorList, i.ExpressionBody is not null)}",
+        OperatorDeclarationSyntax o =>
+            $"{Mods(o.Modifiers)} {o.ReturnType} operator {o.OperatorToken}{o.ParameterList};",
+        ConversionOperatorDeclarationSyntax cv =>
+            $"{Mods(cv.Modifiers)} {cv.ImplicitOrExplicitKeyword} operator {cv.Type}{cv.ParameterList};",
         _ => null
     };
 
