@@ -88,6 +88,11 @@ internal static class Program
         Run("Region_Minify_StripsRegionDirectives", Region_Minify_StripsRegionDirectives);
         Run("Region_Focus_StripsRegionDirectivesWhenMinified", Region_Focus_StripsRegionDirectivesWhenMinified);
         Run("Region_LogicPreservedAfterStrip", Region_LogicPreservedAfterStrip);
+        Run("PropertySignature_GetOnly_NoSetInSignature", PropertySignature_GetOnly_NoSetInSignature);
+        Run("PropertySignature_InitOnly_ShowsInit", PropertySignature_InitOnly_ShowsInit);
+        Run("PropertySignature_ExpressionBodied_ShowsGetOnly", PropertySignature_ExpressionBodied_ShowsGetOnly);
+        Run("PropertySignature_ReadWrite_ShowsBothAccessors", PropertySignature_ReadWrite_ShowsBothAccessors);
+        Run("PropertySignature_PrivateSetter_ShowsModifier", PropertySignature_PrivateSetter_ShowsModifier);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1220,6 +1225,84 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "lazy model: EmitOutline output unchanged — signatures present, bodies absent"
                : $"found={r.Found} sig={hasSig} noBody={noBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Property accessor signatures ----------
+
+    private static TestOutcome PropertySignature_GetOnly_NoSetInSignature()
+    {
+        // A get-only auto property must show { get; } not { get; set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasGetOnly  = r.Output.Contains("GetOnly { get; }");
+        var noFakeSet   = !r.Output.Contains("GetOnly { get; set; }");
+
+        var ok = r.Found && hasGetOnly && noFakeSet;
+        return new TestOutcome(ok,
+            ok ? "get-only property shows { get; } — no spurious set;"
+               : $"found={r.Found} hasGetOnly={hasGetOnly} noFakeSet={noFakeSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_InitOnly_ShowsInit()
+    {
+        // An init-only property must show { get; init; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasInit = r.Output.Contains("InitOnly { get; init; }");
+
+        var ok = r.Found && hasInit;
+        return new TestOutcome(ok,
+            ok ? "init-only property shows { get; init; }"
+               : $"found={r.Found} hasInit={hasInit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_ExpressionBodied_ShowsGetOnly()
+    {
+        // An expression-bodied property (=> ...) must show { get; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasComputed = r.Output.Contains("Computed { get; }");
+
+        var ok = r.Found && hasComputed;
+        return new TestOutcome(ok,
+            ok ? "expression-bodied property shows { get; }"
+               : $"found={r.Found} hasComputed={hasComputed} snippet={r.Output[..Math.Min(300, r.Output.Length)]}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_ReadWrite_ShowsBothAccessors()
+    {
+        // A normal read-write property must still show { get; set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasReadWrite = r.Output.Contains("ReadWrite { get; set; }");
+
+        var ok = r.Found && hasReadWrite;
+        return new TestOutcome(ok,
+            ok ? "read-write property still shows { get; set; }"
+               : $"found={r.Found} hasReadWrite={hasReadWrite}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_PrivateSetter_ShowsModifier()
+    {
+        // A property with a private setter must show { get; private set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasPrivateSet = r.Output.Contains("PrivateSet { get; private set; }");
+
+        var ok = r.Found && hasPrivateSet;
+        return new TestOutcome(ok,
+            ok ? "private-setter property shows { get; private set; }"
+               : $"found={r.Found} hasPrivateSet={hasPrivateSet}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

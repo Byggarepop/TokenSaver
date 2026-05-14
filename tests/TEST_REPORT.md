@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-14 17:36_
+_Generated: 2026-05-14 17:42_
 
-**72/72 scenarios passed.**
+**77/77 scenarios passed.**
 
 ## Results
 
@@ -11,19 +11,19 @@ _Generated: 2026-05-14 17:36_
 | Minify_PreservesLogicAndSavesTokens | PASS | 441 | 222 | 49,7% | 5 methods preserved; tokens 441→222 (49,7% saved) |
 | Minify_OutputReparsesCleanly | PASS | 441 | 222 | 49,7% | minified output parses with zero errors |
 | Minify_StripsAllComments | PASS | 441 | 222 | 49,7% | no //, ///, or /* survived in body |
-| Focus_IncludesFocusMethodBody | PASS | 441 | 262 | 40,6% | focus body present verbatim |
+| Focus_IncludesFocusMethodBody | PASS | 441 | 264 | 40,1% | focus body present verbatim |
 | Focus_DropsUnrelatedMembers | PASS | 168 | 53 | 68,1% | unrelated 'Classify' arms not present; focus body present |
-| Focus_Depth0_HelpersAreSignaturesOnly | PASS | 441 | 262 | 40,6% | helper bodies absent; signatures present |
-| Focus_Depth1_IncludesPrivateHelperBodies | PASS | 441 | 353 | 19,9% | WeightedSum/Sum/ApplyBias bodies all present at depth=1 |
+| Focus_Depth0_HelpersAreSignaturesOnly | PASS | 441 | 264 | 40,1% | helper bodies absent; signatures present |
+| Focus_Depth1_IncludesPrivateHelperBodies | PASS | 441 | 355 | 19,4% | WeightedSum/Sum/ApplyBias bodies all present at depth=1 |
 | Focus_NotFound_ReturnsNotFoundResult | PASS | — | — | — | returned NotFound with diagnostic comment |
 | Alias_RenamesPrivateOnly | PASS | 441 | 246 | 44,3% | public API preserved; private helpers in ledger |
 | Alias_PreservesNameofArgument | PASS | 79 | 72 | 8,9% | nameof(_counter) intact; field renamed to F1 elsewhere |
 | Alias_LedgerDisambiguatesDuplicateNames | PASS | 131 | 128 | 1,9% | ledger qualifies _state by container in all three classes |
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
-| TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 353 | 19,9% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 8862 | 5230 | 41,0% | FocusedEmitter.cs minified losslessly; 41,0% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 8862 | 2614 | 70,5% | Focus on Emit with depth=1: 70,5% reduction with helpers preserved |
+| TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 355 | 19,4% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
+| RealWorld_Minify_LargeSourceFile | PASS | 8991 | 5328 | 40,7% | FocusedEmitter.cs minified losslessly; 40,7% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 8991 | 2613 | 70,9% | Focus on Emit with depth=1: 70,9% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -53,11 +53,11 @@ _Generated: 2026-05-14 17:36_
 | Css_Minify_StripsCommentsPreservesStrings | PASS | 91 | 58 | 36,2% | comments stripped; strings and url() intact |
 | Razor_Registry_DispatchesByExtension | PASS | — | — | — | .razor → RazorEmitter; .razor.cs → CSharpEmitter |
 | Razor_Minify_CombinesMarkupAndCode | PASS | 98 | 97 | 0,8% | Razor output contains BOTH minified markup AND minified C# @code |
-| Outline_EmitsSignaturesOnly_NoBodies | PASS | 441 | 97 | 78,0% | all signatures present; no bodies; 78,0% saved |
+| Outline_EmitsSignaturesOnly_NoBodies | PASS | 441 | 99 | 77,5% | all signatures present; no bodies; 77,5% saved |
 | Outline_IncludesAllTopLevelTypes | PASS | 131 | 94 | 27,9% | outer, nested Inner, and sibling Other all present |
-| EmitMultiple_BothMethodsPresent | PASS | 441 | 304 | 31,1% | both Run and WeightedSum present in single multi-method output |
-| EmitMultiple_SharedSignaturesDeduped | PASS | 441 | 304 | 31,1% | multi (1217 chars) < original (1766 chars) — focused view confirmed |
-| EmitMultiple_PartialNotFound_ReportsWhichAreAbsent | PASS | 441 | 269 | 38,9% | partial match: Run found, DoesNotExist reported in NOT FOUND comment |
+| EmitMultiple_BothMethodsPresent | PASS | 441 | 306 | 30,6% | both Run and WeightedSum present in single multi-method output |
+| EmitMultiple_SharedSignaturesDeduped | PASS | 441 | 306 | 30,6% | multi (1225 chars) < original (1766 chars) — focused view confirmed |
+| EmitMultiple_PartialNotFound_ReportsWhichAreAbsent | PASS | 441 | 271 | 38,4% | partial match: Run found, DoesNotExist reported in NOT FOUND comment |
 | Razor_MultipleCodeBlocks_BothBlocksMerged | PASS | 120 | 69 | 42,9% | members from both @code blocks visible in outline |
 | Razor_Focus_FindsMethodInFirstCodeBlock | PASS | 120 | 48 | 59,8% | focus_method found ExecSql inside the first @code block |
 | Razor_BracesInStrings_DoNotCorruptExtraction | PASS | 120 | 69 | 42,9% | } inside string literal did not truncate first @code block |
@@ -69,17 +69,22 @@ _Generated: 2026-05-14 17:36_
 | Cpp_Minify_StripsComments | PASS | 189 | 98 | 47,8% | all // and /* */ comment forms stripped |
 | Cpp_Minify_PreservesPreprocessorDirectives | PASS | 189 | 98 | 47,8% | #include and #define directives preserved |
 | Cpp_Minify_BracesInStringsDoNotCorrupt | PASS | 189 | 98 | 47,8% | } inside string literal did not corrupt output |
-| LazyModel_OutlineDoesNotLoadModel | PASS | 441 | 97 | 78,0% | EmitOutline completed; IsModelLoaded=false — no compilation triggered |
+| LazyModel_OutlineDoesNotLoadModel | PASS | 441 | 99 | 77,5% | EmitOutline completed; IsModelLoaded=false — no compilation triggered |
 | LazyModel_MinifyDoesNotLoadModel | PASS | 441 | 222 | 49,7% | EmitMinified completed; IsModelLoaded=false — no compilation triggered |
-| LazyModel_FocusLoadsModel | PASS | 441 | 262 | 40,6% | IsModelLoaded: false before Emit, true after — lazy build confirmed |
+| LazyModel_FocusLoadsModel | PASS | 441 | 264 | 40,1% | IsModelLoaded: false before Emit, true after — lazy build confirmed |
 | LazyModel_AliasLoadsModel | PASS | 441 | 246 | 44,3% | IsModelLoaded: false before EmitAliased, true after — lazy build confirmed |
-| LazyModel_Focus_OutputUnchanged | PASS | 441 | 353 | 19,9% | lazy model: Emit output unchanged — focus body and depth=1 helper both present |
-| LazyModel_Outline_OutputUnchanged | PASS | 441 | 97 | 78,0% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
+| LazyModel_Focus_OutputUnchanged | PASS | 441 | 355 | 19,4% | lazy model: Emit output unchanged — focus body and depth=1 helper both present |
+| LazyModel_Outline_OutputUnchanged | PASS | 441 | 99 | 77,5% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
 | Focus_Constructor_FoundByClassName | PASS | 441 | 53 | 87,9% | constructor found by class name — no longer returns NOT FOUND |
-| FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 296 | 32,8% | constructor and method both present in multi-focus output |
+| FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 298 | 32,4% | constructor and method both present in multi-focus output |
 | Region_Minify_StripsRegionDirectives | PASS | 186 | 76 | 59,0% | #region/#endregion stripped; logic intact; 59,0% saved |
 | Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 186 | 21 | 88,3% | #region/#endregion absent after MinifyText; focus body intact |
 | Region_LogicPreservedAfterStrip | PASS | 186 | 76 | 59,0% | fields, constructor, public methods, and private helpers all survived region strip |
+| PropertySignature_GetOnly_NoSetInSignature | PASS | 179 | 133 | 25,5% | get-only property shows { get; } — no spurious set; |
+| PropertySignature_InitOnly_ShowsInit | PASS | 179 | 133 | 25,5% | init-only property shows { get; init; } |
+| PropertySignature_ExpressionBodied_ShowsGetOnly | PASS | 179 | 133 | 25,5% | expression-bodied property shows { get; } |
+| PropertySignature_ReadWrite_ShowsBothAccessors | PASS | 179 | 133 | 25,5% | read-write property still shows { get; set; } |
+| PropertySignature_PrivateSetter_ShowsModifier | PASS | 179 | 133 | 25,5% | private-setter property shows { get; private set; } |
 
 ## What each scenario proves
 

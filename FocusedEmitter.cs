@@ -713,6 +713,21 @@ public sealed class FocusedEmitter
     /// <summary>
     /// Reduce a member declaration to its signature (no body, no initializer).
     /// </summary>
+    private static string PropertyAccessors(PropertyDeclarationSyntax p)
+    {
+        if (p.ExpressionBody is not null)
+            return "{ get; }";
+        if (p.AccessorList is null)
+            return "{ get; }";
+        var accessors = string.Join(" ", p.AccessorList.Accessors.Select(a =>
+        {
+            var mods = Mods(a.Modifiers);
+            var kw = a.Keyword.Text;
+            return mods.Length > 0 ? $"{mods} {kw};" : $"{kw};";
+        }));
+        return $"{{ {accessors} }}";
+    }
+
     private static string GetMemberName(MemberDeclarationSyntax member) => member switch
     {
         MethodDeclarationSyntax m => m.Identifier.Text,
@@ -725,7 +740,7 @@ public sealed class FocusedEmitter
         MethodDeclarationSyntax m =>
             $"{Mods(m.Modifiers)} {m.ReturnType} {m.Identifier}{m.TypeParameterList}{m.ParameterList};",
         PropertyDeclarationSyntax p =>
-            $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {{ get; set; }}",
+            $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {PropertyAccessors(p)}",
         FieldDeclarationSyntax f =>
             $"{Mods(f.Modifiers)} {f.Declaration};",
         ConstructorDeclarationSyntax c =>
