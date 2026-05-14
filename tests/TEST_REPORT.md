@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-12 17:04_
+_Generated: 2026-05-14 16:55_
 
-**61/61 scenarios passed.**
+**67/67 scenarios passed.**
 
 ## Results
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-12 17:04_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 353 | 19,9% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 8279 | 5010 | 39,5% | FocusedEmitter.cs minified losslessly; 39,5% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 8279 | 2544 | 69,3% | Focus on Emit with depth=1: 69,3% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 8489 | 5069 | 40,3% | FocusedEmitter.cs minified losslessly; 40,3% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 8489 | 2555 | 69,9% | Focus on Emit with depth=1: 69,9% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -69,6 +69,12 @@ _Generated: 2026-05-12 17:04_
 | Cpp_Minify_StripsComments | PASS | 189 | 98 | 47,8% | all // and /* */ comment forms stripped |
 | Cpp_Minify_PreservesPreprocessorDirectives | PASS | 189 | 98 | 47,8% | #include and #define directives preserved |
 | Cpp_Minify_BracesInStringsDoNotCorrupt | PASS | 189 | 98 | 47,8% | } inside string literal did not corrupt output |
+| LazyModel_OutlineDoesNotLoadModel | PASS | 441 | 97 | 78,0% | EmitOutline completed; IsModelLoaded=false — no compilation triggered |
+| LazyModel_MinifyDoesNotLoadModel | PASS | 441 | 222 | 49,7% | EmitMinified completed; IsModelLoaded=false — no compilation triggered |
+| LazyModel_FocusLoadsModel | PASS | 441 | 262 | 40,6% | IsModelLoaded: false before Emit, true after — lazy build confirmed |
+| LazyModel_AliasLoadsModel | PASS | 441 | 246 | 44,3% | IsModelLoaded: false before EmitAliased, true after — lazy build confirmed |
+| LazyModel_Focus_OutputUnchanged | PASS | 441 | 353 | 19,9% | lazy model: Emit output unchanged — focus body and depth=1 helper both present |
+| LazyModel_Outline_OutputUnchanged | PASS | 441 | 97 | 78,0% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
 
 ## What each scenario proves
 

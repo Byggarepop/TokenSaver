@@ -77,6 +77,12 @@ internal static class Program
         Run("Cpp_Minify_StripsComments", Cpp_Minify_StripsComments);
         Run("Cpp_Minify_PreservesPreprocessorDirectives", Cpp_Minify_PreservesPreprocessorDirectives);
         Run("Cpp_Minify_BracesInStringsDoNotCorrupt", Cpp_Minify_BracesInStringsDoNotCorrupt);
+        Run("LazyModel_OutlineDoesNotLoadModel", LazyModel_OutlineDoesNotLoadModel);
+        Run("LazyModel_MinifyDoesNotLoadModel", LazyModel_MinifyDoesNotLoadModel);
+        Run("LazyModel_FocusLoadsModel", LazyModel_FocusLoadsModel);
+        Run("LazyModel_AliasLoadsModel", LazyModel_AliasLoadsModel);
+        Run("LazyModel_Focus_OutputUnchanged", LazyModel_Focus_OutputUnchanged);
+        Run("LazyModel_Outline_OutputUnchanged", LazyModel_Outline_OutputUnchanged);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1105,6 +1111,111 @@ internal static class Program
             ok ? "} inside string literal did not corrupt output"
                : $"class={hasClass} add={hasAdd} string={hasString}",
             TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- Lazy semantic model ----------
+
+    private static TestOutcome LazyModel_OutlineDoesNotLoadModel()
+    {
+        // EmitOutline is syntax-only — it must never touch the semantic model.
+        // We prove this by passing an empty reference list: if the model were
+        // accessed it would still succeed (empty compilation), so instead we
+        // assert directly on IsModelLoaded after the call.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path, referenceAssemblyPaths: Array.Empty<string>());
+        var r = emitter.EmitOutline();
+
+        var hasSignature = r.Output.Contains("Run") && r.Output.Contains("WeightedSum");
+        var modelUnused = !emitter.IsModelLoaded;
+
+        var ok = r.Found && hasSignature && modelUnused;
+        return new TestOutcome(ok,
+            ok ? "EmitOutline completed; IsModelLoaded=false — no compilation triggered"
+               : $"found={r.Found} sig={hasSignature} modelUnused={modelUnused}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_MinifyDoesNotLoadModel()
+    {
+        // EmitMinified is syntax-only — same proof as outline.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path, referenceAssemblyPaths: Array.Empty<string>());
+        var r = emitter.EmitMinified();
+
+        var hasLogic = r.Output.Contains("WeightedSum") && r.Output.Contains("ApplyBias");
+        var modelUnused = !emitter.IsModelLoaded;
+
+        var ok = r.Found && hasLogic && modelUnused;
+        return new TestOutcome(ok,
+            ok ? "EmitMinified completed; IsModelLoaded=false — no compilation triggered"
+               : $"found={r.Found} logic={hasLogic} modelUnused={modelUnused}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_FocusLoadsModel()
+    {
+        // Emit needs symbol resolution, so it must trigger the lazy build.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path);
+
+        var beforeFocus = emitter.IsModelLoaded;
+        var r = emitter.Emit("Run", depth: 0);
+        var afterFocus = emitter.IsModelLoaded;
+
+        var ok = r.Found && !beforeFocus && afterFocus;
+        return new TestOutcome(ok,
+            ok ? "IsModelLoaded: false before Emit, true after — lazy build confirmed"
+               : $"found={r.Found} before={beforeFocus} after={afterFocus}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_AliasLoadsModel()
+    {
+        // EmitAliased also needs symbol resolution.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path);
+
+        var beforeAlias = emitter.IsModelLoaded;
+        var r = emitter.EmitAliased();
+        var afterAlias = emitter.IsModelLoaded;
+
+        var ok = r.Found && !beforeAlias && afterAlias;
+        return new TestOutcome(ok,
+            ok ? "IsModelLoaded: false before EmitAliased, true after — lazy build confirmed"
+               : $"found={r.Found} before={beforeAlias} after={afterAlias}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_Focus_OutputUnchanged()
+    {
+        // Regression: the lazy refactor must not change what Emit produces.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("Run", depth: 1);
+
+        var hasRunBody   = r.Output.Contains("Math.Max(0, biased)");
+        var hasHelper    = r.Output.Contains("ApplyBias");
+
+        var ok = r.Found && hasRunBody && hasHelper;
+        return new TestOutcome(ok,
+            ok ? "lazy model: Emit output unchanged — focus body and depth=1 helper both present"
+               : $"found={r.Found} body={hasRunBody} helper={hasHelper}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_Outline_OutputUnchanged()
+    {
+        // Regression: the lazy refactor must not change what EmitOutline produces.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasSig  = r.Output.Contains("Run") && r.Output.Contains("WeightedSum");
+        var noBody  = !r.Output.Contains("Math.Max(0, biased)");
+
+        var ok = r.Found && hasSig && noBody;
+        return new TestOutcome(ok,
+            ok ? "lazy model: EmitOutline output unchanged — signatures present, bodies absent"
+               : $"found={r.Found} sig={hasSig} noBody={noBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
     // ---------- helpers ----------

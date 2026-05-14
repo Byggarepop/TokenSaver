@@ -25,9 +25,47 @@ namespace RoslynLean;
 /// </summary>
 public sealed class FocusedEmitter
 {
-    private readonly Compilation _compilation;
     private readonly SyntaxTree _tree;
-    private readonly SemanticModel _model;
+    private readonly IEnumerable<string>? _referenceAssemblyPaths;
+    private Compilation? _compilation;
+    private SemanticModel? _model;
+
+    /// <summary>
+    /// True once the semantic model has been initialised.
+    /// EmitOutline and EmitMinified never set this; Emit, EmitMultiple, and EmitAliased do.
+    /// </summary>
+    public bool IsModelLoaded => _model is not null;
+
+    /// <summary>
+    /// Lazily builds the Roslyn compilation and semantic model on first access.
+    /// Only Emit, EmitMultiple, and EmitAliased need symbol resolution — outline
+    /// and minify work purely on the syntax tree, so they skip this cost entirely.
+    /// </summary>
+    private SemanticModel Model
+    {
+        get
+        {
+            if (_model is not null) return _model;
+
+            // Build a minimal compilation. For real use, you'd load the .csproj via
+            // MSBuildWorkspace so all references are available. For a CLI that just
+            // takes a single file, we use a stub set of references — this means
+            // some symbol resolution may fail (e.g., types from project references),
+            // but in-file resolution always works.
+            var references = (_referenceAssemblyPaths ?? GetDefaultReferences())
+                .Where(File.Exists)
+                .Select(p => MetadataReference.CreateFromFile(p))
+                .ToArray();
+
+            _compilation = CSharpCompilation.Create(
+                assemblyName: "RoslynLeanScratch",
+                syntaxTrees: [_tree],
+                references: references);
+
+            _model = _compilation.GetSemanticModel(_tree);
+            return _model;
+        }
+    }
 
     public FocusedEmitter(string sourceFilePath, IEnumerable<string>? referenceAssemblyPaths = null)
     {
@@ -38,23 +76,7 @@ public sealed class FocusedEmitter
         if (RazorPreprocessor.IsRazor(sourceFilePath))
             source = RazorPreprocessor.ExtractCSharp(source);
         _tree = CSharpSyntaxTree.ParseText(source, path: sourceFilePath);
-
-        // Build a minimal compilation. For real use, you'd load the .csproj via
-        // MSBuildWorkspace so all references are available. For a CLI that just
-        // takes a single file, we use a stub set of references — this means
-        // some symbol resolution may fail (e.g., types from project references),
-        // but in-file resolution always works.
-        var references = (referenceAssemblyPaths ?? GetDefaultReferences())
-            .Where(File.Exists)
-            .Select(p => MetadataReference.CreateFromFile(p))
-            .ToArray();
-
-        _compilation = CSharpCompilation.Create(
-            assemblyName: "RoslynLeanScratch",
-            syntaxTrees: [_tree],
-            references: references);
-
-        _model = _compilation.GetSemanticModel(_tree);
+        _referenceAssemblyPaths = referenceAssemblyPaths;
     }
 
     /// <summary>
@@ -102,7 +124,7 @@ public sealed class FocusedEmitter
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        var info = _model.GetSymbolInfo(inv);
+                        var info = Model.GetSymbolInfo(inv);
                         var sym = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
                         if (sym is not IMethodSymbol ms) continue;
                         if (ms.DeclaredAccessibility != Accessibility.Private) continue;
@@ -181,7 +203,7 @@ public sealed class FocusedEmitter
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        var info = _model.GetSymbolInfo(inv);
+                        var info = Model.GetSymbolInfo(inv);
                         var sym = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
                         if (sym is not IMethodSymbol ms) continue;
                         if (ms.DeclaredAccessibility != Accessibility.Private) continue;
@@ -352,7 +374,7 @@ public sealed class FocusedEmitter
 
         foreach (var node in root.DescendantNodes())
         {
-            var declared = _model.GetDeclaredSymbol(node);
+            var declared = Model.GetDeclaredSymbol(node);
             if (declared is null) continue;
             if (declared.DeclaredAccessibility != Accessibility.Private) continue;
 
@@ -388,7 +410,7 @@ public sealed class FocusedEmitter
         }
 
         // 3) Rewrite declarations and references.
-        var aliased = (CompilationUnitSyntax)new AliasRewriter(_model, renames, nameofExcluded).Visit(root)!;
+        var aliased = (CompilationUnitSyntax)new AliasRewriter(Model, renames, nameofExcluded).Visit(root)!;
 
         // 4) Compose with the minifier (strip comments + normalize whitespace).
         var stripped = (CompilationUnitSyntax)new CommentStripper().Visit(aliased)!;
@@ -580,10 +602,10 @@ public sealed class FocusedEmitter
             // Identifier references: variable names, type names, method calls
             ISymbol? symbol = node switch
             {
-                IdentifierNameSyntax id      => _model.GetSymbolInfo(id).Symbol,
-                MemberAccessExpressionSyntax m => _model.GetSymbolInfo(m).Symbol,
-                InvocationExpressionSyntax inv => _model.GetSymbolInfo(inv).Symbol,
-                ObjectCreationExpressionSyntax oc => _model.GetSymbolInfo(oc).Symbol,
+                IdentifierNameSyntax id      => Model.GetSymbolInfo(id).Symbol,
+                MemberAccessExpressionSyntax m => Model.GetSymbolInfo(m).Symbol,
+                InvocationExpressionSyntax inv => Model.GetSymbolInfo(inv).Symbol,
+                ObjectCreationExpressionSyntax oc => Model.GetSymbolInfo(oc).Symbol,
                 _ => null
             };
 
