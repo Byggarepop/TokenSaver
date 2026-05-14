@@ -85,6 +85,9 @@ internal static class Program
         Run("LazyModel_Outline_OutputUnchanged", LazyModel_Outline_OutputUnchanged);
         Run("Focus_Constructor_FoundByClassName", Focus_Constructor_FoundByClassName);
         Run("FocusMultiple_Constructor_IncludedWithMethods", FocusMultiple_Constructor_IncludedWithMethods);
+        Run("Region_Minify_StripsRegionDirectives", Region_Minify_StripsRegionDirectives);
+        Run("Region_Focus_StripsRegionDirectivesWhenMinified", Region_Focus_StripsRegionDirectivesWhenMinified);
+        Run("Region_LogicPreservedAfterStrip", Region_LogicPreservedAfterStrip);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1217,6 +1220,61 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "lazy model: EmitOutline output unchanged — signatures present, bodies absent"
                : $"found={r.Found} sig={hasSig} noBody={noBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- #region stripping ----------
+
+    private static TestOutcome Region_Minify_StripsRegionDirectives()
+    {
+        var path = Fixture("RegionHeavy.cs");
+        var r = new FocusedEmitter(path).EmitMinified();
+
+        var hasRegion    = r.Output.Contains("#region");
+        var hasEndRegion = r.Output.Contains("#endregion");
+        var hasLogic     = r.Output.Contains("Double") && r.Output.Contains("UpperName");
+
+        var ok = r.Found && !hasRegion && !hasEndRegion && hasLogic;
+        return new TestOutcome(ok,
+            ok ? $"#region/#endregion stripped; logic intact; {TokenSaving(r.OriginalChars, r.FocusedChars).percent:F1}% saved"
+               : $"region={hasRegion} endregion={hasEndRegion} logic={hasLogic}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Region_Focus_StripsRegionDirectivesWhenMinified()
+    {
+        // focus_method with minify=true goes through MinifyText which uses CommentStripper.
+        var path = Fixture("RegionHeavy.cs");
+        var focused = new FocusedEmitter(path).Emit("Double", depth: 0);
+        var minified = FocusedEmitter.MinifyText(focused.Output);
+
+        var hasRegion    = minified.Contains("#region");
+        var hasEndRegion = minified.Contains("#endregion");
+        var hasDouble    = minified.Contains("Double");
+
+        var ok = focused.Found && !hasRegion && !hasEndRegion && hasDouble;
+        return new TestOutcome(ok,
+            ok ? "#region/#endregion absent after MinifyText; focus body intact"
+               : $"region={hasRegion} endregion={hasEndRegion} double={hasDouble}",
+            TokenSaving(focused.OriginalChars, minified.Length));
+    }
+
+    private static TestOutcome Region_LogicPreservedAfterStrip()
+    {
+        // Stripping regions must not remove any method bodies or field declarations.
+        var path = Fixture("RegionHeavy.cs");
+        var r = new FocusedEmitter(path).EmitMinified();
+
+        var hasFields  = r.Output.Contains("_value") && r.Output.Contains("_name");
+        var hasCtor    = r.Output.Contains("RegionHeavy(");
+        var hasDouble  = r.Output.Contains("Double()");
+        var hasUpper   = r.Output.Contains("UpperName()");
+        var hasHelper  = r.Output.Contains("Add(");
+
+        var ok = r.Found && hasFields && hasCtor && hasDouble && hasUpper && hasHelper;
+        return new TestOutcome(ok,
+            ok ? "fields, constructor, public methods, and private helpers all survived region strip"
+               : $"fields={hasFields} ctor={hasCtor} double={hasDouble} upper={hasUpper} helper={hasHelper}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

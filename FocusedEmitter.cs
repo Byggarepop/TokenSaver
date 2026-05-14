@@ -578,7 +578,12 @@ public sealed class FocusedEmitter
 
     private sealed class CommentStripper : CSharpSyntaxRewriter
     {
-        public CommentStripper() : base(visitIntoStructuredTrivia: true) { }
+        // visitIntoStructuredTrivia: false so VisitTrivia receives the outer trivia wrapper
+        // directly for all structured trivias (doc comments, #region, #endregion) and we can
+        // remove them in one place by returning default. With visitIntoStructuredTrivia: true
+        // the rewriter dispatches structured trivias as node visits, which can bypass VisitTrivia
+        // for directive kinds (notably #endregion) and leave them in the output.
+        public CommentStripper() : base(visitIntoStructuredTrivia: false) { }
 
         public override SyntaxTrivia VisitTrivia(SyntaxTrivia trivia) =>
             trivia.Kind() switch
@@ -587,6 +592,11 @@ public sealed class FocusedEmitter
                 SyntaxKind.MultiLineCommentTrivia => default,
                 SyntaxKind.SingleLineDocumentationCommentTrivia => default,
                 SyntaxKind.MultiLineDocumentationCommentTrivia => default,
+                SyntaxKind.RegionDirectiveTrivia => default,
+                SyntaxKind.EndRegionDirectiveTrivia => default,
+                // An orphaned #endregion (no matching #region in a focused/partial snippet)
+                // is parsed as BadDirectiveTrivia — strip it too.
+                SyntaxKind.BadDirectiveTrivia => default,
                 _ => trivia
             };
     }

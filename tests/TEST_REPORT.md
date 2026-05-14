@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-14 17:24_
+_Generated: 2026-05-14 17:36_
 
-**69/69 scenarios passed.**
+**72/72 scenarios passed.**
 
 ## Results
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-14 17:24_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 353 | 19,9% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 8660 | 5196 | 40,0% | FocusedEmitter.cs minified losslessly; 40,0% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 8660 | 2614 | 69,8% | Focus on Emit with depth=1: 69,8% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 8862 | 5230 | 41,0% | FocusedEmitter.cs minified losslessly; 41,0% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 8862 | 2614 | 70,5% | Focus on Emit with depth=1: 70,5% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -77,6 +77,9 @@ _Generated: 2026-05-14 17:24_
 | LazyModel_Outline_OutputUnchanged | PASS | 441 | 97 | 78,0% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
 | Focus_Constructor_FoundByClassName | PASS | 441 | 53 | 87,9% | constructor found by class name — no longer returns NOT FOUND |
 | FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 296 | 32,8% | constructor and method both present in multi-focus output |
+| Region_Minify_StripsRegionDirectives | PASS | 186 | 76 | 59,0% | #region/#endregion stripped; logic intact; 59,0% saved |
+| Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 186 | 21 | 88,3% | #region/#endregion absent after MinifyText; focus body intact |
+| Region_LogicPreservedAfterStrip | PASS | 186 | 76 | 59,0% | fields, constructor, public methods, and private helpers all survived region strip |
 
 ## What each scenario proves
 
