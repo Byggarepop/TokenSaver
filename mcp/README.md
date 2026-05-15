@@ -10,6 +10,8 @@ Works with:
 - **Claude Code** (CLI)
 - Any other MCP client that speaks stdio (VS Code Copilot, Claude Desktop, etc.)
 
+→ [Changelog](https://github.com/Byggarepop/TokenSaver/blob/main/CHANGELOG.md)
+
 > **Language support tiers**
 >
 > | Tier | Languages | Status |
