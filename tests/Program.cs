@@ -100,6 +100,12 @@ internal static class Program
         Run("Outline_Operator_AppearsInSignature", Outline_Operator_AppearsInSignature);
         Run("Outline_ConversionOperator_AppearsInSignature", Outline_ConversionOperator_AppearsInSignature);
         Run("Outline_IndexerWithAccessorList_ShowsAccessors", Outline_IndexerWithAccessorList_ShowsAccessors);
+        Run("FocusType_NonPrivateHasBody_PrivateHasSignature", FocusType_NonPrivateHasBody_PrivateHasSignature);
+        Run("FocusType_OnlyTargetTypeInOutput", FocusType_OnlyTargetTypeInOutput);
+        Run("FocusType_NotFound_ReturnsNotFound", FocusType_NotFound_ReturnsNotFound);
+        Run("FocusCallers_FindsCallingMethods", FocusCallers_FindsCallingMethods);
+        Run("FocusCallers_NotFound_WhenNoCallers", FocusCallers_NotFound_WhenNoCallers);
+        Run("Focus_Depth1_ExpandsPrivatePropertyBody", Focus_Depth1_ExpandsPrivatePropertyBody);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1503,6 +1509,103 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "constructor and method both present in multi-focus output"
                : $"found={r.Found} ctor={hasConstructor} run={hasRun}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- FocusType ----------
+
+    private static TestOutcome FocusType_NonPrivateHasBody_PrivateHasSignature()
+    {
+        // Calculator: public Run has full body; private WeightedSum/Sum/ApplyBias are signatures only.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitType("Calculator");
+
+        var hasRunBody       = r.Output.Contains("Math.Max(0, biased)");
+        var hasBiasBody      = r.Output.Contains("x + _bias");
+        var hasWeightedSumSig = r.Output.Contains("WeightedSum") && !r.Output.Contains("s += values[i]");
+        var ok = r.Found && hasRunBody && !hasBiasBody && hasWeightedSumSig;
+        return new TestOutcome(ok,
+            ok ? "non-private members have full bodies; private members are signatures only"
+               : $"found={r.Found} runBody={hasRunBody} biasBody={hasBiasBody} wsSig={hasWeightedSumSig}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FocusType_OnlyTargetTypeInOutput()
+    {
+        // GenericsAndRecords has two types; FocusType on Bag should not include Pair content.
+        var path = Fixture("GenericsAndRecords.cs");
+        var r = new FocusedEmitter(path).EmitType("Bag");
+
+        var hasBag    = r.Output.Contains("Bag");
+        var noPair    = !r.Output.Contains("Pair") && !r.Output.Contains("Render");
+        var ok = r.Found && hasBag && noPair;
+        return new TestOutcome(ok,
+            ok ? "only Bag type in output; Pair/Render content absent"
+               : $"found={r.Found} bag={hasBag} noPair={noPair}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FocusType_NotFound_ReturnsNotFound()
+    {
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitType("NonExistentType");
+        var ok = !r.Found;
+        return new TestOutcome(ok,
+            ok ? "EmitType returns not-found for missing type name"
+               : "unexpectedly returned Found=true",
+            (0, 0, 0));
+    }
+
+    // ---------- FocusCallers ----------
+
+    private static TestOutcome FocusCallers_FindsCallingMethods()
+    {
+        // Calculator.Run calls WeightedSum, Sum, and ApplyBias — so Run is a caller of each.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitCallers("WeightedSum");
+
+        // Run is the only method that calls WeightedSum.
+        var hasRunBody = r.Output.Contains("WeightedSum") && r.Output.Contains("var total");
+        var notes      = r.Notes.Contains("1 calling method");
+        var ok = r.Found && hasRunBody && notes;
+        return new TestOutcome(ok,
+            ok ? "EmitCallers found Run as the caller of WeightedSum"
+               : $"found={r.Found} body={hasRunBody} notes={notes}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FocusCallers_NotFound_WhenNoCallers()
+    {
+        // Run is never called by another method in Calculator.cs.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitCallers("Run");
+        var ok = !r.Found;
+        return new TestOutcome(ok,
+            ok ? "EmitCallers returns not-found when no method calls the target"
+               : "unexpectedly returned Found=true",
+            (0, 0, 0));
+    }
+
+    // ---------- Private property expansion at depth=1 ----------
+
+    private static TestOutcome Focus_Depth1_ExpandsPrivatePropertyBody()
+    {
+        // In FocusedEmitter itself, Emit() accesses the private `Model` property.
+        // At depth=1 the Model getter body should appear in the output.
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "FocusedEmitter.cs");
+        path = Path.GetFullPath(path);
+        if (!File.Exists(path))
+            return new TestOutcome(false, $"FocusedEmitter.cs not found at {path}", (0, 0, 0));
+
+        var r = new FocusedEmitter(path).Emit("Emit", depth: 1);
+
+        // The Model property getter contains CSharpCompilation.Create — that text
+        // should appear at depth=1 because Model is a private property accessed by Emit.
+        var hasModelBody = r.Output.Contains("CSharpCompilation.Create");
+        var ok = r.Found && hasModelBody;
+        return new TestOutcome(ok,
+            ok ? "depth=1 expanded private property body (Model getter present in output)"
+               : $"found={r.Found} modelBody={hasModelBody}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

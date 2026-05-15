@@ -56,7 +56,20 @@ tokens with no loss of logic.
    format in the table above. For C# specifically, `MinifyCSharpFile` is
    equivalent (back-compat).
 
-4. **The user is working with a C# file dominated by long private symbol names**
+4. **The user wants to understand a specific C# class** ("explain class X",
+   "what does FooService do?", "show me the public API of Bar") and either the
+   file has multiple types or you want to skip private implementation noise
+   → call `FocusType` with the simple class/record/interface name. Shows all
+   non-private members with full bodies and private members as signatures only.
+   Cheaper than `MinifyCSharpFile` when private methods dominate file length.
+
+5. **The user asks what calls a given method** ("where is X used?", "what
+   calls BuildHeader?", "who invokes OnSave?")
+   → call `FocusCallers` with the method name. Returns all caller methods as
+   a focused view (full bodies + shared signatures) — no manual method-name
+   lookup required.
+
+6. **The user is working with a C# file dominated by long private symbol names**
    (repositories, validators, mappers with verbose internal naming)
    → consider `AliasCSharpFile` instead. The result has private members
    renamed to short codes (M1, P1, F1...) with a ledger at the top. Worth it

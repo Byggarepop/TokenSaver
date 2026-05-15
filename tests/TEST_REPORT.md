@@ -1,6 +1,6 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-14 17:53_
+_Generated: 2026-05-15 10:26_
 
 **84/84 scenarios passed.**
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-14 17:53_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 355 | 19,4% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 9261 | 5525 | 40,3% | FocusedEmitter.cs minified losslessly; 40,3% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 9261 | 2736 | 70,5% | Focus on Emit with depth=1: 70,5% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 11234 | 6497 | 42,2% | FocusedEmitter.cs minified losslessly; 42,2% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 11234 | 3058 | 72,8% | Focus on Emit with depth=1: 72,8% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -77,21 +77,21 @@ _Generated: 2026-05-14 17:53_
 | LazyModel_Outline_OutputUnchanged | PASS | 441 | 99 | 77,5% | lazy model: EmitOutline output unchanged — signatures present, bodies absent |
 | Focus_Constructor_FoundByClassName | PASS | 441 | 62 | 85,9% | constructor found by class name — no longer returns NOT FOUND |
 | FocusMultiple_Constructor_IncludedWithMethods | PASS | 441 | 307 | 30,4% | constructor and method both present in multi-focus output |
-| Region_Minify_StripsRegionDirectives | PASS | 186 | 76 | 59,0% | #region/#endregion stripped; logic intact; 59,0% saved |
-| Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 186 | 26 | 85,6% | #region/#endregion absent after MinifyText; focus body intact |
-| Region_LogicPreservedAfterStrip | PASS | 186 | 76 | 59,0% | fields, constructor, public methods, and private helpers all survived region strip |
-| PropertySignature_GetOnly_NoSetInSignature | PASS | 179 | 133 | 25,5% | get-only property shows { get; } — no spurious set; |
-| PropertySignature_InitOnly_ShowsInit | PASS | 179 | 133 | 25,5% | init-only property shows { get; init; } |
-| PropertySignature_ExpressionBodied_ShowsGetOnly | PASS | 179 | 133 | 25,5% | expression-bodied property shows { get; } |
-| PropertySignature_ReadWrite_ShowsBothAccessors | PASS | 179 | 133 | 25,5% | read-write property still shows { get; set; } |
-| PropertySignature_PrivateSetter_ShowsModifier | PASS | 179 | 133 | 25,5% | private-setter property shows { get; private set; } |
-| FieldSignature_InitializerStripped | PASS | 178 | 106 | 40,3% | all field initializers stripped from signatures |
-| FieldSignature_TypeAndNamePreserved | PASS | 178 | 106 | 40,3% | type and name preserved after initializer strip |
-| FieldSignature_MultipleDeclaratorsHandled | PASS | 178 | 106 | 40,3% | multi-declarator field collapsed to "type name1, name2;" with no initializers |
-| Outline_Indexer_AppearsInSignature | PASS | 296 | 114 | 61,3% | expression-bodied indexer appears in outline |
-| Outline_Operator_AppearsInSignature | PASS | 296 | 114 | 61,3% | binary operator overload appears in outline |
-| Outline_ConversionOperator_AppearsInSignature | PASS | 296 | 114 | 61,3% | implicit and explicit conversion operators both appear in outline |
-| Outline_IndexerWithAccessorList_ShowsAccessors | PASS | 296 | 114 | 61,3% | indexer with explicit get+set shows { get; set; } |
+| Region_Minify_StripsRegionDirectives | PASS | 195 | 76 | 61,0% | #region/#endregion stripped; logic intact; 61,0% saved |
+| Region_Focus_StripsRegionDirectivesWhenMinified | PASS | 195 | 26 | 86,3% | #region/#endregion absent after MinifyText; focus body intact |
+| Region_LogicPreservedAfterStrip | PASS | 195 | 76 | 61,0% | fields, constructor, public methods, and private helpers all survived region strip |
+| PropertySignature_GetOnly_NoSetInSignature | PASS | 187 | 135 | 27,6% | get-only property shows { get; } — no spurious set; |
+| PropertySignature_InitOnly_ShowsInit | PASS | 187 | 135 | 27,6% | init-only property shows { get; init; } |
+| PropertySignature_ExpressionBodied_ShowsGetOnly | PASS | 187 | 135 | 27,6% | expression-bodied property shows { get; } |
+| PropertySignature_ReadWrite_ShowsBothAccessors | PASS | 187 | 135 | 27,6% | read-write property still shows { get; set; } |
+| PropertySignature_PrivateSetter_ShowsModifier | PASS | 187 | 135 | 27,6% | private-setter property shows { get; private set; } |
+| FieldSignature_InitializerStripped | PASS | 185 | 108 | 41,6% | all field initializers stripped from signatures |
+| FieldSignature_TypeAndNamePreserved | PASS | 185 | 108 | 41,6% | type and name preserved after initializer strip |
+| FieldSignature_MultipleDeclaratorsHandled | PASS | 185 | 108 | 41,6% | multi-declarator field collapsed to "type name1, name2;" with no initializers |
+| Outline_Indexer_AppearsInSignature | PASS | 307 | 114 | 62,7% | expression-bodied indexer appears in outline |
+| Outline_Operator_AppearsInSignature | PASS | 307 | 114 | 62,7% | binary operator overload appears in outline |
+| Outline_ConversionOperator_AppearsInSignature | PASS | 307 | 114 | 62,7% | implicit and explicit conversion operators both appear in outline |
+| Outline_IndexerWithAccessorList_ShowsAccessors | PASS | 307 | 114 | 62,7% | indexer with explicit get+set shows { get; set; } |
 
 ## What each scenario proves
 
