@@ -24,17 +24,25 @@ Works with:
 
 ## What the tools do
 
-All six tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
+All eight tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
 basic-tier minifiers for other extensions.
 
 - `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named
   method with full body plus signatures of referenced members. `depth=1`
-  also includes private helper bodies. `minify=true` strips comments,
-  `#region`/`#endregion` directives, and collapses whitespace. Pass the
-  **class name** as `methodName` to target a constructor. **C# / Razor only.**
+  also includes bodies of private helper methods and properties accessed by
+  the focus method. `minify=true` strips comments, `#region`/`#endregion`
+  directives, and collapses whitespace. Pass the **class name** as `methodName`
+  to target a constructor. **C# / Razor only.**
 - `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same
   as `FocusMethod` but focuses on multiple methods in one parse pass. Class
   names (constructors) can be mixed with method names. **C# / Razor only.**
+- `FocusType(filePath, typeName, minify=false)` — emit a named type with
+  non-private members shown as full bodies and private members as signatures
+  only. Best for "explain class X" questions when the file has multiple types
+  or private helpers dominate. **C# only.**
+- `FocusCallers(filePath, methodName, depth=0, minify=false)` — find all
+  methods that call the named method and return them as a focused multi-method
+  view. Answers "what calls X?" in one round-trip. **C# only.**
 - `OutlineCSharpFile(filePath)` — skeleton of a file: types and member
   signatures, no bodies. Best for navigation ("what's in this file?").
   **C# / Razor only.**
@@ -200,7 +208,7 @@ MCP tools.
 - *View → Output*, channel = *GitHub Copilot*. On startup you should see:
   ```
   Successfully started MCP server 'tokensaver'
-  Loaded assets for MCP server 'tokensaver' with 6 tools, 0 prompts, and 0 resources.
+  Loaded assets for MCP server 'tokensaver' with 8 tools, 0 prompts, and 0 resources.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.

@@ -18,8 +18,9 @@ public static class FocusedEmitterTools
         "entirely. Use this when the user asks about a specific method — refactor, " +
         "translate, debug, optimize, or understand it. Far cheaper than reading " +
         "the whole file. Set depth=1 to also include the bodies of private helper " +
-        "methods that the focus method calls (recommended for refactor/translate " +
-        "tasks where the AI needs to see real helper logic, not just signatures). " +
+        "methods and properties that the focus method calls or accesses " +
+        "(recommended for refactor/translate tasks where the AI needs to see real " +
+        "helper logic, not just signatures). " +
         "Set minify=true for an additional ~15-25% token reduction (lossless).")]
     public static string FocusMethod(
         [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
@@ -66,7 +67,7 @@ public static class FocusedEmitterTools
         "more specific methods together, or when a prior outline or NOT FOUND response " +
         "revealed a set of related methods to inspect. Provide method names as a " +
         "comma-separated list (e.g. 'ExecSql,ClearGrid,SetBusy'). depth=1 includes " +
-        "private helper bodies for ALL listed methods.")]
+        "private helper method and property bodies for ALL listed methods.")]
     public static string FocusMultipleMethods(
         [Description("Absolute path to a .cs, .razor.cs, or .razor file.")] string filePath,
         [Description("Comma-separated method names, e.g. 'ExecSql,ClearGrid,SetBusy'.")] string methodNames,
@@ -228,6 +229,83 @@ public static class FocusedEmitterTools
                  + result.Notes
                  + "\n"
                  + result.Output;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Returns a focused view of a NAMED TYPE in a C# file: non-private members " +
+        "(public, protected, internal) are shown with their full bodies; private " +
+        "members are shown as signatures only. Sits between outline_c_sharp_file " +
+        "(all signatures) and minify_c_sharp_file (everything) in terms of detail. " +
+        "Best when: the file contains multiple types and you only need one; or you " +
+        "want the full contract/behaviour of a class but can skip its private " +
+        "implementation noise. Supply the simple class/record/interface name, not " +
+        "the namespace-qualified form.")]
+    public static string FocusType(
+        [Description("Absolute path to a .cs or .razor.cs file.")] string filePath,
+        [Description("The simple type name to focus on (e.g. 'Calculator', not 'Fixtures.Calculator').")] string typeName,
+        [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
+    {
+        try
+        {
+            var emitter = new FocusedEmitter(filePath);
+            var result = emitter.EmitType(typeName);
+
+            if (!result.Found)
+            {
+                var outline = emitter.EmitOutline();
+                LogInvocation("FocusType", "C#", $"type={typeName} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
+                return $"ERROR: Type '{typeName}' not found in {Path.GetFileName(filePath)}.\n" +
+                       $"Available types:\n{outline.Output}";
+            }
+
+            var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
+            var afterTokens = Math.Max(1, output.Length / 4);
+            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
+                 + result.Notes
+                 + "\n"
+                 + output;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Finds all methods in a C# file that CALL a given method name, then returns " +
+        "them as a focused multi-method view (full bodies + shared signatures). " +
+        "Answers 'what calls X?' or 'who uses this?' without loading the whole file. " +
+        "Uses name-based matching, so it catches direct calls — calls through " +
+        "delegates or interfaces may be missed. Set depth=1 to also include private " +
+        "helper bodies of the found callers.")]
+    public static string FocusCallers(
+        [Description("Absolute path to a .cs or .razor.cs file.")] string filePath,
+        [Description("The method name to find callers of.")] string methodName,
+        [Description("0 = signatures only for callees (default). 1 = include private helper bodies.")] int depth = 0,
+        [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
+    {
+        try
+        {
+            var emitter = new FocusedEmitter(filePath);
+            var result = emitter.EmitCallers(methodName, depth);
+
+            if (!result.Found)
+            {
+                LogInvocation("FocusCallers", "C#", $"callers={methodName} NOT FOUND", result.OriginalTokensEstimate, result.OriginalTokensEstimate);
+                return $"// No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
+            }
+
+            var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
+            var afterTokens = Math.Max(1, output.Length / 4);
+            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
+                 + result.Notes
+                 + "\n"
+                 + output;
         }
         catch (Exception ex)
         {

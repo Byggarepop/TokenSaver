@@ -143,6 +143,23 @@ public sealed class FocusedEmitter
                             }
                         }
                     }
+
+                    // Also expand private property bodies accessed in this method.
+                    // Added to expandedMethods but not the frontier — we don't recurse
+                    // into getter/setter logic the way we do for helper methods.
+                    foreach (var node in method.DescendantNodes())
+                    {
+                        ISymbol? propertySym = node switch
+                        {
+                            MemberAccessExpressionSyntax mae => Model.GetSymbolInfo(mae).Symbol,
+                            IdentifierNameSyntax id when id.Parent is not MemberAccessExpressionSyntax
+                                => Model.GetSymbolInfo(id).Symbol,
+                            _ => null
+                        };
+                        if (propertySym is not IPropertySymbol ps) continue;
+                        if (ps.DeclaredAccessibility != Accessibility.Private) continue;
+                        expandedMethods.Add(ps);
+                    }
                 }
                 if (nextFrontier.Count == 0) break;
                 frontier = nextFrontier;
@@ -219,6 +236,21 @@ public sealed class FocusedEmitter
                                 nextFrontier.Add(mds);
                         }
                     }
+
+                    // Also expand private property bodies accessed in this method.
+                    foreach (var node in method.DescendantNodes())
+                    {
+                        ISymbol? propertySym = node switch
+                        {
+                            MemberAccessExpressionSyntax mae => Model.GetSymbolInfo(mae).Symbol,
+                            IdentifierNameSyntax id when id.Parent is not MemberAccessExpressionSyntax
+                                => Model.GetSymbolInfo(id).Symbol,
+                            _ => null
+                        };
+                        if (propertySym is not IPropertySymbol ps) continue;
+                        if (ps.DeclaredAccessibility != Accessibility.Private) continue;
+                        expandedMethods.Add(ps);
+                    }
                 }
                 if (nextFrontier.Count == 0) break;
                 frontier = nextFrontier;
@@ -256,7 +288,7 @@ public sealed class FocusedEmitter
         if (notFound.Count > 0)
             notes.AppendLine($"// Not found: {string.Join(", ", notFound)}");
         if (depth >= 1)
-            notes.AppendLine($"// Expanded helpers (depth {depth}): {expandedMethods.Count} private method(s) with full body");
+            notes.AppendLine($"// Expanded helpers (depth {depth}): {expandedMethods.Count} private member(s) with full body");
         notes.AppendLine($"// Other members: {referencedSymbols.Count} symbols referenced, signatures only");
 
         return new FocusResult(
@@ -266,6 +298,113 @@ public sealed class FocusedEmitter
             FocusedChars: output.Length,
             FocusMethodName: string.Join(", ", methodNames),
             Notes: notes.ToString());
+    }
+
+    /// <summary>
+    /// Emit a focused view of a named type: non-private members with full bodies,
+    /// private members as signatures only. Sits between Outline (all signatures)
+    /// and MinifyCSharpFile (everything), and is especially useful when a file
+    /// contains multiple types and you only need one, or when you want to skip
+    /// private implementation noise.
+    /// </summary>
+    public FocusResult EmitType(string typeName)
+    {
+        var root = _tree.GetCompilationUnitRoot();
+
+        var targetType = root.DescendantNodes()
+            .OfType<TypeDeclarationSyntax>()
+            .FirstOrDefault(t => t.Identifier.Text == typeName);
+
+        if (targetType is null)
+            return FocusResult.NotFound(typeName);
+
+        var sb = new StringBuilder();
+        AppendUsings(sb, root);
+        AppendNamespaceOpen(sb, targetType);
+
+        var modifiers = string.Join(" ", targetType.Modifiers.Select(m => m.Text));
+        var kind = targetType.Keyword.Text;
+        var baseList = targetType.BaseList?.ToString() ?? "";
+        sb.AppendLine($"{modifiers} {kind} {targetType.Identifier}{targetType.TypeParameterList} {baseList}".Trim());
+        sb.AppendLine("{");
+
+        int fullBodyCount = 0, sigOnlyCount = 0;
+        foreach (var member in targetType.Members)
+        {
+            if (member is TypeDeclarationSyntax nested)
+            {
+                sb.AppendLine($"    // nested {nested.Keyword.Text} {nested.Identifier} — use FocusType to inspect");
+                continue;
+            }
+
+            if (IsPrivate(member))
+            {
+                var sig = ToSignature(member);
+                if (sig is not null)
+                {
+                    sb.AppendLine($"    {sig}");
+                    sigOnlyCount++;
+                }
+            }
+            else
+            {
+                sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
+                sb.AppendLine();
+                fullBodyCount++;
+            }
+        }
+
+        sb.AppendLine("}");
+        AppendNamespaceClose(sb, targetType);
+
+        var output = sb.ToString();
+        var originalLength = _tree.GetText().Length;
+        var notes =
+            $"// Type focus: {typeName} in {Path.GetFileName(_tree.FilePath)}\n" +
+            $"// {fullBodyCount} non-private member(s) with full body; {sigOnlyCount} private member(s) as signatures\n";
+
+        return new FocusResult(
+            Found: true,
+            Output: output,
+            OriginalChars: originalLength,
+            FocusedChars: output.Length,
+            FocusMethodName: $"(type:{typeName})",
+            Notes: notes);
+    }
+
+    /// <summary>
+    /// Find all methods in the file that directly invoke <paramref name="targetMethodName"/>,
+    /// then emit them as a focused multi-method view. Answers "what calls X?" without
+    /// loading the whole file. Uses name matching rather than full semantic resolution,
+    /// so it may miss calls routed through delegates or interfaces.
+    /// </summary>
+    public FocusResult EmitCallers(string targetMethodName, int depth = 0)
+    {
+        var root = _tree.GetCompilationUnitRoot();
+
+        var callerNames = root.DescendantNodes()
+            .OfType<MethodDeclarationSyntax>()
+            .Where(m => m.Identifier.Text != targetMethodName
+                     && m.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(inv =>
+                            (inv.Expression is IdentifierNameSyntax id
+                             && id.Identifier.Text == targetMethodName)
+                         || (inv.Expression is MemberAccessExpressionSyntax mae
+                             && mae.Name.Identifier.Text == targetMethodName)))
+            .Select(m => m.Identifier.Text)
+            .Distinct()
+            .ToList();
+
+        if (callerNames.Count == 0)
+            return new FocusResult(false,
+                $"// No callers of '{targetMethodName}' found in source",
+                _tree.GetText().Length, 0, $"(callers:{targetMethodName})", "");
+
+        var result = EmitMultiple(callerNames, depth);
+        var notes =
+            $"// Callers of '{targetMethodName}' in {Path.GetFileName(_tree.FilePath)}\n" +
+            $"// {callerNames.Count} calling method(s): {string.Join(", ", callerNames)}\n";
+
+        return result with { Notes = notes };
     }
 
     /// <summary>
@@ -769,6 +908,24 @@ public sealed class FocusedEmitter
     private static string IndentLines(string text, string indent) =>
         string.Join('\n', text.Split('\n').Select(l => indent + l));
 
+    /// <summary>
+    /// Returns true if a member has no explicit public/protected/internal modifier.
+    /// In a class body the implicit default is private.
+    /// </summary>
+    private static bool IsPrivate(MemberDeclarationSyntax member)
+    {
+        SyntaxTokenList mods = member switch
+        {
+            BaseMethodDeclarationSyntax m => m.Modifiers,
+            BasePropertyDeclarationSyntax p => p.Modifiers,
+            BaseFieldDeclarationSyntax f => f.Modifiers,
+            _ => default
+        };
+        return !mods.Any(t => t.IsKind(SyntaxKind.PublicKeyword)
+                           || t.IsKind(SyntaxKind.ProtectedKeyword)
+                           || t.IsKind(SyntaxKind.InternalKeyword));
+    }
+
     // -------------------------- helpers ---------------------------
 
     private string BuildNotes(int focusCount, int refCount, TypeDeclarationSyntax type, int expandedCount, int depth)
@@ -777,7 +934,7 @@ public sealed class FocusedEmitter
         sb.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)}");
         sb.AppendLine($"// Focus method(s): {focusCount} overload(s) included with full body");
         if (depth >= 1)
-            sb.AppendLine($"// Expanded helpers (depth {depth}): {expandedCount} private method(s) included with full body");
+            sb.AppendLine($"// Expanded helpers (depth {depth}): {expandedCount} private member(s) included with full body");
         sb.AppendLine($"// Other members: {refCount} symbols referenced, signatures only");
         sb.AppendLine($"// Containing type: {type.Identifier}");
         return sb.ToString();
