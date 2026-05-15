@@ -19,6 +19,7 @@
     <PackageTags>mcp;dotnet;csharp;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReleaseNotes>https://github.com/Byggarepop/TokenSaver/blob/main/CHANGELOG.md</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
