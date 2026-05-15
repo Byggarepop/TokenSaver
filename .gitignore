@@ -17,3 +17,4 @@
 /TokenSaverApi/obj
 /TokenSaverApi/.vs
 tests/TEST_REPORT.md
+.claude/settings.local.json
