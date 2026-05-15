@@ -22,21 +22,23 @@ Works with:
 
 ## What the tools do
 
-All four tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
+All six tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
 basic-tier minifiers for other extensions.
 
 - `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named
   method with full body plus signatures of referenced members. `depth=1`
-  also includes private helper bodies. `minify=true` strips comments and
-  collapses whitespace. **C# / Razor only.**
+  also includes private helper bodies. `minify=true` strips comments,
+  `#region`/`#endregion` directives, and collapses whitespace. Pass the
+  **class name** as `methodName` to target a constructor. **C# / Razor only.**
 - `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same
-  as `FocusMethod` but focuses on multiple methods in one parse pass.
-  **C# / Razor only.**
+  as `FocusMethod` but focuses on multiple methods in one parse pass. Class
+  names (constructors) can be mixed with method names. **C# / Razor only.**
 - `OutlineCSharpFile(filePath)` — skeleton of a file: types and member
   signatures, no bodies. Best for navigation ("what's in this file?").
   **C# / Razor only.**
 - `MinifyCSharpFile(filePath)` — lossless minify of a whole C# file. Strips
-  comments and whitespace; logic preserved verbatim. **C# / Razor only.**
+  comments, `#region`/`#endregion` directives, and whitespace; logic preserved
+  verbatim. **C# / Razor only.**
 - `MinifyFile(filePath)` — auto-dispatch by extension. Calls the Roslyn
   minifier for C#/Razor; falls back to basic minification for other types.
 - `AliasCSharpFile(filePath)` — minify plus rename private symbols to short
@@ -56,17 +58,18 @@ stderr (visible in your MCP client's output channel).
 
 ## What this looks like in practice
 
-Measured against this project's own `FocusedEmitter.cs` (8,279 tokens raw):
+Measured against this project's own `FocusedEmitter.cs` (9,261 tokens raw):
 
 | Question type | Tool used | Tokens sent to AI | Reduction |
 |---|---|---|---|
-| "What's in this file?" | `OutlineCSharpFile` | 941 | **88 %** |
-| "Explain the `Emit` method" | `FocusMethod` (depth=1, minify) | 1,353 | **83 %** |
-| "Audit the whole file" | `MinifyCSharpFile` | 5,010 | 39 % |
+| "What's in this file?" | `OutlineCSharpFile` | 1,039 | **89 %** |
+| "Explain the `Emit` method" | `FocusMethod` (depth=1, minify) | 1,437 | **84 %** |
+| "Explain `EmitOutline` and `EmitMinified`" | `FocusMultipleMethods` (minify) | 424 | **95 %** |
+| "Audit the whole file" | `MinifyCSharpFile` | 5,525 | 40 % |
 
 The focus example includes `Emit`'s full body, the bodies of 6 private
-helpers it calls, and signatures of 39 other referenced symbols — enough
-context for the AI to reason accurately, without the 6,900 tokens of
+helpers it calls, and signatures of 45 other referenced symbols — enough
+context for the AI to reason accurately, without the 7,800 tokens of
 unrelated members.
 
 ### Important: this helps with READ operations, not EDITS

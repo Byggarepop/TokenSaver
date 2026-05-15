@@ -4,7 +4,7 @@
 
 This workspace has the `tokensaver` MCP server registered. It exposes
 **six** tools that produce token-reduced views of source files. **Prefer
-these tools over reading whole files** — they typically save 30-70% of
+these tools over reading whole files** — they typically save 30-95% of
 tokens with no loss of logic.
 
 > **Visual Studio 2026 — use Copilot Chat.**  MCP tools fire in both Ask
@@ -40,12 +40,16 @@ tokens with no loss of logic.
    Use `depth=1` so you see the bodies of private helpers the focus method
    calls — without those, your suggestions will hallucinate helper logic.
 
+   **`methodName` also accepts a class name to target a constructor** — e.g.
+   `FocusMethod(filePath, "MyService")` returns the `MyService(...)` constructor body.
+
    **The user references two or more C# methods at once**, or you already know
    from a prior outline/NOT FOUND which methods are relevant
    → call `FocusMultipleMethods` with a comma-separated `methodNames` list
    (e.g. `"ExecSql,ClearGrid,SetBusy"`). The file is parsed once and shared
    signatures are deduplicated — smaller output than N separate `FocusMethod`
-   calls and one round-trip instead of N.
+   calls and one round-trip instead of N. Class names (constructors) are
+   accepted alongside method names.
 
 3. **The user wants you to read or analyze a whole file of any supported type**
    → call `MinifyFile`. It auto-dispatches by extension and works for every
@@ -79,6 +83,8 @@ doesn't matter.
 When `MinifyCSharpFile`, `AliasCSharpFile`, or `FocusMethod` (with `minify=true`)
 return code, the result has been **transformed for token efficiency**:
 - Comments and XML doc comments are stripped.
+- `#region` / `#endregion` directives are stripped — pure organisation, no logic.
+- Field signatures omit initializers (e.g. `private int _count;` not `= 0`).
 - Indentation and blank lines are collapsed.
 - In `AliasCSharpFile`, private symbols are renamed to short codes.
 

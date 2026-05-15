@@ -25,9 +25,47 @@ namespace RoslynLean;
 /// </summary>
 public sealed class FocusedEmitter
 {
-    private readonly Compilation _compilation;
     private readonly SyntaxTree _tree;
-    private readonly SemanticModel _model;
+    private readonly IEnumerable<string>? _referenceAssemblyPaths;
+    private Compilation? _compilation;
+    private SemanticModel? _model;
+
+    /// <summary>
+    /// True once the semantic model has been initialised.
+    /// EmitOutline and EmitMinified never set this; Emit, EmitMultiple, and EmitAliased do.
+    /// </summary>
+    public bool IsModelLoaded => _model is not null;
+
+    /// <summary>
+    /// Lazily builds the Roslyn compilation and semantic model on first access.
+    /// Only Emit, EmitMultiple, and EmitAliased need symbol resolution — outline
+    /// and minify work purely on the syntax tree, so they skip this cost entirely.
+    /// </summary>
+    private SemanticModel Model
+    {
+        get
+        {
+            if (_model is not null) return _model;
+
+            // Build a minimal compilation. For real use, you'd load the .csproj via
+            // MSBuildWorkspace so all references are available. For a CLI that just
+            // takes a single file, we use a stub set of references — this means
+            // some symbol resolution may fail (e.g., types from project references),
+            // but in-file resolution always works.
+            var references = (_referenceAssemblyPaths ?? GetDefaultReferences())
+                .Where(File.Exists)
+                .Select(p => MetadataReference.CreateFromFile(p))
+                .ToArray();
+
+            _compilation = CSharpCompilation.Create(
+                assemblyName: "RoslynLeanScratch",
+                syntaxTrees: [_tree],
+                references: references);
+
+            _model = _compilation.GetSemanticModel(_tree);
+            return _model;
+        }
+    }
 
     public FocusedEmitter(string sourceFilePath, IEnumerable<string>? referenceAssemblyPaths = null)
     {
@@ -38,23 +76,7 @@ public sealed class FocusedEmitter
         if (RazorPreprocessor.IsRazor(sourceFilePath))
             source = RazorPreprocessor.ExtractCSharp(source);
         _tree = CSharpSyntaxTree.ParseText(source, path: sourceFilePath);
-
-        // Build a minimal compilation. For real use, you'd load the .csproj via
-        // MSBuildWorkspace so all references are available. For a CLI that just
-        // takes a single file, we use a stub set of references — this means
-        // some symbol resolution may fail (e.g., types from project references),
-        // but in-file resolution always works.
-        var references = (referenceAssemblyPaths ?? GetDefaultReferences())
-            .Where(File.Exists)
-            .Select(p => MetadataReference.CreateFromFile(p))
-            .ToArray();
-
-        _compilation = CSharpCompilation.Create(
-            assemblyName: "RoslynLeanScratch",
-            syntaxTrees: [_tree],
-            references: references);
-
-        _model = _compilation.GetSemanticModel(_tree);
+        _referenceAssemblyPaths = referenceAssemblyPaths;
     }
 
     /// <summary>
@@ -68,10 +90,12 @@ public sealed class FocusedEmitter
     {
         var root = _tree.GetCompilationUnitRoot();
 
-        // 1) Find the focus method. If multiple match (overloads), take all.
+        // 1) Find the focus member. Matches methods AND constructors so that callers
+        //    can focus on a constructor by passing the class name as focusMethodName.
         var focusMethods = root.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>()
-            .Where(m => m.Identifier.Text == focusMethodName)
+            .Where(n => (n is MethodDeclarationSyntax m && m.Identifier.Text == focusMethodName)
+                     || (n is ConstructorDeclarationSyntax c && c.Identifier.Text == focusMethodName))
+            .Cast<MemberDeclarationSyntax>()
             .ToList();
 
         if (focusMethods.Count == 0)
@@ -94,15 +118,15 @@ public sealed class FocusedEmitter
         var expandedMethods = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         if (depth >= 1)
         {
-            var frontier = new List<MethodDeclarationSyntax>(focusMethods);
+            var frontier = new List<MemberDeclarationSyntax>(focusMethods);
             for (int level = 0; level < depth; level++)
             {
-                var nextFrontier = new List<MethodDeclarationSyntax>();
+                var nextFrontier = new List<MemberDeclarationSyntax>();
                 foreach (var method in frontier)
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        var info = _model.GetSymbolInfo(inv);
+                        var info = Model.GetSymbolInfo(inv);
                         var sym = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
                         if (sym is not IMethodSymbol ms) continue;
                         if (ms.DeclaredAccessibility != Accessibility.Private) continue;
@@ -157,8 +181,9 @@ public sealed class FocusedEmitter
         var root = _tree.GetCompilationUnitRoot();
 
         var allFocusMethods = root.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>()
-            .Where(m => nameSet.Contains(m.Identifier.Text))
+            .Where(n => (n is MethodDeclarationSyntax m && nameSet.Contains(m.Identifier.Text))
+                     || (n is ConstructorDeclarationSyntax c && nameSet.Contains(c.Identifier.Text)))
+            .Cast<MemberDeclarationSyntax>()
             .ToList();
 
         if (allFocusMethods.Count == 0)
@@ -173,15 +198,15 @@ public sealed class FocusedEmitter
         var expandedMethods = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
         if (depth >= 1)
         {
-            var frontier = new List<MethodDeclarationSyntax>(allFocusMethods);
+            var frontier = new List<MemberDeclarationSyntax>(allFocusMethods);
             for (int level = 0; level < depth; level++)
             {
-                var nextFrontier = new List<MethodDeclarationSyntax>();
+                var nextFrontier = new List<MemberDeclarationSyntax>();
                 foreach (var method in frontier)
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        var info = _model.GetSymbolInfo(inv);
+                        var info = Model.GetSymbolInfo(inv);
                         var sym = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
                         if (sym is not IMethodSymbol ms) continue;
                         if (ms.DeclaredAccessibility != Accessibility.Private) continue;
@@ -217,7 +242,7 @@ public sealed class FocusedEmitter
             sb.AppendLine();
         }
 
-        var foundNames = allFocusMethods.Select(m => m.Identifier.Text).Distinct().ToList();
+        var foundNames = allFocusMethods.Select(GetMemberName).Distinct().ToList();
         var notFound = methodNames.Where(n => !foundNames.Contains(n)).ToList();
         if (notFound.Count > 0)
             sb.AppendLine($"// NOT FOUND: {string.Join(", ", notFound)}");
@@ -352,7 +377,7 @@ public sealed class FocusedEmitter
 
         foreach (var node in root.DescendantNodes())
         {
-            var declared = _model.GetDeclaredSymbol(node);
+            var declared = Model.GetDeclaredSymbol(node);
             if (declared is null) continue;
             if (declared.DeclaredAccessibility != Accessibility.Private) continue;
 
@@ -388,7 +413,7 @@ public sealed class FocusedEmitter
         }
 
         // 3) Rewrite declarations and references.
-        var aliased = (CompilationUnitSyntax)new AliasRewriter(_model, renames, nameofExcluded).Visit(root)!;
+        var aliased = (CompilationUnitSyntax)new AliasRewriter(Model, renames, nameofExcluded).Visit(root)!;
 
         // 4) Compose with the minifier (strip comments + normalize whitespace).
         var stripped = (CompilationUnitSyntax)new CommentStripper().Visit(aliased)!;
@@ -553,7 +578,12 @@ public sealed class FocusedEmitter
 
     private sealed class CommentStripper : CSharpSyntaxRewriter
     {
-        public CommentStripper() : base(visitIntoStructuredTrivia: true) { }
+        // visitIntoStructuredTrivia: false so VisitTrivia receives the outer trivia wrapper
+        // directly for all structured trivias (doc comments, #region, #endregion) and we can
+        // remove them in one place by returning default. With visitIntoStructuredTrivia: true
+        // the rewriter dispatches structured trivias as node visits, which can bypass VisitTrivia
+        // for directive kinds (notably #endregion) and leave them in the output.
+        public CommentStripper() : base(visitIntoStructuredTrivia: false) { }
 
         public override SyntaxTrivia VisitTrivia(SyntaxTrivia trivia) =>
             trivia.Kind() switch
@@ -562,6 +592,11 @@ public sealed class FocusedEmitter
                 SyntaxKind.MultiLineCommentTrivia => default,
                 SyntaxKind.SingleLineDocumentationCommentTrivia => default,
                 SyntaxKind.MultiLineDocumentationCommentTrivia => default,
+                SyntaxKind.RegionDirectiveTrivia => default,
+                SyntaxKind.EndRegionDirectiveTrivia => default,
+                // An orphaned #endregion (no matching #region in a focused/partial snippet)
+                // is parsed as BadDirectiveTrivia — strip it too.
+                SyntaxKind.BadDirectiveTrivia => default,
                 _ => trivia
             };
     }
@@ -573,17 +608,17 @@ public sealed class FocusedEmitter
     /// SemanticModel to resolve identifiers to their declaring symbols — that's
     /// what makes this compiler-grade rather than regex-grade.
     /// </summary>
-    private void CollectReferencedSymbols(MethodDeclarationSyntax method, HashSet<ISymbol> sink)
+    private void CollectReferencedSymbols(MemberDeclarationSyntax method, HashSet<ISymbol> sink)
     {
         foreach (var node in method.DescendantNodes())
         {
             // Identifier references: variable names, type names, method calls
             ISymbol? symbol = node switch
             {
-                IdentifierNameSyntax id      => _model.GetSymbolInfo(id).Symbol,
-                MemberAccessExpressionSyntax m => _model.GetSymbolInfo(m).Symbol,
-                InvocationExpressionSyntax inv => _model.GetSymbolInfo(inv).Symbol,
-                ObjectCreationExpressionSyntax oc => _model.GetSymbolInfo(oc).Symbol,
+                IdentifierNameSyntax id      => Model.GetSymbolInfo(id).Symbol,
+                MemberAccessExpressionSyntax m => Model.GetSymbolInfo(m).Symbol,
+                InvocationExpressionSyntax inv => Model.GetSymbolInfo(inv).Symbol,
+                ObjectCreationExpressionSyntax oc => Model.GetSymbolInfo(oc).Symbol,
                 _ => null
             };
 
@@ -632,7 +667,7 @@ public sealed class FocusedEmitter
     private void AppendTypeWithFocus(
         StringBuilder sb,
         TypeDeclarationSyntax type,
-        List<MethodDeclarationSyntax> focusMethods,
+        List<MemberDeclarationSyntax> focusMethods,
         HashSet<ISymbol> referenced,
         HashSet<ISymbol> expandedMethods)
     {
@@ -653,7 +688,13 @@ public sealed class FocusedEmitter
                 continue;
             }
 
-            var memberSymbol = _model.GetDeclaredSymbol(member);
+            // GetDeclaredSymbol returns null for FieldDeclarationSyntax — the symbol
+            // lives on each inner VariableDeclaratorSyntax. Check all declarators.
+            ISymbol? memberSymbol = member is FieldDeclarationSyntax fieldDecl
+                ? fieldDecl.Declaration.Variables
+                    .Select(v => Model.GetDeclaredSymbol(v))
+                    .FirstOrDefault(s => s is not null && referenced.Contains(s))
+                : Model.GetDeclaredSymbol(member);
             if (memberSymbol is null) continue;
 
             // Expanded helper: emit full body so the AI sees real logic, not a guess
@@ -678,18 +719,47 @@ public sealed class FocusedEmitter
     /// <summary>
     /// Reduce a member declaration to its signature (no body, no initializer).
     /// </summary>
+    private static string PropertyAccessors(PropertyDeclarationSyntax p) =>
+        AccessorBlock(p.AccessorList, p.ExpressionBody is not null);
+
+    private static string AccessorBlock(AccessorListSyntax? accessorList, bool hasExpressionBody)
+    {
+        if (hasExpressionBody || accessorList is null)
+            return "{ get; }";
+        var accessors = string.Join(" ", accessorList.Accessors.Select(a =>
+        {
+            var mods = Mods(a.Modifiers);
+            var kw = a.Keyword.Text;
+            return mods.Length > 0 ? $"{mods} {kw};" : $"{kw};";
+        }));
+        return $"{{ {accessors} }}";
+    }
+
+    private static string GetMemberName(MemberDeclarationSyntax member) => member switch
+    {
+        MethodDeclarationSyntax m => m.Identifier.Text,
+        ConstructorDeclarationSyntax c => c.Identifier.Text,
+        _ => throw new InvalidOperationException($"Unexpected focus member type: {member.GetType().Name}")
+    };
+
     private static string? ToSignature(MemberDeclarationSyntax member) => member switch
     {
         MethodDeclarationSyntax m =>
             $"{Mods(m.Modifiers)} {m.ReturnType} {m.Identifier}{m.TypeParameterList}{m.ParameterList};",
         PropertyDeclarationSyntax p =>
-            $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {{ get; set; }}",
+            $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {PropertyAccessors(p)}",
         FieldDeclarationSyntax f =>
-            $"{Mods(f.Modifiers)} {f.Declaration};",
+            $"{Mods(f.Modifiers)} {f.Declaration.Type} {string.Join(", ", f.Declaration.Variables.Select(v => v.Identifier.Text))};",
         ConstructorDeclarationSyntax c =>
             $"{Mods(c.Modifiers)} {c.Identifier}{c.ParameterList};",
         EventFieldDeclarationSyntax e =>
             $"{Mods(e.Modifiers)} event {e.Declaration};",
+        IndexerDeclarationSyntax i =>
+            $"{Mods(i.Modifiers)} {i.Type} this{i.ParameterList} {AccessorBlock(i.AccessorList, i.ExpressionBody is not null)}",
+        OperatorDeclarationSyntax o =>
+            $"{Mods(o.Modifiers)} {o.ReturnType} operator {o.OperatorToken}{o.ParameterList};",
+        ConversionOperatorDeclarationSyntax cv =>
+            $"{Mods(cv.Modifiers)} {cv.ImplicitOrExplicitKeyword} operator {cv.Type}{cv.ParameterList};",
         _ => null
     };
 

@@ -77,6 +77,29 @@ internal static class Program
         Run("Cpp_Minify_StripsComments", Cpp_Minify_StripsComments);
         Run("Cpp_Minify_PreservesPreprocessorDirectives", Cpp_Minify_PreservesPreprocessorDirectives);
         Run("Cpp_Minify_BracesInStringsDoNotCorrupt", Cpp_Minify_BracesInStringsDoNotCorrupt);
+        Run("LazyModel_OutlineDoesNotLoadModel", LazyModel_OutlineDoesNotLoadModel);
+        Run("LazyModel_MinifyDoesNotLoadModel", LazyModel_MinifyDoesNotLoadModel);
+        Run("LazyModel_FocusLoadsModel", LazyModel_FocusLoadsModel);
+        Run("LazyModel_AliasLoadsModel", LazyModel_AliasLoadsModel);
+        Run("LazyModel_Focus_OutputUnchanged", LazyModel_Focus_OutputUnchanged);
+        Run("LazyModel_Outline_OutputUnchanged", LazyModel_Outline_OutputUnchanged);
+        Run("Focus_Constructor_FoundByClassName", Focus_Constructor_FoundByClassName);
+        Run("FocusMultiple_Constructor_IncludedWithMethods", FocusMultiple_Constructor_IncludedWithMethods);
+        Run("Region_Minify_StripsRegionDirectives", Region_Minify_StripsRegionDirectives);
+        Run("Region_Focus_StripsRegionDirectivesWhenMinified", Region_Focus_StripsRegionDirectivesWhenMinified);
+        Run("Region_LogicPreservedAfterStrip", Region_LogicPreservedAfterStrip);
+        Run("PropertySignature_GetOnly_NoSetInSignature", PropertySignature_GetOnly_NoSetInSignature);
+        Run("PropertySignature_InitOnly_ShowsInit", PropertySignature_InitOnly_ShowsInit);
+        Run("PropertySignature_ExpressionBodied_ShowsGetOnly", PropertySignature_ExpressionBodied_ShowsGetOnly);
+        Run("PropertySignature_ReadWrite_ShowsBothAccessors", PropertySignature_ReadWrite_ShowsBothAccessors);
+        Run("PropertySignature_PrivateSetter_ShowsModifier", PropertySignature_PrivateSetter_ShowsModifier);
+        Run("FieldSignature_InitializerStripped", FieldSignature_InitializerStripped);
+        Run("FieldSignature_TypeAndNamePreserved", FieldSignature_TypeAndNamePreserved);
+        Run("FieldSignature_MultipleDeclaratorsHandled", FieldSignature_MultipleDeclaratorsHandled);
+        Run("Outline_Indexer_AppearsInSignature", Outline_Indexer_AppearsInSignature);
+        Run("Outline_Operator_AppearsInSignature", Outline_Operator_AppearsInSignature);
+        Run("Outline_ConversionOperator_AppearsInSignature", Outline_ConversionOperator_AppearsInSignature);
+        Run("Outline_IndexerWithAccessorList_ShowsAccessors", Outline_IndexerWithAccessorList_ShowsAccessors);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1105,6 +1128,382 @@ internal static class Program
             ok ? "} inside string literal did not corrupt output"
                : $"class={hasClass} add={hasAdd} string={hasString}",
             TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- Lazy semantic model ----------
+
+    private static TestOutcome LazyModel_OutlineDoesNotLoadModel()
+    {
+        // EmitOutline is syntax-only — it must never touch the semantic model.
+        // We prove this by passing an empty reference list: if the model were
+        // accessed it would still succeed (empty compilation), so instead we
+        // assert directly on IsModelLoaded after the call.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path, referenceAssemblyPaths: Array.Empty<string>());
+        var r = emitter.EmitOutline();
+
+        var hasSignature = r.Output.Contains("Run") && r.Output.Contains("WeightedSum");
+        var modelUnused = !emitter.IsModelLoaded;
+
+        var ok = r.Found && hasSignature && modelUnused;
+        return new TestOutcome(ok,
+            ok ? "EmitOutline completed; IsModelLoaded=false — no compilation triggered"
+               : $"found={r.Found} sig={hasSignature} modelUnused={modelUnused}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_MinifyDoesNotLoadModel()
+    {
+        // EmitMinified is syntax-only — same proof as outline.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path, referenceAssemblyPaths: Array.Empty<string>());
+        var r = emitter.EmitMinified();
+
+        var hasLogic = r.Output.Contains("WeightedSum") && r.Output.Contains("ApplyBias");
+        var modelUnused = !emitter.IsModelLoaded;
+
+        var ok = r.Found && hasLogic && modelUnused;
+        return new TestOutcome(ok,
+            ok ? "EmitMinified completed; IsModelLoaded=false — no compilation triggered"
+               : $"found={r.Found} logic={hasLogic} modelUnused={modelUnused}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_FocusLoadsModel()
+    {
+        // Emit needs symbol resolution, so it must trigger the lazy build.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path);
+
+        var beforeFocus = emitter.IsModelLoaded;
+        var r = emitter.Emit("Run", depth: 0);
+        var afterFocus = emitter.IsModelLoaded;
+
+        var ok = r.Found && !beforeFocus && afterFocus;
+        return new TestOutcome(ok,
+            ok ? "IsModelLoaded: false before Emit, true after — lazy build confirmed"
+               : $"found={r.Found} before={beforeFocus} after={afterFocus}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_AliasLoadsModel()
+    {
+        // EmitAliased also needs symbol resolution.
+        var path = Fixture("Calculator.cs");
+        var emitter = new FocusedEmitter(path);
+
+        var beforeAlias = emitter.IsModelLoaded;
+        var r = emitter.EmitAliased();
+        var afterAlias = emitter.IsModelLoaded;
+
+        var ok = r.Found && !beforeAlias && afterAlias;
+        return new TestOutcome(ok,
+            ok ? "IsModelLoaded: false before EmitAliased, true after — lazy build confirmed"
+               : $"found={r.Found} before={beforeAlias} after={afterAlias}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_Focus_OutputUnchanged()
+    {
+        // Regression: the lazy refactor must not change what Emit produces.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("Run", depth: 1);
+
+        var hasRunBody   = r.Output.Contains("Math.Max(0, biased)");
+        var hasHelper    = r.Output.Contains("ApplyBias");
+
+        var ok = r.Found && hasRunBody && hasHelper;
+        return new TestOutcome(ok,
+            ok ? "lazy model: Emit output unchanged — focus body and depth=1 helper both present"
+               : $"found={r.Found} body={hasRunBody} helper={hasHelper}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome LazyModel_Outline_OutputUnchanged()
+    {
+        // Regression: the lazy refactor must not change what EmitOutline produces.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasSig  = r.Output.Contains("Run") && r.Output.Contains("WeightedSum");
+        var noBody  = !r.Output.Contains("Math.Max(0, biased)");
+
+        var ok = r.Found && hasSig && noBody;
+        return new TestOutcome(ok,
+            ok ? "lazy model: EmitOutline output unchanged — signatures present, bodies absent"
+               : $"found={r.Found} sig={hasSig} noBody={noBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Property accessor signatures ----------
+
+    private static TestOutcome PropertySignature_GetOnly_NoSetInSignature()
+    {
+        // A get-only auto property must show { get; } not { get; set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasGetOnly  = r.Output.Contains("GetOnly { get; }");
+        var noFakeSet   = !r.Output.Contains("GetOnly { get; set; }");
+
+        var ok = r.Found && hasGetOnly && noFakeSet;
+        return new TestOutcome(ok,
+            ok ? "get-only property shows { get; } — no spurious set;"
+               : $"found={r.Found} hasGetOnly={hasGetOnly} noFakeSet={noFakeSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_InitOnly_ShowsInit()
+    {
+        // An init-only property must show { get; init; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasInit = r.Output.Contains("InitOnly { get; init; }");
+
+        var ok = r.Found && hasInit;
+        return new TestOutcome(ok,
+            ok ? "init-only property shows { get; init; }"
+               : $"found={r.Found} hasInit={hasInit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_ExpressionBodied_ShowsGetOnly()
+    {
+        // An expression-bodied property (=> ...) must show { get; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasComputed = r.Output.Contains("Computed { get; }");
+
+        var ok = r.Found && hasComputed;
+        return new TestOutcome(ok,
+            ok ? "expression-bodied property shows { get; }"
+               : $"found={r.Found} hasComputed={hasComputed} snippet={r.Output[..Math.Min(300, r.Output.Length)]}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_ReadWrite_ShowsBothAccessors()
+    {
+        // A normal read-write property must still show { get; set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasReadWrite = r.Output.Contains("ReadWrite { get; set; }");
+
+        var ok = r.Found && hasReadWrite;
+        return new TestOutcome(ok,
+            ok ? "read-write property still shows { get; set; }"
+               : $"found={r.Found} hasReadWrite={hasReadWrite}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome PropertySignature_PrivateSetter_ShowsModifier()
+    {
+        // A property with a private setter must show { get; private set; }
+        var path = Fixture("PropertyShapes.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasPrivateSet = r.Output.Contains("PrivateSet { get; private set; }");
+
+        var ok = r.Found && hasPrivateSet;
+        return new TestOutcome(ok,
+            ok ? "private-setter property shows { get; private set; }"
+               : $"found={r.Found} hasPrivateSet={hasPrivateSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Missing member types in outline ----------
+
+    private static TestOutcome Outline_Indexer_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasIndexer = r.Output.Contains("this[int index]");
+        var ok = r.Found && hasIndexer;
+        return new TestOutcome(ok,
+            ok ? "expression-bodied indexer appears in outline"
+               : $"found={r.Found} hasIndexer={hasIndexer}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_Operator_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasOperator = r.Output.Contains("operator +");
+        var ok = r.Found && hasOperator;
+        return new TestOutcome(ok,
+            ok ? "binary operator overload appears in outline"
+               : $"found={r.Found} hasOperator={hasOperator}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_ConversionOperator_AppearsInSignature()
+    {
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasImplicit = r.Output.Contains("implicit operator");
+        var hasExplicit = r.Output.Contains("explicit operator");
+        var ok = r.Found && hasImplicit && hasExplicit;
+        return new TestOutcome(ok,
+            ok ? "implicit and explicit conversion operators both appear in outline"
+               : $"found={r.Found} implicit={hasImplicit} explicit={hasExplicit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Outline_IndexerWithAccessorList_ShowsAccessors()
+    {
+        // The string indexer has { get; set; } — both accessors must appear.
+        var path = Fixture("OperatorOverloads.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasGetSet = r.Output.Contains("this[string key] { get; set; }");
+        var ok = r.Found && hasGetSet;
+        return new TestOutcome(ok,
+            ok ? "indexer with explicit get+set shows { get; set; }"
+               : $"found={r.Found} hasGetSet={hasGetSet}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- Field initializer stripping ----------
+
+    private static TestOutcome FieldSignature_InitializerStripped()
+    {
+        // Initializers must be absent from field signatures in focused output.
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var noSimpleInit   = !r.Output.Contains("_count = 0");
+        var noComplexInit  = !r.Output.Contains("new(StringComparer");
+        var noStringInit   = !r.Output.Contains("\"default label value\"");
+        var noConstInit    = !r.Output.Contains("= 100");
+
+        var ok = r.Found && noSimpleInit && noComplexInit && noStringInit && noConstInit;
+        return new TestOutcome(ok,
+            ok ? "all field initializers stripped from signatures"
+               : $"simpleInit={!noSimpleInit} complexInit={!noComplexInit} stringInit={!noStringInit} constInit={!noConstInit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FieldSignature_TypeAndNamePreserved()
+    {
+        // Type and identifier must survive even when initializer is stripped.
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasCount  = r.Output.Contains("int _count");
+        var hasCache  = r.Output.Contains("Dictionary<string, List<string>> _cache");
+        var hasLabel  = r.Output.Contains("string _label");
+
+        var ok = r.Found && hasCount && hasCache && hasLabel;
+        return new TestOutcome(ok,
+            ok ? "type and name preserved after initializer strip"
+               : $"count={hasCount} cache={hasCache} label={hasLabel}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FieldSignature_MultipleDeclaratorsHandled()
+    {
+        // "int _min = 0, _max = 100;" must become "int _min, _max;"
+        var path = Fixture("FieldInitializers.cs");
+        var r = new FocusedEmitter(path).Emit("Touch", depth: 0);
+
+        var hasMulti   = r.Output.Contains("_min, _max");
+        var noMinInit  = !r.Output.Contains("int.MinValue");
+        var noMaxInit  = !r.Output.Contains("int.MaxValue");
+
+        var ok = r.Found && hasMulti && noMinInit && noMaxInit;
+        return new TestOutcome(ok,
+            ok ? "multi-declarator field collapsed to \"type name1, name2;\" with no initializers"
+               : $"multi={hasMulti} noMinInit={noMinInit} noMaxInit={noMaxInit}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- #region stripping ----------
+
+    private static TestOutcome Region_Minify_StripsRegionDirectives()
+    {
+        var path = Fixture("RegionHeavy.cs");
+        var r = new FocusedEmitter(path).EmitMinified();
+
+        var hasRegion    = r.Output.Contains("#region");
+        var hasEndRegion = r.Output.Contains("#endregion");
+        var hasLogic     = r.Output.Contains("Double") && r.Output.Contains("UpperName");
+
+        var ok = r.Found && !hasRegion && !hasEndRegion && hasLogic;
+        return new TestOutcome(ok,
+            ok ? $"#region/#endregion stripped; logic intact; {TokenSaving(r.OriginalChars, r.FocusedChars).percent:F1}% saved"
+               : $"region={hasRegion} endregion={hasEndRegion} logic={hasLogic}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Region_Focus_StripsRegionDirectivesWhenMinified()
+    {
+        // focus_method with minify=true goes through MinifyText which uses CommentStripper.
+        var path = Fixture("RegionHeavy.cs");
+        var focused = new FocusedEmitter(path).Emit("Double", depth: 0);
+        var minified = FocusedEmitter.MinifyText(focused.Output);
+
+        var hasRegion    = minified.Contains("#region");
+        var hasEndRegion = minified.Contains("#endregion");
+        var hasDouble    = minified.Contains("Double");
+
+        var ok = focused.Found && !hasRegion && !hasEndRegion && hasDouble;
+        return new TestOutcome(ok,
+            ok ? "#region/#endregion absent after MinifyText; focus body intact"
+               : $"region={hasRegion} endregion={hasEndRegion} double={hasDouble}",
+            TokenSaving(focused.OriginalChars, minified.Length));
+    }
+
+    private static TestOutcome Region_LogicPreservedAfterStrip()
+    {
+        // Stripping regions must not remove any method bodies or field declarations.
+        var path = Fixture("RegionHeavy.cs");
+        var r = new FocusedEmitter(path).EmitMinified();
+
+        var hasFields  = r.Output.Contains("_value") && r.Output.Contains("_name");
+        var hasCtor    = r.Output.Contains("RegionHeavy(");
+        var hasDouble  = r.Output.Contains("Double()");
+        var hasUpper   = r.Output.Contains("UpperName()");
+        var hasHelper  = r.Output.Contains("Add(");
+
+        var ok = r.Found && hasFields && hasCtor && hasDouble && hasUpper && hasHelper;
+        return new TestOutcome(ok,
+            ok ? "fields, constructor, public methods, and private helpers all survived region strip"
+               : $"fields={hasFields} ctor={hasCtor} double={hasDouble} upper={hasUpper} helper={hasHelper}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Focus_Constructor_FoundByClassName()
+    {
+        // Passing the class name as focusMethodName should now find the constructor.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("Calculator", depth: 0);
+
+        var ok = r.Found && r.Output.Contains("Calculator");
+        return new TestOutcome(ok,
+            ok ? "constructor found by class name — no longer returns NOT FOUND"
+               : $"found={r.Found} output snippet: {r.Output[..Math.Min(120, r.Output.Length)]}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome FocusMultiple_Constructor_IncludedWithMethods()
+    {
+        // EmitMultiple should include both the constructor and a regular method.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).EmitMultiple(["Calculator", "Run"], depth: 0);
+
+        var hasConstructor = r.Found && r.Output.Contains("Calculator");
+        var hasRun         = r.Output.Contains("Run");
+        var ok = hasConstructor && hasRun;
+        return new TestOutcome(ok,
+            ok ? "constructor and method both present in multi-focus output"
+               : $"found={r.Found} ctor={hasConstructor} run={hasRun}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
     // ---------- helpers ----------
