@@ -80,11 +80,16 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Emit a focused view of the source containing:
-    /// - The focus method, in full
-    /// - Containing type's declaration (signature only — fields/props/other methods reduced to signatures)
-    /// - Any types referenced from the focus method's body (signatures only)
-    /// - Necessary namespace and using context
+    /// Returns the named method in full plus one-line signatures for every other
+    /// member it references — everything unrelated is dropped entirely.
+    /// <para>
+    /// e.g. a 500-line service asked about <c>SaveOrder</c> → ~80 lines: the full
+    /// method body plus signatures for the fields and helpers it touches.
+    /// </para>
+    /// At <c>depth=1</c> private helpers and properties the method calls or accesses
+    /// are also expanded to full bodies, so you see real logic instead of guessing
+    /// from a signature. Pass the class name as <paramref name="focusMethodName"/>
+    /// to target a constructor.
     /// </summary>
     public FocusResult Emit(string focusMethodName, int depth = 0)
     {
@@ -187,10 +192,15 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Same as Emit but focuses on several named methods in one pass.
-    /// The file is parsed once; referenced signatures are deduplicated across
-    /// all focus methods, so the combined output is smaller than calling
-    /// Emit N times and the caller saves N-1 MCP round-trips.
+    /// Same as <see cref="Emit"/> but focuses on several named methods in one pass.
+    /// The file is parsed once and referenced signatures are deduplicated across all
+    /// focus methods — the combined output is smaller than N separate calls and you
+    /// save N-1 round-trips.
+    /// <para>
+    /// e.g. asked about both <c>SaveOrder</c> and <c>ValidateOrder</c> → a single
+    /// output with both bodies and deduplicated shared signatures, cheaper than two
+    /// separate <see cref="Emit"/> calls.
+    /// </para>
     /// </summary>
     public FocusResult EmitMultiple(IReadOnlyList<string> methodNames, int depth = 0)
     {
@@ -301,11 +311,14 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Emit a focused view of a named type: non-private members with full bodies,
-    /// private members as signatures only. Sits between Outline (all signatures)
-    /// and MinifyCSharpFile (everything), and is especially useful when a file
-    /// contains multiple types and you only need one, or when you want to skip
-    /// private implementation noise.
+    /// Returns a named type with non-private members shown as full bodies and
+    /// private members as one-line signatures. Sits between <see cref="EmitOutline"/>
+    /// (all signatures) and <see cref="EmitMinified"/> (everything).
+    /// <para>
+    /// e.g. a file containing <c>UserService</c>, <c>UserValidator</c>, and
+    /// <c>UserMapper</c> — focus on <c>UserService</c> alone and skip the other
+    /// 300 lines entirely.
+    /// </para>
     /// </summary>
     public FocusResult EmitType(string typeName)
     {
@@ -373,10 +386,15 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Find all methods in the file that directly invoke <paramref name="targetMethodName"/>,
-    /// then emit them as a focused multi-method view. Answers "what calls X?" without
-    /// loading the whole file. Uses name matching rather than full semantic resolution,
-    /// so it may miss calls routed through delegates or interfaces.
+    /// Finds all methods that directly call <paramref name="targetMethodName"/> and
+    /// returns them as a focused multi-method view. Answers "what calls X?" in one
+    /// round-trip without reading the whole file.
+    /// <para>
+    /// e.g. a 400-line file where only <c>Emit</c> and <c>EmitMultiple</c> call
+    /// <c>BuildNotes</c> → returns just those two callers instead of the full file.
+    /// </para>
+    /// Uses name matching, not full semantic resolution — calls through delegates
+    /// or interfaces may be missed.
     /// </summary>
     public FocusResult EmitCallers(string targetMethodName, int depth = 0)
     {
@@ -408,11 +426,14 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Whole-file lossless minifier: strip every comment (XML doc, // and /* */),
-    /// drop blank lines, collapse indentation. The output is functionally
-    /// identical C# — Roslyn parses, rewrites, and re-emits it, so logic
-    /// is guaranteed preserved. The cost is human readability; the win is
-    /// 30-60% fewer tokens with zero semantic loss.
+    /// Whole-file lossless minifier: strips every comment and XML doc, collapses
+    /// blank lines and indentation. Logic is guaranteed identical — Roslyn parses
+    /// and re-emits the syntax tree. Typical reduction: 30–60%.
+    /// <para>
+    /// e.g. a heavily documented config-loader with 200 lines of XML docs → same
+    /// logic in ~120 lines with nothing lost for reasoning purposes.
+    /// </para>
+    /// Use this when you need the whole file and don't yet know which method matters.
     /// </summary>
     public FocusResult EmitMinified()
     {
@@ -435,20 +456,13 @@ public sealed class FocusedEmitter
     }
 
     /// <summary>
-    /// Rename every PRIVATE method, property, field, and event to a short
-    /// code (M1, P1, F1, E1...) and prepend a ledger so the LLM can map back.
-    /// Public/internal/protected symbols are left alone — we can't see callers
-    /// from another file, so renaming them risks breaking referenced code.
-    /// Identifiers inside nameof(...) are also excluded.
-    ///
-    /// Composes with the minifier: comments are stripped and whitespace
-    /// collapsed in the same pass, so this is the most aggressive lossless
-    /// mode the CLI offers.
-    /// </summary>
-    /// <summary>
-    /// Emit a skeleton of the file: every type and every member as a signature,
-    /// no bodies. Useful for "what's in this file" navigation questions where
-    /// the model doesn't need to read any specific implementation.
+    /// Skeleton of the entire file: every type and every member as a one-line
+    /// signature, no bodies. Best for navigation — "what's in this file?" or
+    /// "where would I add X?". Typical reduction: 70–95%.
+    /// <para>
+    /// e.g. a 500-line file → a ~40-line listing of all types and method signatures,
+    /// enough to decide which method to <see cref="Emit"/> focus on next.
+    /// </para>
     /// </summary>
     public FocusResult EmitOutline()
     {
@@ -506,6 +520,19 @@ public sealed class FocusedEmitter
         sb.AppendLine($"{indent}}}");
     }
 
+    /// <summary>
+    /// Minify plus rename every private symbol to a short code (M1, P1, F1, E1…).
+    /// A ledger comment is prepended so the AI can map back. Public/protected/internal
+    /// names are left intact — they may be called from other files. Identifiers inside
+    /// <c>nameof(…)</c> are excluded from renaming.
+    /// <para>
+    /// e.g. a repository with names like <c>_getUserByEmailAndTenantAsync</c> → renamed
+    /// to <c>M1</c>, saving tokens on every occurrence throughout the file.
+    /// </para>
+    /// Worth using when private names are long and repeated; on small or simple files
+    /// the ledger overhead can outweigh the savings — prefer <see cref="EmitMinified"/>
+    /// in that case.
+    /// </summary>
     public FocusResult EmitAliased()
     {
         var root = _tree.GetCompilationUnitRoot();
