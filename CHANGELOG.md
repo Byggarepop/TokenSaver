@@ -4,6 +4,23 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-15
+
+### Added
+- `FocusType` — focused view of a named C# type: non-private members with
+  full bodies, private members as signatures only; sits between `OutlineCSharpFile`
+  and `MinifyCSharpFile` in detail level
+- `FocusCallers` — finds every method in a file that calls a given target and
+  returns them as a focused multi-method view; answers "what calls X?" without
+  loading the whole file
+
+### Changed
+- `depth=1` on `FocusMethod`, `FocusMultipleMethods`, and `FocusCallers` now
+  includes private **property** bodies in addition to private method bodies
+
+### Fixed
+- Improved XML doc summaries on all `Emit*` methods with concrete examples
+
 ## [1.0.0] - 2026-05-15
 
 First stable release. Evolved from the alpha series (alpha1–alpha5) with
