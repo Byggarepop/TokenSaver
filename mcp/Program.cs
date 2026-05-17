@@ -111,6 +111,10 @@ if (args.Length > 0 && args[0] == "register")
     return;
 }
 
+// Silently update TOKENSAVER_API_URL in any already-registered config files
+// if it is missing or stale. Gated by a version sentinel — runs once per version.
+TokenSaver.Mcp.RegisterCommand.AutoUpdateRegistrations();
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Logging.ClearProviders();

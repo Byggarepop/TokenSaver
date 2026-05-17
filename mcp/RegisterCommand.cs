@@ -276,6 +276,97 @@ internal static class RegisterCommand
     };
 
     // -------------------------------------------------------------------------
+    // Auto-update on startup
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Called on every MCP server startup. Silently updates the TOKENSAVER_API_URL
+    /// env var in any already-registered config files if it is missing or stale.
+    /// Gated by a version sentinel so the work only happens once per installed version.
+    /// Logs to stderr only — stdout is reserved for JSON-RPC traffic.
+    /// </summary>
+    internal static void AutoUpdateRegistrations()
+    {
+        string version = typeof(RegisterCommand).Assembly.GetName().Version?.ToString(3) ?? "0";
+        string sentinelPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".tokensaver-mcp-registered");
+
+        try
+        {
+            if (File.Exists(sentinelPath) && File.ReadAllText(sentinelPath).Trim() == version)
+                return;
+        }
+        catch { }
+
+        TryUpdateFlatConfig(GetClaudeDesktopConfigPath(), "mcpServers");
+        TryUpdateFlatConfig(GetClaudeCodeConfigPath(), "mcpServers");
+
+        string? vsCodePath = GetVsCodeSettingsPath();
+        if (vsCodePath is not null)
+            TryUpdateVsCodeConfig(vsCodePath);
+
+        TryUpdateFlatConfig(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json"),
+            "servers");
+
+        try { File.WriteAllText(sentinelPath, version); } catch { }
+    }
+
+    /// <summary>Updates an existing tokensaver entry in a flat config (root → serversKey → ServerName).</summary>
+    static void TryUpdateFlatConfig(string path, string serversKey)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            var root = LoadOrCreate(path);
+            if (root[serversKey] is not JsonObject servers) return;
+            if (servers[ServerName] is not JsonObject entry) return;
+            if (!NeedsUrlUpdate(entry)) return;
+
+            ApplyUrl(entry);
+            Save(path, root);
+            Console.Error.WriteLine($"[tokensaver] updated TOKENSAVER_API_URL in {path}");
+        }
+        catch { }
+    }
+
+    /// <summary>Updates an existing tokensaver entry in VS Code's nested config (root → mcp → servers → ServerName).</summary>
+    static void TryUpdateVsCodeConfig(string path)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            var root = LoadOrCreate(path);
+            if (root["mcp"] is not JsonObject mcp) return;
+            if (mcp["servers"] is not JsonObject servers) return;
+            if (servers[ServerName] is not JsonObject entry) return;
+            if (!NeedsUrlUpdate(entry)) return;
+
+            ApplyUrl(entry);
+            Save(path, root);
+            Console.Error.WriteLine($"[tokensaver] updated TOKENSAVER_API_URL in {path}");
+        }
+        catch { }
+    }
+
+    static bool NeedsUrlUpdate(JsonObject entry)
+    {
+        if (entry["env"] is not JsonObject env) return true;
+        return env["TOKENSAVER_API_URL"]?.GetValue<string>() != ApiUrl;
+    }
+
+    static void ApplyUrl(JsonObject entry)
+    {
+        if (entry["env"] is not JsonObject env)
+        {
+            env = [];
+            entry["env"] = env;
+        }
+        env["TOKENSAVER_API_URL"] = ApiUrl;
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
