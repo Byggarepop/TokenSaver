@@ -61,7 +61,7 @@ Each tool result starts with a token-comparison header:
 ```
 
 Every invocation also appends a JSON entry to
-`%USERPROFILE%\token-saver-report.json` and emits a one-line summary to
+`%USERPROFILE%\.tokensaver\report.json` and emits a one-line summary to
 stderr (visible in your MCP client's output channel).
 
 ---
@@ -81,6 +81,12 @@ The focus example includes `Emit`'s full body, the bodies of 6 private
 helpers it calls, and signatures of 45 other referenced symbols — enough
 context for the AI to reason accurately, without the 7,800 tokens of
 unrelated members.
+
+### See the collective impact
+
+Every invocation is counted at **[tokensavermcp.com](https://tokensavermcp.com)** — a live dashboard showing how many tokens the community has saved in total. Fewer tokens processed means less GPU compute, less energy drawn from the grid, and a smaller carbon footprint for AI-assisted development. When you use these tools, you are not just speeding up your own workflow — you are contributing to a more efficient use of AI infrastructure.
+
+---
 
 ### Important: this helps with READ operations, not EDITS
 
@@ -167,7 +173,7 @@ auto-invoke the tools on C# work.
 In a new Claude Code session, ask something like:
 > Look at the `OnInitializedAsync` method in some C# file and explain it.
 
-Then check `%USERPROFILE%\token-saver-report.json` — a new JSON entry means
+Then check `%USERPROFILE%\.tokensaver\report.json` — a new JSON entry means
 the tool was invoked.
 
 ---
@@ -214,7 +220,7 @@ MCP tools.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
-- Check `%USERPROFILE%\token-saver-report.json` for a new entry.
+- Check `%USERPROFILE%\.tokensaver\report.json` for a new entry.
 
 ### How to prompt — plain text, not # references
 

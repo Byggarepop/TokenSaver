@@ -19,3 +19,5 @@
 tests/TEST_REPORT.md
 .claude/settings.local.json
 scripts/deploy.sh
+/nupkg
+/TokenSaverViewer/publish-folder

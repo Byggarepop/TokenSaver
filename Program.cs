@@ -292,7 +292,7 @@ static void PrintUsage() => Console.Error.WriteLine(
     --stats           Print before/after token estimate to stderr.
 
     --report          Append this run's before/after stats as a JSON entry to
-                      %USERPROFILE%\token-saver-report.json. The TokenSaverViewer
+                      %USERPROFILE%\.tokensaver\report.json. The TokenSaverViewer
                       Blazor app reads that file.
 
     OUTPUT:

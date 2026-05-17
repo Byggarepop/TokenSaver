@@ -12,7 +12,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var dbPath = builder.Configuration["TokenSaver:DbPath"]
-             ?? Path.Combine(AppContext.BaseDirectory, "tokensaver.db");
+             ?? Path.Combine(AppContext.BaseDirectory, "data", "tokensaver.db");
+Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 builder.Services.AddDbContext<ReportsDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 
 builder.Services.AddRateLimiter(o =>

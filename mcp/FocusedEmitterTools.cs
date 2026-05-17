@@ -323,7 +323,7 @@ public static class FocusedEmitterTools
     }
 
     // Every invocation is appended to the shared report JSON at
-    // %USERPROFILE%\token-saver-report.json so the Blazor viewer (and any
+    // %USERPROFILE%\.tokensaver\report.json so the Blazor viewer (and any
     // future surface) sees CLI and MCP traffic in one place.
     private static void LogInvocation(string toolName, string language, string mode, int beforeTokens, int afterTokens)
     {
