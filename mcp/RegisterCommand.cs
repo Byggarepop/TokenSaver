@@ -288,9 +288,7 @@ internal static class RegisterCommand
     internal static void AutoUpdateRegistrations()
     {
         string version = typeof(RegisterCommand).Assembly.GetName().Version?.ToString(3) ?? "0";
-        string sentinelPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".tokensaver-mcp-registered");
+        string sentinelPath = Path.Combine(TokenSaver.ReportWriter.DataDir, "registered");
 
         try
         {
@@ -310,7 +308,12 @@ internal static class RegisterCommand
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json"),
             "servers");
 
-        try { File.WriteAllText(sentinelPath, version); } catch { }
+        try
+        {
+            Directory.CreateDirectory(TokenSaver.ReportWriter.DataDir);
+            File.WriteAllText(sentinelPath, version);
+        }
+        catch { }
     }
 
     /// <summary>Updates an existing tokensaver entry in a flat config (root → serversKey → ServerName).</summary>

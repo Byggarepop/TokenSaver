@@ -90,9 +90,7 @@ public static class ReportUploader
 
         try
         {
-            var path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ClientIdFileName);
+            var path = Path.Combine(ReportWriter.DataDir, ClientIdFileName);
 
             if (File.Exists(path))
             {
@@ -100,6 +98,7 @@ public static class ReportUploader
                 if (!string.IsNullOrEmpty(existing)) return existing;
             }
 
+            Directory.CreateDirectory(ReportWriter.DataDir);
             var id = Guid.NewGuid().ToString("N");
             File.WriteAllText(path, id);
             return id;
