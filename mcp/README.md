@@ -111,13 +111,15 @@ tokensaver-mcp register
 
 `register` detects your environment and writes the server entry into:
 - `%APPDATA%\Claude\claude_desktop_config.json` — Claude Desktop
+- `%USERPROFILE%\.claude.json` — Claude Code CLI
+- `%APPDATA%\Code\User\settings.json` — VS Code / GitHub Copilot (skipped if not installed)
 - `%USERPROFILE%\.mcp.json` — Visual Studio 2026 (global)
 
 It merges safely — existing entries from other MCP servers are left untouched.
 Restart your MCP host after running it.
 
 **Flags:**
-- `--claude-desktop` / `--vs` — register only one target instead of both
+- `--claude-desktop` / `--claude-code` / `--vscode` / `--vs` — register only one target
 - `--local` — write a solution-local `mcp.json` in the current directory
   instead of the global VS config (useful when you want per-repo opt-in)
 
