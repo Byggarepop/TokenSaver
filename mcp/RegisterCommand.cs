@@ -11,19 +11,34 @@ namespace TokenSaver.Mcp;
 internal static class RegisterCommand
 {
     const string ServerName = "tokensaver";
+    const string ApiUrl = "https://tokensavermcp.com";
 
     internal static int Run(string[] args)
     {
         bool local = args.Contains("--local");
         bool claudeOnly = args.Contains("--claude-desktop");
+        bool claudeCodeOnly = args.Contains("--claude-code");
         bool vsOnly = args.Contains("--vs");
-        bool doAll = !claudeOnly && !vsOnly;
+        bool vsCodeOnly = args.Contains("--vscode");
+        bool doAll = !claudeOnly && !claudeCodeOnly && !vsOnly && !vsCodeOnly;
 
         int failures = 0;
 
         if (doAll || claudeOnly)
         {
             if (!RegisterClaudeDesktop())
+                failures++;
+        }
+
+        if (doAll || claudeCodeOnly)
+        {
+            if (!RegisterClaudeCode())
+                failures++;
+        }
+
+        if (doAll || vsCodeOnly)
+        {
+            if (!RegisterVsCode())
                 failures++;
         }
 
@@ -41,7 +56,7 @@ internal static class RegisterCommand
         }
 
         if (failures == 0)
-            Console.WriteLine("\nDone. Restart your MCP host (Claude Desktop / Visual Studio) to pick up the change.");
+            Console.WriteLine("\nDone. Restart your MCP host (Claude Desktop / Claude Code / Visual Studio) to pick up the change.");
         else
             Console.Error.WriteLine($"\n{failures} registration(s) failed — see errors above.");
 
@@ -96,8 +111,122 @@ internal static class RegisterCommand
 
     static JsonObject BuildClaudeEntry() => new()
     {
-        ["command"] = "tokensaver-mcp"
+        ["command"] = "tokensaver-mcp",
+        ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
+
+    // -------------------------------------------------------------------------
+    // Claude Code CLI (~/.claude.json)
+    // -------------------------------------------------------------------------
+
+    static bool RegisterClaudeCode()
+    {
+        string configPath = GetClaudeCodeConfigPath();
+        Console.WriteLine($"Claude Code CLI  →  {configPath}");
+
+        try
+        {
+            var root = LoadOrCreate(configPath);
+
+            if (root["mcpServers"] is not JsonObject servers)
+            {
+                servers = [];
+                root["mcpServers"] = servers;
+            }
+
+            bool existed = servers.ContainsKey(ServerName);
+            servers[ServerName] = BuildClaudeCodeEntry();
+
+            Save(configPath, root);
+            Console.WriteLine(existed ? $"  Updated existing '{ServerName}' entry." : $"  Added '{ServerName}' entry.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  ERROR: {ex.Message}");
+            return false;
+        }
+    }
+
+    static string GetClaudeCodeConfigPath() =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude.json");
+
+    static JsonObject BuildClaudeCodeEntry() => new()
+    {
+        ["type"] = "stdio",
+        ["command"] = "tokensaver-mcp",
+        ["args"] = new JsonArray(),
+        ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
+    };
+
+    // -------------------------------------------------------------------------
+    // VS Code / GitHub Copilot Chat
+    // -------------------------------------------------------------------------
+
+    static bool RegisterVsCode()
+    {
+        string? configPath = GetVsCodeSettingsPath();
+        if (configPath is null)
+        {
+            Console.WriteLine("VS Code  →  skipped (no VS Code installation found)");
+            return true;
+        }
+
+        Console.WriteLine($"VS Code  →  {configPath}");
+
+        try
+        {
+            var root = LoadOrCreate(configPath);
+
+            if (root["mcp"] is not JsonObject mcp)
+            {
+                mcp = [];
+                root["mcp"] = mcp;
+            }
+
+            if (mcp["servers"] is not JsonObject servers)
+            {
+                servers = [];
+                mcp["servers"] = servers;
+            }
+
+            bool existed = servers.ContainsKey(ServerName);
+            servers[ServerName] = BuildVsEntry();
+
+            Save(configPath, root);
+            Console.WriteLine(existed ? $"  Updated existing '{ServerName}' entry." : $"  Added '{ServerName}' entry.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  ERROR: {ex.Message}");
+            return false;
+        }
+    }
+
+    static string? GetVsCodeSettingsPath()
+    {
+        string userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        string path;
+        if (OperatingSystem.IsWindows())
+            path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Code", "User", "settings.json");
+        else if (OperatingSystem.IsMacOS())
+            path = Path.Combine(userDir, "Library", "Application Support", "Code", "User", "settings.json");
+        else
+            path = Path.Combine(userDir, ".config", "Code", "User", "settings.json");
+
+        // Only register if VS Code is actually installed (settings dir exists or settings file exists).
+        // Avoid creating a dangling file for users who don't have VS Code.
+        string? dir = Path.GetDirectoryName(path);
+        if (!File.Exists(path) && (dir is null || !Directory.Exists(dir)))
+            return null;
+
+        return path;
+    }
 
     // -------------------------------------------------------------------------
     // Visual Studio 2026 / generic MCP host (.mcp.json)
@@ -142,7 +271,8 @@ internal static class RegisterCommand
     static JsonObject BuildVsEntry() => new()
     {
         ["type"] = "stdio",
-        ["command"] = "tokensaver-mcp"
+        ["command"] = "tokensaver-mcp",
+        ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
 
     // -------------------------------------------------------------------------
