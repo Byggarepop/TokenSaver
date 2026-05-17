@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\TokenReport.cs" Link="TokenReport.cs" />
-    <Compile Include="..\ReportWriter.cs" Link="ReportWriter.cs" />
-    <Compile Include="..\ReportUploader.cs" Link="ReportUploader.cs" />
+    <Compile Include="..\Reporting\TokenReport.cs" Link="Reporting\TokenReport.cs" />
+    <Compile Include="..\Reporting\ReportWriter.cs" Link="Reporting\ReportWriter.cs" />
+    <Compile Include="..\Reporting\ReportUploader.cs" Link="Reporting\ReportUploader.cs" />
   </ItemGroup>
 
   <ItemGroup>

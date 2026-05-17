@@ -16,8 +16,7 @@
     <Compile Remove="mcp\**\*.cs" />
     <Compile Remove="expected-output.cs" />
     <Compile Remove="RoslynLean.Program.cs" />
-    <Compile Remove="FocusedEmissionTool.cs" />
-    <Compile Remove="TokenReport.cs" />
+    <Compile Remove="Reporting\TokenReport.cs" />
     <Compile Remove="TokenSaverViewer\**\*.cs" />
     <Content Remove="TokenSaverViewer\**" />
     <None Remove="TokenSaverViewer\**" />

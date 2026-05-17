@@ -11,23 +11,23 @@
 
   <ItemGroup>
     <!-- Link the emitter source from the parent project so tests run against the real implementation. -->
-    <Compile Include="..\FocusedEmitter.cs" Link="FocusedEmitter.cs" />
-    <Compile Include="..\RazorPreprocessor.cs" Link="RazorPreprocessor.cs" />
-    <Compile Include="..\ILanguageEmitter.cs" Link="ILanguageEmitter.cs" />
-    <Compile Include="..\CSharpEmitter.cs" Link="CSharpEmitter.cs" />
-    <Compile Include="..\JsLikeMinifier.cs" Link="JsLikeMinifier.cs" />
-    <Compile Include="..\JavaScriptEmitter.cs" Link="JavaScriptEmitter.cs" />
-    <Compile Include="..\TypeScriptEmitter.cs" Link="TypeScriptEmitter.cs" />
-    <Compile Include="..\PythonEmitter.cs" Link="PythonEmitter.cs" />
-    <Compile Include="..\JsonEmitter.cs" Link="JsonEmitter.cs" />
-    <Compile Include="..\YamlEmitter.cs" Link="YamlEmitter.cs" />
-    <Compile Include="..\XmlEmitter.cs" Link="XmlEmitter.cs" />
-    <Compile Include="..\HtmlEmitter.cs" Link="HtmlEmitter.cs" />
-    <Compile Include="..\CssEmitter.cs" Link="CssEmitter.cs" />
-    <Compile Include="..\CppMinifier.cs" Link="CppMinifier.cs" />
-    <Compile Include="..\CEmitter.cs" Link="CEmitter.cs" />
-    <Compile Include="..\CppEmitter.cs" Link="CppEmitter.cs" />
-    <Compile Include="..\RazorEmitter.cs" Link="RazorEmitter.cs" />
+    <Compile Include="..\Emitters\FocusedEmitter.cs" Link="Emitters\FocusedEmitter.cs" />
+    <Compile Include="..\Emitters\RazorPreprocessor.cs" Link="Emitters\RazorPreprocessor.cs" />
+    <Compile Include="..\Emitters\ILanguageEmitter.cs" Link="Emitters\ILanguageEmitter.cs" />
+    <Compile Include="..\Emitters\CSharpEmitter.cs" Link="Emitters\CSharpEmitter.cs" />
+    <Compile Include="..\Emitters\JsLikeMinifier.cs" Link="Emitters\JsLikeMinifier.cs" />
+    <Compile Include="..\Emitters\JavaScriptEmitter.cs" Link="Emitters\JavaScriptEmitter.cs" />
+    <Compile Include="..\Emitters\TypeScriptEmitter.cs" Link="Emitters\TypeScriptEmitter.cs" />
+    <Compile Include="..\Emitters\PythonEmitter.cs" Link="Emitters\PythonEmitter.cs" />
+    <Compile Include="..\Emitters\JsonEmitter.cs" Link="Emitters\JsonEmitter.cs" />
+    <Compile Include="..\Emitters\YamlEmitter.cs" Link="Emitters\YamlEmitter.cs" />
+    <Compile Include="..\Emitters\XmlEmitter.cs" Link="Emitters\XmlEmitter.cs" />
+    <Compile Include="..\Emitters\HtmlEmitter.cs" Link="Emitters\HtmlEmitter.cs" />
+    <Compile Include="..\Emitters\CssEmitter.cs" Link="Emitters\CssEmitter.cs" />
+    <Compile Include="..\Emitters\CppMinifier.cs" Link="Emitters\CppMinifier.cs" />
+    <Compile Include="..\Emitters\CEmitter.cs" Link="Emitters\CEmitter.cs" />
+    <Compile Include="..\Emitters\CppEmitter.cs" Link="Emitters\CppEmitter.cs" />
+    <Compile Include="..\Emitters\RazorEmitter.cs" Link="Emitters\RazorEmitter.cs" />
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />
     <Compile Remove="fixtures\**\*.cs" />
