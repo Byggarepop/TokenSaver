@@ -18,9 +18,11 @@ public sealed record ReportEntry(
 /// </summary>
 public static class ReportWriter
 {
-    public static string DefaultPath { get; } = Path.Combine(
+    public static string DataDir { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "token-saver-report.json");
+        ".tokensaver");
+
+    public static string DefaultPath { get; } = Path.Combine(DataDir, "report.json");
 
     private static readonly object FileLock = new();
 
@@ -55,6 +57,7 @@ public static class ReportWriter
 
         lock (FileLock)
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             var entries = LoadOrRecover(target);
             entries.Add(entry);
             File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
