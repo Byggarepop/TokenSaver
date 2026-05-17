@@ -108,3 +108,11 @@ no amount of "you should write tighter prompts" advice would teach.
 
 The tools we've built are all token-savers. This makes them token-savings
 *teachers*. That's the whole point of the project, restated as a UI choice.
+
+And the savings add up beyond the individual. Every token not processed is
+a small reduction in GPU compute and energy drawn from the grid. The
+community's collective impact is tracked at
+**[tokensavermcp.com](https://tokensavermcp.com)** — a live dashboard where
+you can see how much the ecosystem has saved in total. You are not only
+getting faster answers; you are contributing to more efficient AI
+infrastructure.
