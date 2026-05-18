@@ -15,8 +15,8 @@
     <PackageId>TokenSaver.Mcp</PackageId>
     <Version>1.3.0</Version>
     <Authors>Sebastian Larsson</Authors>
-    <Description>MCP server for .NET developers — gives AI assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform. Reduces tokens by 50-95% with no loss of logic.</Description>
-    <PackageTags>mcp;dotnet;csharp;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
+    <Description>MCP server for .NET developers — gives AI assistants a token-efficient view of C#, VB, Razor, and .NET project files using the Roslyn compiler platform. Reduces tokens by 50-95% with no loss of logic.</Description>
+    <PackageTags>mcp;dotnet;csharp;visual basic;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>https://github.com/Byggarepop/TokenSaver/blob/main/CHANGELOG.md</PackageReleaseNotes>
