@@ -1,0 +1,197 @@
+@page "/my-stats"
+@using Microsoft.EntityFrameworkCore
+@using TokenStats
+@using TokenSaverViewer
+@inject IConfiguration Config
+@inject IServiceScopeFactory ScopeFactory
+@rendermode InteractiveServer
+
+<PageTitle>My Stats – TokenSaver</PageTitle>
+
+<section class="my-stats-header">
+    <h1>My Stats</h1>
+    <p class="lead">
+        Paste your client ID to see savings attributed to your machine only.
+        Your ID is stored in <code>~/.tokensaver/token-saver-client-id</code>.
+    </p>
+
+    <div class="client-id-form">
+        <input class="form-control client-id-input"
+               type="text"
+               placeholder="Paste your client ID here…"
+               @bind="_clientId"
+               @bind:event="oninput"
+               @onkeydown="OnKeyDown" />
+        <button class="btn btn-primary" @onclick="Load" disabled="@(string.IsNullOrWhiteSpace(_clientId))">
+            Look up
+        </button>
+    </div>
+</section>
+
+@if (_searched)
+{
+    @if (_notServerMode)
+    {
+        <div class="alert alert-info mt-3">
+            Per-client lookup requires the viewer to run in server mode (connected to a database).
+        </div>
+    }
+    else if (_notFound)
+    {
+        <div class="alert alert-warning mt-3">
+            No data found for that client ID. Make sure you copied it exactly from
+            <code>~/.tokensaver/token-saver-client-id</code>.
+        </div>
+    }
+    else
+    {
+        <section class="summary-bar mt-4">
+            <div class="summary-card">
+                <div class="summary-value text-success">@_totalSaved.ToString("N0")</div>
+                <div class="summary-label">tokens saved</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">@_runCount.ToString("N0")</div>
+                <div class="summary-label">tool runs</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">@_avgReduction.ToString("F0")%</div>
+                <div class="summary-label">avg reduction</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">$@_dollarsSaved.ToString("F2")</div>
+                <div class="summary-label">est. cost saved</div>
+            </div>
+        </section>
+
+        <section class="report-section mt-4">
+            <h2>Breakdown by tool</h2>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Tool</th>
+                        <th>Language</th>
+                        <th class="text-end">Runs</th>
+                        <th class="text-end">Tokens saved</th>
+                        <th style="width: 30%;">Avg reduction</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _aggregates)
+                    {
+                        <tr>
+                            <td><strong>@row.ToolName</strong></td>
+                            <td>@(string.IsNullOrEmpty(row.Language) ? "—" : row.Language)</td>
+                            <td class="text-end">@row.RunCount.ToString("N0")</td>
+                            <td class="text-end text-success">@row.TokensSaved.ToString("N0")</td>
+                            <td>
+                                <div class="progress" style="height: 1.25rem;">
+                                    <div class="progress-bar bg-success" role="progressbar"
+                                         style="width: @row.AvgReductionPercent.ToString("F0")%;">
+                                        @row.AvgReductionPercent.ToString("F0")%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    }
+}
+
+<style>
+    .my-stats-header { max-width: 700px; margin-bottom: 1.5rem; }
+    .my-stats-header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .my-stats-header .lead { color: #555; margin-bottom: 1.25rem; }
+
+    .client-id-form { display: flex; gap: 0.5rem; }
+    .client-id-input { font-family: monospace; font-size: 0.9rem; flex: 1; }
+
+    .summary-bar {
+        display: flex; gap: 1rem; flex-wrap: wrap;
+    }
+
+    .summary-card {
+        flex: 1; min-width: 140px;
+        background: #f8f9fa; border-radius: 10px;
+        padding: 1.25rem 1rem; text-align: center;
+        border: 1px solid #e9ecef;
+    }
+
+    .summary-value { font-size: 1.9rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .summary-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6c757d; margin-top: 0.2rem; }
+
+    .report-section h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 1rem; }
+</style>
+
+@code {
+    private string _clientId = "";
+    private bool _searched;
+    private bool _notServerMode;
+    private bool _notFound;
+
+    private List<AggregateRow> _aggregates = new();
+    private long _totalSaved;
+    private int _runCount;
+    private double _avgReduction;
+    private double _dollarsSaved;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Load();
+    }
+
+    private async Task Load()
+    {
+        var mode = (Config["TokenSaver:Mode"] ?? "local").ToLowerInvariant();
+        _searched = true;
+        _notFound = false;
+        _notServerMode = false;
+
+        if (mode != "server")
+        {
+            _notServerMode = true;
+            return;
+        }
+
+        var id = _clientId.Trim();
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
+
+        var raw = await db.Reports
+            .Where(r => r.ClientId == id)
+            .GroupBy(r => new { r.ToolName, r.Language })
+            .Select(g => new
+            {
+                g.Key.ToolName,
+                g.Key.Language,
+                RunCount = g.Count(),
+                TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
+                TokensWith = g.Sum(r => (long)r.TokensWithTool),
+            })
+            .ToListAsync();
+
+        if (raw.Count == 0)
+        {
+            _notFound = true;
+            _aggregates = new();
+            return;
+        }
+
+        _aggregates = raw.Select(r =>
+        {
+            var saved = r.TokensWithout - r.TokensWith;
+            var pct = r.TokensWithout == 0 ? 0 : (double)saved / r.TokensWithout * 100;
+            return new AggregateRow(r.ToolName, r.Language, r.RunCount, saved, pct);
+        }).OrderByDescending(r => r.TokensSaved).ToList();
+
+        _totalSaved = _aggregates.Sum(r => r.TokensSaved);
+        _runCount = _aggregates.Sum(r => r.RunCount);
+        var totalWithout = raw.Sum(r => r.TokensWithout);
+        _avgReduction = totalWithout == 0 ? 0 : (double)_totalSaved / totalWithout * 100;
+        _dollarsSaved = _totalSaved / 1_000_000.0 * TokenReport.InputPricePerMillion.Sonnet;
+    }
+
+    private sealed record AggregateRow(string ToolName, string Language, int RunCount, long TokensSaved, double AvgReductionPercent);
+}

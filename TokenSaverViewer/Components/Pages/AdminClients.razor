@@ -1,0 +1,132 @@
+@page "/admin/clients"
+@using Microsoft.EntityFrameworkCore
+@using TokenSaverViewer
+@inject IConfiguration Config
+@inject IServiceScopeFactory ScopeFactory
+@rendermode InteractiveServer
+
+<PageTitle>Clients – TokenSaver</PageTitle>
+
+<div class="admin-header">
+    <h1>All Clients</h1>
+    <span class="client-count">@_rows.Count client(s)</span>
+</div>
+
+@if (_notServerMode)
+{
+    <div class="alert alert-info">Requires server mode.</div>
+}
+else if (_loading)
+{
+    <p><em>Loading…</em></p>
+}
+else if (_rows.Count == 0)
+{
+    <p class="text-muted">No data yet.</p>
+}
+else
+{
+    <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Client ID</th>
+                <th class="text-end">Runs</th>
+                <th class="text-end">Tokens saved</th>
+                <th class="text-end">Avg reduction</th>
+                <th>Top tool</th>
+                <th>Last seen</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _rows.OrderByDescending(r => r.TokensSaved))
+            {
+                <tr>
+                    <td><code class="client-id">@r.ClientId</code></td>
+                    <td class="text-end">@r.RunCount.ToString("N0")</td>
+                    <td class="text-end text-success">@r.TokensSaved.ToString("N0")</td>
+                    <td class="text-end">@r.AvgReduction.ToString("F0")%</td>
+                    <td>@r.TopTool</td>
+                    <td class="text-muted">@r.LastSeen.ToString("yyyy-MM-dd")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <strong>Total:</strong>
+        @_rows.Sum(r => r.RunCount).ToString("N0") runs ·
+        @_rows.Sum(r => r.TokensSaved).ToString("N0") tokens saved across
+        @_rows.Count client(s)
+    </div>
+}
+
+<style>
+    .admin-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; }
+    .admin-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .client-count { color: #6c757d; font-size: 0.9rem; }
+    .client-id { font-size: 0.8rem; color: #444; }
+    .totals { margin-top: 1rem; font-size: 0.9rem; color: #555; }
+</style>
+
+@code {
+    private bool _loading = true;
+    private bool _notServerMode;
+    private List<ClientRow> _rows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var mode = (Config["TokenSaver:Mode"] ?? "local").ToLowerInvariant();
+        if (mode != "server")
+        {
+            _notServerMode = true;
+            _loading = false;
+            return;
+        }
+
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
+
+        var raw = await db.Reports
+            .Where(r => r.ClientId != null)
+            .GroupBy(r => r.ClientId!)
+            .Select(g => new
+            {
+                ClientId = g.Key,
+                RunCount = g.Count(),
+                TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
+                TokensWith = g.Sum(r => (long)r.TokensWithTool),
+                LastSeen = g.Max(r => r.ReceivedUtc),
+            })
+            .ToListAsync();
+
+        var topTools = await db.Reports
+            .Where(r => r.ClientId != null)
+            .GroupBy(r => new { r.ClientId, r.ToolName })
+            .Select(g => new { g.Key.ClientId, g.Key.ToolName, Count = g.Count() })
+            .ToListAsync();
+
+        var topToolByClient = topTools
+            .GroupBy(t => t.ClientId)
+            .ToDictionary(
+                g => g.Key!,
+                g => g.OrderByDescending(t => t.Count).First().ToolName);
+
+        _rows = raw.Select(r =>
+        {
+            var saved = r.TokensWithout - r.TokensWith;
+            var pct = r.TokensWithout == 0 ? 0 : (double)saved / r.TokensWithout * 100;
+            topToolByClient.TryGetValue(r.ClientId, out var topTool);
+            return new ClientRow(r.ClientId, r.RunCount, saved, pct, topTool ?? "—", r.LastSeen);
+        }).ToList();
+
+        _loading = false;
+    }
+
+    private sealed record ClientRow(
+        string ClientId,
+        int RunCount,
+        long TokensSaved,
+        double AvgReduction,
+        string TopTool,
+        DateTime LastSeen);
+}
