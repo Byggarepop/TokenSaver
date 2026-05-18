@@ -4,6 +4,20 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-18
+
+### Added
+- VB.NET (`.vb`) support via Roslyn: `MinifyFile` strips `'` and `REM` comments
+  and collapses blank runs
+- `FocusMethod`, `FocusMultipleMethods`, `OutlineCSharpFile`, `FocusType`, and
+  `FocusCallers` now accept `.vb` files in addition to `.cs` / `.razor` — full
+  outline, focused method, type focus, and caller-finding on VB.NET source
+- CI workflow: test suite runs automatically on every pull request
+
+### Changed
+- Roslyn packages aligned to 5.3.0 across all projects (was 4.11.0 in the MCP
+  and test projects)
+
 ## [1.2.0] - 2026-05-18
 
 ### Added
