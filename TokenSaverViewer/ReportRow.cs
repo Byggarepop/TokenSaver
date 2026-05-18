@@ -22,7 +22,4 @@ public sealed class ReportRow
     public string? ClientId { get; set; }
 
     public DateTime ReceivedUtc { get; set; }
-
-    [MaxLength(64)]
-    public string? ClientIpHash { get; set; }
 }
