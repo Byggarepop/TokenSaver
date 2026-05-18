@@ -27,6 +27,7 @@ tokens with no loss of logic.
 | XML / project files | `.xml`, `.csproj`, `.props`, `.targets`, `.config`, `.resx` | `<!-- -->` strip, blank-run collapse |
 | C | `.c`, `.h` | `//` + `/* */` strip, whitespace collapse, `#directives` preserved |
 | C++ | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`, `.inl` | same as C |
+| VB.NET | `.vb` | Roslyn comment strip (`'` and `REM`), blank-run collapse |
 
 ### Tool selection rules — follow these by default, no need to ask
 

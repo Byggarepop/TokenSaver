@@ -13,7 +13,7 @@ namespace TokenSaver.Mcp;
 public static class FocusedEmitterTools
 {
     [McpServerTool, Description(
-        "Returns a focused subset of a C# file: the named method with full body, " +
+        "Returns a focused subset of a C# or VB.NET file: the named method with full body, " +
         "plus the SIGNATURES of anything it references. Drops unrelated members " +
         "entirely. Use this when the user asks about a specific method — refactor, " +
         "translate, debug, optimize, or understand it. Far cheaper than reading " +
@@ -21,15 +21,31 @@ public static class FocusedEmitterTools
         "methods and properties that the focus method calls or accesses " +
         "(recommended for refactor/translate tasks where the AI needs to see real " +
         "helper logic, not just signatures). " +
-        "Set minify=true for an additional ~15-25% token reduction (lossless).")]
+        "Set minify=true for an additional ~15-25% token reduction (lossless). " +
+        "Supports .cs, .razor.cs, .razor, and .vb files.")]
     public static string FocusMethod(
-        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
+        [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
         [Description("The method name to focus on. Overloads are all included.")] string methodName,
         [Description("0 = signatures only for callees (default). 1 = include private helper bodies. 2+ = recursive.")] int depth = 0,
         [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
     {
         try
         {
+            if (IsVbFile(filePath))
+            {
+                var vb = new VBFocusedEmitter(filePath);
+                var vbResult = vb.Emit(methodName, depth);
+                if (!vbResult.Found)
+                {
+                    var outline = vb.EmitOutline();
+                    return $"ERROR: Method '{methodName}' not found in {Path.GetFileName(filePath)}.\n" +
+                           $"Available members:\n{outline.Output}";
+                }
+                var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
+                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}")
+                     + vbResult.Notes + "\n" + vbOutput;
+            }
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.Emit(methodName, depth);
 
@@ -67,9 +83,10 @@ public static class FocusedEmitterTools
         "more specific methods together, or when a prior outline or NOT FOUND response " +
         "revealed a set of related methods to inspect. Provide method names as a " +
         "comma-separated list (e.g. 'ExecSql,ClearGrid,SetBusy'). depth=1 includes " +
-        "private helper method and property bodies for ALL listed methods.")]
+        "private helper method and property bodies for ALL listed methods. " +
+        "Supports .cs, .razor.cs, .razor, and .vb files.")]
     public static string FocusMultipleMethods(
-        [Description("Absolute path to a .cs, .razor.cs, or .razor file.")] string filePath,
+        [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file.")] string filePath,
         [Description("Comma-separated method names, e.g. 'ExecSql,ClearGrid,SetBusy'.")] string methodNames,
         [Description("0 = signatures only for callees (default). 1 = include private helper bodies.")] int depth = 0,
         [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
@@ -83,6 +100,21 @@ public static class FocusedEmitterTools
 
             if (names.Count == 0)
                 return "ERROR: No method names provided.";
+
+            if (IsVbFile(filePath))
+            {
+                var vb = new VBFocusedEmitter(filePath);
+                var vbResult = vb.EmitMultiple(names, depth);
+                if (!vbResult.Found)
+                {
+                    var outline = vb.EmitOutline();
+                    return $"ERROR: None of the requested methods found in {Path.GetFileName(filePath)}.\n" +
+                           $"Available members:\n{outline.Output}";
+                }
+                var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
+                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+                     + vbResult.Notes + "\n" + vbOutput;
+            }
 
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitMultiple(names, depth);
@@ -150,7 +182,8 @@ public static class FocusedEmitterTools
         ".mts, .cts), Python (.py, .pyi), HTML (.html, .htm), CSS/SCSS/LESS " +
         "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
         "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
-        "C (.c, .h), and C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl). " +
+        "C (.c, .h), C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl), " +
+        "and VB.NET (.vb — Roslyn comment strip + blank-run collapse). " +
         "Code minifiers strip comments and collapse whitespace. " +
         "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
         "Use this when working in a polyglot codebase or when reading " +
@@ -185,17 +218,26 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Returns a skeleton of a C# file: every type and every member as a " +
+        "Returns a skeleton of a C# or VB.NET file: every type and every member as a " +
         "signature, with NO method/property bodies. Useful for codebase " +
         "navigation questions like 'what's in this file?' or 'where would I " +
         "add X?' where bodies aren't needed. Typical reduction: 70-95% on " +
         "large files. Much cheaper than MinifyCSharpFile when the task is " +
-        "discovery rather than understanding implementation.")]
+        "discovery rather than understanding implementation. " +
+        "Supports .cs, .razor.cs, .razor, and .vb files.")]
     public static string OutlineCSharpFile(
-        [Description("Absolute path to a .cs, .razor.cs, or .razor file.")] string filePath)
+        [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file.")] string filePath)
     {
         try
         {
+            if (IsVbFile(filePath))
+            {
+                var vb = new VBFocusedEmitter(filePath);
+                var vbResult = vb.EmitOutline();
+                return BuildHeader(vbResult.OriginalTokensEstimate, vbResult.FocusedTokensEstimate, "OutlineCSharpFile", "VB.NET", "outline (signatures only)")
+                     + vbResult.Notes + "\n" + vbResult.Output;
+            }
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitOutline();
             return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "OutlineCSharpFile", "C#", "outline (signatures only)")
@@ -237,21 +279,36 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Returns a focused view of a NAMED TYPE in a C# file: non-private members " +
-        "(public, protected, internal) are shown with their full bodies; private " +
+        "Returns a focused view of a NAMED TYPE in a C# or VB.NET file: non-private members " +
+        "(public, protected, internal/Friend) are shown with their full bodies; private " +
         "members are shown as signatures only. Sits between outline_c_sharp_file " +
         "(all signatures) and minify_c_sharp_file (everything) in terms of detail. " +
         "Best when: the file contains multiple types and you only need one; or you " +
         "want the full contract/behaviour of a class but can skip its private " +
         "implementation noise. Supply the simple class/record/interface name, not " +
-        "the namespace-qualified form.")]
+        "the namespace-qualified form. Supports .cs, .razor.cs, and .vb files.")]
     public static string FocusType(
-        [Description("Absolute path to a .cs or .razor.cs file.")] string filePath,
+        [Description("Absolute path to a .cs, .razor.cs, or .vb file.")] string filePath,
         [Description("The simple type name to focus on (e.g. 'Calculator', not 'Fixtures.Calculator').")] string typeName,
         [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
     {
         try
         {
+            if (IsVbFile(filePath))
+            {
+                var vb = new VBFocusedEmitter(filePath);
+                var vbResult = vb.EmitType(typeName);
+                if (!vbResult.Found)
+                {
+                    var outline = vb.EmitOutline();
+                    return $"ERROR: Type '{typeName}' not found in {Path.GetFileName(filePath)}.\n" +
+                           $"Available types:\n{outline.Output}";
+                }
+                var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
+                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "FocusType", "VB.NET", $"type={typeName} minify={minify}")
+                     + vbResult.Notes + "\n" + vbOutput;
+            }
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitType(typeName);
 
@@ -277,20 +334,31 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Finds all methods in a C# file that CALL a given method name, then returns " +
+        "Finds all methods in a C# or VB.NET file that CALL a given method name, then returns " +
         "them as a focused multi-method view (full bodies + shared signatures). " +
         "Answers 'what calls X?' or 'who uses this?' without loading the whole file. " +
         "Uses name-based matching, so it catches direct calls — calls through " +
         "delegates or interfaces may be missed. Set depth=1 to also include private " +
-        "helper bodies of the found callers.")]
+        "helper bodies of the found callers. Supports .cs, .razor.cs, and .vb files.")]
     public static string FocusCallers(
-        [Description("Absolute path to a .cs or .razor.cs file.")] string filePath,
+        [Description("Absolute path to a .cs, .razor.cs, or .vb file.")] string filePath,
         [Description("The method name to find callers of.")] string methodName,
         [Description("0 = signatures only for callees (default). 1 = include private helper bodies.")] int depth = 0,
         [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
     {
         try
         {
+            if (IsVbFile(filePath))
+            {
+                var vb = new VBFocusedEmitter(filePath);
+                var vbResult = vb.EmitCallers(methodName, depth);
+                if (!vbResult.Found)
+                    return $"' No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
+                var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
+                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}")
+                     + vbResult.Notes + "\n" + vbOutput;
+            }
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitCallers(methodName, depth);
 
@@ -312,6 +380,9 @@ public static class FocusedEmitterTools
             return $"ERROR: {ex.Message}";
         }
     }
+
+    private static bool IsVbFile(string filePath) =>
+        Path.GetExtension(filePath).Equals(".vb", StringComparison.OrdinalIgnoreCase);
 
     private static string BuildHeader(int before, int after, string toolName, string language, string mode)
     {

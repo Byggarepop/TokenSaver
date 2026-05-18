@@ -107,6 +107,18 @@ internal static class Program
         Run("FocusCallers_NotFound_WhenNoCallers", FocusCallers_NotFound_WhenNoCallers);
         Run("Focus_Depth1_ExpandsPrivatePropertyBody", Focus_Depth1_ExpandsPrivatePropertyBody);
 
+        // ---------- VB.NET ----------
+        Run("Vb_Registry_DispatchesByExtension", Vb_Registry_DispatchesByExtension);
+        Run("Vb_Minify_StripsComments", Vb_Minify_StripsComments);
+        Run("Vb_Minify_CollapsesBlankRuns", Vb_Minify_CollapsesBlankRuns);
+        Run("Vb_Minify_SavesTokens", Vb_Minify_SavesTokens);
+        Run("Vb_Outline_EmitsSignaturesOnly_NoBodies", Vb_Outline_EmitsSignaturesOnly_NoBodies);
+        Run("Vb_Focus_IncludesFocusMethodBody", Vb_Focus_IncludesFocusMethodBody);
+        Run("Vb_Focus_Depth0_HelpersAreSignaturesOnly", Vb_Focus_Depth0_HelpersAreSignaturesOnly);
+        Run("Vb_Focus_Depth1_IncludesPrivateHelperBodies", Vb_Focus_Depth1_IncludesPrivateHelperBodies);
+        Run("Vb_FocusType_NonPrivateHasBody_PrivateHasSignature", Vb_FocusType_NonPrivateHasBody_PrivateHasSignature);
+        Run("Vb_FocusCallers_FindsCallingMethods", Vb_FocusCallers_FindsCallingMethods);
+
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
         Console.WriteLine($"\n{Results.Count - failed}/{Results.Count} passed. Report: {Path.GetFullPath(ReportPath)}");
@@ -353,7 +365,7 @@ internal static class Program
 
     private static TestOutcome RealWorld_Minify_LargeSourceFile()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "FocusedEmitter.cs");
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Emitters", "FocusedEmitter.cs");
         var r = new FocusedEmitter(path).EmitMinified();
 
         var tree = CSharpSyntaxTree.ParseText(r.Output);
@@ -368,7 +380,7 @@ internal static class Program
 
     private static TestOutcome RealWorld_Focus_LargeSourceFile()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "FocusedEmitter.cs");
+        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Emitters", "FocusedEmitter.cs");
         var r = new FocusedEmitter(path).Emit("Emit", depth: 1);
 
         var saved = TokenSaving(r.OriginalChars, r.FocusedChars);
@@ -1590,26 +1602,165 @@ internal static class Program
 
     private static TestOutcome Focus_Depth1_ExpandsPrivatePropertyBody()
     {
-        // In FocusedEmitter itself, Emit() accesses the private `Model` property.
-        // At depth=1 the Model getter body should appear in the output.
-        var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "FocusedEmitter.cs");
-        path = Path.GetFullPath(path);
-        if (!File.Exists(path))
-            return new TestOutcome(false, $"FocusedEmitter.cs not found at {path}", (0, 0, 0));
+        // PrivatePropConsumer.Compute() accesses the private `Scaled` property as an
+        // identifier (not a call receiver), so depth=1 should expand its getter body.
+        var path = Fixture("PrivatePropConsumer.cs");
+        var r = new FocusedEmitter(path).Emit("Compute", depth: 1);
 
-        var r = new FocusedEmitter(path).Emit("Emit", depth: 1);
-
-        // The Model property getter contains CSharpCompilation.Create — that text
-        // should appear at depth=1 because Model is a private property accessed by Emit.
-        var hasModelBody = r.Output.Contains("CSharpCompilation.Create");
-        var ok = r.Found && hasModelBody;
+        var hasPropertyBody = r.Output.Contains("_factor * 10");
+        var ok = r.Found && hasPropertyBody;
         return new TestOutcome(ok,
-            ok ? "depth=1 expanded private property body (Model getter present in output)"
-               : $"found={r.Found} modelBody={hasModelBody}",
+            ok ? "depth=1 expanded private property body (Scaled getter present in output)"
+               : $"found={r.Found} propBody={hasPropertyBody}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
     // ---------- helpers ----------
+
+    // ---------- VB.NET emitter ----------
+
+    private static TestOutcome Vb_Registry_DispatchesByExtension()
+    {
+        var vb = LanguageEmitterRegistry.Find("MyModule.vb");
+        var ok = vb is VBEmitter;
+        return new TestOutcome(ok,
+            ok ? ".vb dispatched to VBEmitter"
+               : $"got {vb?.GetType().Name ?? "null"}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Vb_Minify_StripsComments()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBEmitter().Minify(path);
+
+        var hasLineComment  = r.Output.Contains("Guard:");           // from ' Guard: ...
+        var hasRemComment   = r.Output.Contains("bias application"); // from REM This is the bias application step
+        var hasTopComment   = r.Output.Contains("Comments are intentionally");
+        var logicPreserved  = r.Output.Contains("WeightedSum") && r.Output.Contains("ApplyBias");
+
+        var ok = !hasLineComment && !hasRemComment && !hasTopComment && logicPreserved;
+        return new TestOutcome(ok,
+            ok ? "' and REM comments stripped; logic preserved"
+               : $"line={hasLineComment} rem={hasRemComment} top={hasTopComment} logic={logicPreserved}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Vb_Minify_CollapsesBlankRuns()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBEmitter().Minify(path);
+        var hasTripleBlank = r.Output.Contains("\n\n\n");
+        var ok = !hasTripleBlank;
+        return new TestOutcome(ok,
+            ok ? "blank-line runs collapsed to at most one blank"
+               : "still has 3+ consecutive newlines",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Vb_Minify_SavesTokens()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBEmitter().Minify(path);
+        var saved = TokenSaving(r.OriginalChars, r.OutputChars);
+        var ok = r.Found && saved.percent > 10;
+        return new TestOutcome(ok,
+            $"tokens {saved.before}→{saved.after} ({saved.percent:F1}% saved)",
+            saved);
+    }
+
+    private static TestOutcome Vb_Outline_EmitsSignaturesOnly_NoBodies()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).EmitOutline();
+
+        var hasRunSig         = r.Output.Contains("Run");
+        var hasWeightedSumSig = r.Output.Contains("WeightedSum");
+        var noRunBody         = !r.Output.Contains("Math.Max(0, biased)");
+        var noWsBody          = !r.Output.Contains("s += values(i) * weights(i)");
+        var saved             = TokenSaving(r.OriginalChars, r.FocusedChars);
+
+        var ok = r.Found && hasRunSig && hasWeightedSumSig && noRunBody && noWsBody;
+        return new TestOutcome(ok,
+            ok ? $"all signatures present; no bodies; {saved.percent:F1}% saved"
+               : $"runSig={hasRunSig} wsSig={hasWeightedSumSig} noRunBody={noRunBody} noWsBody={noWsBody}",
+            saved);
+    }
+
+    private static TestOutcome Vb_Focus_IncludesFocusMethodBody()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).Emit("Run", depth: 0);
+
+        var ok = r.Found
+            && r.Output.Contains("WeightedSum(values, weights)")
+            && r.Output.Contains("LastMean = Math.Max(0, biased)");
+
+        return new TestOutcome(ok,
+            ok ? "Run body present verbatim"
+               : $"found={r.Found} missing expected statements",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Vb_Focus_Depth0_HelpersAreSignaturesOnly()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).Emit("Run", depth: 0);
+
+        var hasWeightedSumSig = r.Output.Contains("WeightedSum");
+        var noWeightedSumBody = !r.Output.Contains("s += values(i) * weights(i)");
+
+        var ok = r.Found && hasWeightedSumSig && noWeightedSumBody;
+        return new TestOutcome(ok,
+            ok ? "helper signatures present; helper bodies absent at depth=0"
+               : $"found={r.Found} sig={hasWeightedSumSig} noBody={noWeightedSumBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Vb_Focus_Depth1_IncludesPrivateHelperBodies()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).Emit("Run", depth: 1);
+
+        var hasHelperBody = r.Output.Contains("s += values(i) * weights(i)");
+
+        var ok = r.Found && hasHelperBody;
+        return new TestOutcome(ok,
+            ok ? "private helper body expanded at depth=1"
+               : $"found={r.Found} helperBody={hasHelperBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Vb_FocusType_NonPrivateHasBody_PrivateHasSignature()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).EmitType("VbCalculator");
+
+        var hasRunBody        = r.Output.Contains("Math.Max(0, biased)");
+        var noApplyBiasBody   = !r.Output.Contains("x + _bias");
+        var hasApplyBiasSig   = r.Output.Contains("ApplyBias");
+
+        var ok = r.Found && hasRunBody && noApplyBiasBody && hasApplyBiasSig;
+        return new TestOutcome(ok,
+            ok ? "public Run has full body; private ApplyBias is signature only"
+               : $"found={r.Found} runBody={hasRunBody} noABBody={noApplyBiasBody} abSig={hasApplyBiasSig}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Vb_FocusCallers_FindsCallingMethods()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).EmitCallers("WeightedSum");
+
+        var hasCallerBody = r.Output.Contains("WeightedSum(values, weights)");
+        var notesOk       = r.Notes.Contains("1 calling method");
+
+        var ok = r.Found && hasCallerBody && notesOk;
+        return new TestOutcome(ok,
+            ok ? "EmitCallers found Run as the caller of WeightedSum"
+               : $"found={r.Found} body={hasCallerBody} notes={notesOk}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
 
     private static string Fixture(string name) => Path.Combine(FixturesDir, name);
 
