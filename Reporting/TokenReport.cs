@@ -74,8 +74,12 @@ public sealed record TokenReport(
         public const double KgCo2PerKwh = 0.4;
     }
 
-    public double EnergyKwhSaved => TokensSaved / 1_000_000.0 * EnergyFactors.KwhPerMillionTokens;
-    public double CarbonKgSaved  => EnergyKwhSaved * EnergyFactors.KgCo2PerKwh;
+    /// <summary>
+    /// Inference-side energy saved on the model host. Local processing overhead (Roslyn parsing etc.)
+    /// is typically 100–200x smaller and is not subtracted here.
+    /// </summary>
+    public double InferenceEnergyKwhSaved => TokensSaved / 1_000_000.0 * EnergyFactors.KwhPerMillionTokens;
+    public double InferenceCarbonKgSaved  => InferenceEnergyKwhSaved * EnergyFactors.KgCo2PerKwh;
 
     /// <summary>
     /// Estimated cost framing. The price defaults to a representative

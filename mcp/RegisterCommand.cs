@@ -199,6 +199,12 @@ internal static class RegisterCommand
             Console.WriteLine(existed ? $"  Updated existing '{ServerName}' entry." : $"  Added '{ServerName}' entry.");
             return true;
         }
+        catch (JsonException ex)
+        {
+            Console.Error.WriteLine($"  ERROR: settings.json contains invalid JSON (line {ex.LineNumber + 1}, pos {ex.BytePositionInLine}).");
+            Console.Error.WriteLine($"  Open {configPath} in VS Code, fix the syntax error, then re-run register.");
+            return false;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"  ERROR: {ex.Message}");
@@ -382,7 +388,12 @@ internal static class RegisterCommand
         if (text.Length == 0)
             return [];
 
-        return JsonNode.Parse(text) as JsonObject
+        var docOptions = new JsonDocumentOptions
+        {
+            CommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+        return JsonNode.Parse(text, nodeOptions: null, documentOptions: docOptions) as JsonObject
             ?? throw new InvalidOperationException("Config file root is not a JSON object.");
     }
 

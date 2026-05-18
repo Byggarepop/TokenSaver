@@ -39,6 +39,29 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
     db.Database.EnsureCreated();
+
+    // GDPR cleanup: drop ClientIpHash if it exists on an already-deployed DB.
+    // EnsureCreated never alters existing schemas, so this must run explicitly.
+    var conn = db.Database.GetDbConnection();
+    if (conn.State != System.Data.ConnectionState.Open)
+        conn.Open();
+    using var check = conn.CreateCommand();
+    check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Reports') WHERE name='ClientIpHash'";
+    var columnExists = (long)check.ExecuteScalar()! > 0;
+    if (columnExists)
+    {
+        if (File.Exists(dbPath))
+        {
+            var backupPath = dbPath + $".bak-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            using var backup = conn.CreateCommand();
+            backup.CommandText = $"VACUUM INTO '{backupPath.Replace("'", "''")}'";
+            backup.ExecuteNonQuery();
+        }
+
+        using var drop = conn.CreateCommand();
+        drop.CommandText = "ALTER TABLE Reports DROP COLUMN ClientIpHash";
+        drop.ExecuteNonQuery();
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -83,7 +106,6 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
         Notes = notes,
         ClientId = clientId,
         ReceivedUtc = DateTime.UtcNow,
-        ClientIpHash = HashIp(http.Connection.RemoteIpAddress?.ToString()),
     };
 
     db.Reports.Add(row);
@@ -154,13 +176,6 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-static string? HashIp(string? ip)
-{
-    if (string.IsNullOrEmpty(ip)) return null;
-    var salt = DateTime.UtcNow.ToString("yyyyMMdd");
-    var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(salt + ip));
-    return Convert.ToHexString(bytes)[..16];
-}
 
 public sealed record ReportPostDto(
     string ToolName,
