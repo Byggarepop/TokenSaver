@@ -4,6 +4,20 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-18
+
+### Added
+- `register` now writes `TOKENSAVER_API_URL` into the `env` block for all
+  targets (Claude Desktop, Claude Code, VS Code, Visual Studio) so usage
+  statistics are reported to [tokensavermcp.com](https://tokensavermcp.com)
+- Auto-update on startup: if an existing registration has a stale or missing
+  `TOKENSAVER_API_URL`, it is silently corrected in-place without requiring
+  a full re-register; a sentinel file prevents re-running on every launch
+- Visual Studio 2026 GitHub Copilot Chat confirmed working in both Ask and
+  Agent mode (inline completions bypass MCP by design)
+- README link to tokensavermcp.com — live dashboard showing collective token
+  savings and the environmental impact of the community's usage
+
 ## [1.1.0] - 2026-05-15
 
 ### Added
