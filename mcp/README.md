@@ -16,7 +16,7 @@ Works with:
 >
 > | Tier | Languages | Status |
 > |---|---|---|
-> | **Primary** | C# (`.cs`), Razor (`.razor`), .NET project files (`.csproj`, `.props`, `.config`, `.xml`) | Fully supported, actively tested |
+> | **Primary** | C# (`.cs`), Razor (`.razor`), VB.NET (`.vb`), .NET project files (`.csproj`, `.props`, `.config`, `.xml`) | Fully supported, actively tested |
 > | **Basic** | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML | Comment-strip + whitespace collapse only — not actively tested, results may vary |
 >
 > If you work exclusively in .NET, the basic-tier languages are a bonus, not

@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-15 10:26_
+_Generated: 2026-05-18 21:44_
 
-**84/84 scenarios passed.**
+**100/100 scenarios passed.**
 
 ## Results
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-15 10:26_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 355 | 19,4% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 11234 | 6497 | 42,2% | FocusedEmitter.cs minified losslessly; 42,2% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 11234 | 3058 | 72,8% | Focus on Emit with depth=1: 72,8% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 11568 | 6497 | 43,8% | FocusedEmitter.cs minified losslessly; 43,8% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 11568 | 3141 | 72,8% | Focus on Emit with depth=1: 72,8% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -92,6 +92,22 @@ _Generated: 2026-05-15 10:26_
 | Outline_Operator_AppearsInSignature | PASS | 307 | 114 | 62,7% | binary operator overload appears in outline |
 | Outline_ConversionOperator_AppearsInSignature | PASS | 307 | 114 | 62,7% | implicit and explicit conversion operators both appear in outline |
 | Outline_IndexerWithAccessorList_ShowsAccessors | PASS | 307 | 114 | 62,7% | indexer with explicit get+set shows { get; set; } |
+| FocusType_NonPrivateHasBody_PrivateHasSignature | PASS | 441 | 331 | 24,9% | non-private members have full bodies; private members are signatures only |
+| FocusType_OnlyTargetTypeInOutput | PASS | 168 | 144 | 14,7% | only Bag type in output; Pair/Render content absent |
+| FocusType_NotFound_ReturnsNotFound | PASS | — | — | — | EmitType returns not-found for missing type name |
+| FocusCallers_FindsCallingMethods | PASS | 441 | 264 | 40,0% | EmitCallers found Run as the caller of WeightedSum |
+| FocusCallers_NotFound_WhenNoCallers | PASS | — | — | — | EmitCallers returns not-found when no method calls the target |
+| Focus_Depth1_ExpandsPrivatePropertyBody | PASS | 104 | 86 | 17,0% | depth=1 expanded private property body (Scaled getter present in output) |
+| Vb_Registry_DispatchesByExtension | PASS | — | — | — | .vb dispatched to VBEmitter |
+| Vb_Minify_StripsComments | PASS | 478 | 347 | 27,4% | ' and REM comments stripped; logic preserved |
+| Vb_Minify_CollapsesBlankRuns | PASS | 478 | 347 | 27,4% | blank-line runs collapsed to at most one blank |
+| Vb_Minify_SavesTokens | PASS | 478 | 347 | 27,4% | tokens 478→347 (27,4% saved) |
+| Vb_Outline_EmitsSignaturesOnly_NoBodies | PASS | 478 | 102 | 78,5% | all signatures present; no bodies; 78,5% saved |
+| Vb_Focus_IncludesFocusMethodBody | PASS | 478 | 240 | 49,7% | Run body present verbatim |
+| Vb_Focus_Depth0_HelpersAreSignaturesOnly | PASS | 478 | 240 | 49,7% | helper signatures present; helper bodies absent at depth=0 |
+| Vb_Focus_Depth1_IncludesPrivateHelperBodies | PASS | 478 | 381 | 20,4% | private helper body expanded at depth=1 |
+| Vb_FocusType_NonPrivateHasBody_PrivateHasSignature | PASS | 478 | 283 | 40,9% | public Run has full body; private ApplyBias is signature only |
+| Vb_FocusCallers_FindsCallingMethods | PASS | 478 | 241 | 49,6% | EmitCallers found Run as the caller of WeightedSum |
 
 ## What each scenario proves
 

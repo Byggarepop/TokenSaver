@@ -28,6 +28,8 @@
     <Compile Include="..\Emitters\CEmitter.cs" Link="Emitters\CEmitter.cs" />
     <Compile Include="..\Emitters\CppEmitter.cs" Link="Emitters\CppEmitter.cs" />
     <Compile Include="..\Emitters\RazorEmitter.cs" Link="Emitters\RazorEmitter.cs" />
+    <Compile Include="..\Emitters\VBEmitter.cs" Link="Emitters\VBEmitter.cs" />
+    <Compile Include="..\Emitters\VBFocusedEmitter.cs" Link="Emitters\VBFocusedEmitter.cs" />
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />
     <Compile Remove="fixtures\**\*.cs" />
@@ -36,6 +38,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="4.11.0" />
   </ItemGroup>
 
 </Project>
