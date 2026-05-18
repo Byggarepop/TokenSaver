@@ -1,0 +1,148 @@
+@page "/admin/log"
+@using Microsoft.EntityFrameworkCore
+@using TokenSaverViewer
+@inject IConfiguration Config
+@inject IServiceScopeFactory ScopeFactory
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Log – TokenSaver</PageTitle>
+
+<div class="log-header">
+    <h1>Entry Log</h1>
+    @if (_totalCount > 0)
+    {
+        <span class="entry-count">@_totalCount.ToString("N0") entries</span>
+    }
+</div>
+
+@if (_notServerMode)
+{
+    <div class="alert alert-info">Requires server mode.</div>
+}
+else if (_loading)
+{
+    <p><em>Loading…</em></p>
+}
+else if (_entries.Count == 0)
+{
+    <p class="text-muted">No entries yet.</p>
+}
+else
+{
+    <table class="table table-striped table-sm log-table">
+        <thead>
+            <tr>
+                <th>UTC</th>
+                <th>Local (@_tzLabel)</th>
+                <th>Tool</th>
+                <th>Language</th>
+                <th class="text-end">Without</th>
+                <th class="text-end">With</th>
+                <th class="text-end">Saved</th>
+                <th class="text-end">Reduction</th>
+                <th>Client</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var e in _entries)
+            {
+                var saved = e.TokensWithoutTool - e.TokensWithTool;
+                var pct = e.TokensWithoutTool == 0 ? 0 : (double)saved / e.TokensWithoutTool * 100;
+                <tr>
+                    <td class="text-muted ts">@e.ReceivedUtc.ToString("MM-dd HH:mm:ss")</td>
+                    <td class="text-muted ts">@e.ReceivedUtc.AddMinutes(_tzOffsetMinutes).ToString("MM-dd HH:mm:ss")</td>
+                    <td><strong>@e.ToolName</strong></td>
+                    <td>@(string.IsNullOrEmpty(e.Language) ? "—" : e.Language)</td>
+                    <td class="text-end">@e.TokensWithoutTool.ToString("N0")</td>
+                    <td class="text-end">@e.TokensWithTool.ToString("N0")</td>
+                    <td class="text-end text-success">@saved.ToString("N0")</td>
+                    <td class="text-end">@pct.ToString("F0")%</td>
+                    <td><code class="client-id">@(e.ClientId ?? "—")</code></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="pager">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="PrevPage" disabled="@(_page == 0)">← Prev</button>
+        <span>Page @(_page + 1) of @_totalPages</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="NextPage" disabled="@(_page >= _totalPages - 1)">Next →</button>
+    </div>
+}
+
+<style>
+    .log-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; }
+    .log-header h1 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .entry-count { color: #6c757d; font-size: 0.9rem; }
+    .log-table { font-size: 0.85rem; }
+    .log-table .ts { white-space: nowrap; font-family: monospace; }
+    .client-id { font-size: 0.78rem; color: #888; }
+    .pager { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; font-size: 0.9rem; color: #555; }
+</style>
+
+@code {
+    private const int PageSize = 50;
+
+    private bool _loading = true;
+    private bool _notServerMode;
+    private List<ReportRow> _entries = new();
+    private int _totalCount;
+    private int _totalPages;
+    private int _page;
+    private int _tzOffsetMinutes;
+    private string _tzLabel = "Local";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var mode = (Config["TokenSaver:Mode"] ?? "local").ToLowerInvariant();
+        if (mode != "server")
+        {
+            _notServerMode = true;
+            _loading = false;
+            return;
+        }
+
+        await LoadPage();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // getTimezoneOffset() returns minutes BEHIND UTC, so we negate it
+        var rawOffset = await JS.InvokeAsync<int>("eval", "new Date().getTimezoneOffset()");
+        _tzOffsetMinutes = -rawOffset;
+        var sign = _tzOffsetMinutes >= 0 ? "+" : "-";
+        var abs = Math.Abs(_tzOffsetMinutes);
+        _tzLabel = $"UTC{sign}{abs / 60:D2}:{abs % 60:D2}";
+        StateHasChanged();
+    }
+
+    private async Task LoadPage()
+    {
+        _loading = true;
+        using var scope = ScopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
+
+        _totalCount = await db.Reports.CountAsync();
+        _totalPages = Math.Max(1, (int)Math.Ceiling(_totalCount / (double)PageSize));
+
+        _entries = await db.Reports
+            .OrderByDescending(r => r.ReceivedUtc)
+            .Skip(_page * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
+
+        _loading = false;
+    }
+
+    private async Task PrevPage()
+    {
+        if (_page > 0) { _page--; await LoadPage(); }
+    }
+
+    private async Task NextPage()
+    {
+        if (_page < _totalPages - 1) { _page++; await LoadPage(); }
+    }
+}
