@@ -343,8 +343,15 @@ internal static class RegisterCommand
                 return;
             foreach (var file in Directory.GetFiles(cacheDir, "*.cache"))
             {
-                File.Delete(file);
-                Console.Error.WriteLine($"[tokensaver] cleared VS MCP cache: {Path.GetFileName(file)}");
+                try
+                {
+                    var bytes = File.ReadAllBytes(file);
+                    if (bytes.AsSpan().IndexOf("tokensaver"u8) < 0)
+                        continue;
+                    File.Delete(file);
+                    Console.Error.WriteLine($"[tokensaver] cleared VS MCP cache: {Path.GetFileName(file)}");
+                }
+                catch { }
             }
         }
         catch { }
