@@ -15,6 +15,7 @@ var dbPath = builder.Configuration["TokenSaver:DbPath"]
              ?? Path.Combine(AppContext.BaseDirectory, "data", "tokensaver.db");
 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 builder.Services.AddDbContext<ReportsDb>(o => o.UseSqlite($"Data Source={dbPath}"));
+builder.Services.AddSingleton<EmailNotificationService>();
 
 builder.Services.AddRateLimiter(o =>
 {
@@ -80,7 +81,7 @@ app.MapStaticAssets();
 
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
 
-app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsDb db) =>
+app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsDb db, EmailNotificationService email) =>
 {
     if (string.IsNullOrWhiteSpace(dto.ToolName) || dto.ToolName.Length > 64)
         return Results.BadRequest(new { error = "ToolName required, max 64 chars." });
@@ -97,6 +98,8 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
     var notes = dto.Notes?.Length > 200 ? dto.Notes[..200] : dto.Notes;
     var clientId = dto.ClientId?.Length > 64 ? dto.ClientId[..64] : dto.ClientId;
 
+    var isNewClient = clientId is not null && !await db.Reports.AnyAsync(r => r.ClientId == clientId);
+
     var row = new ReportRow
     {
         ToolName = dto.ToolName.Trim(),
@@ -110,6 +113,10 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
 
     db.Reports.Add(row);
     await db.SaveChangesAsync();
+
+    if (isNewClient)
+        _ = email.SendNewClientNotificationAsync(clientId!);
+
     return Results.Created($"/api/reports/{row.Id}", new { id = row.Id });
 })
 .RequireRateLimiting("ingest");
