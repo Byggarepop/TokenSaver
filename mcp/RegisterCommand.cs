@@ -314,10 +314,38 @@ internal static class RegisterCommand
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json"),
             "servers");
 
+        ClearVsCopilotMcpCache();
+
         try
         {
             Directory.CreateDirectory(TokenSaver.ReportWriter.DataDir);
             File.WriteAllText(sentinelPath, version);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Deletes Visual Studio's cached MCP server metadata for this server.
+    /// VS caches tool names/schemas keyed by server name and won't re-query
+    /// the server until the cache is cleared or the server name changes.
+    /// Called once per version upgrade from AutoUpdateRegistrations.
+    /// </summary>
+    static void ClearVsCopilotMcpCache()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        try
+        {
+            var cacheDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft", "VisualStudio", "Copilot", "McpServers");
+            if (!Directory.Exists(cacheDir))
+                return;
+            foreach (var file in Directory.GetFiles(cacheDir, "*.cache"))
+            {
+                File.Delete(file);
+                Console.Error.WriteLine($"[tokensaver] cleared VS MCP cache: {Path.GetFileName(file)}");
+            }
         }
         catch { }
     }
