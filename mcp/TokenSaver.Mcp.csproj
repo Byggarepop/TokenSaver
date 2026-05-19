@@ -16,7 +16,7 @@
     <Version>1.3.0</Version>
     <Authors>Sebastian Larsson</Authors>
     <Description>MCP server for .NET developers — gives AI assistants a token-efficient view of C#, VB, Razor, and .NET project files using the Roslyn compiler platform. Reduces tokens by 50-95% with no loss of logic.</Description>
-    <PackageTags>mcp;dotnet;csharp;visual basic;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
+    <PackageTags>mcp;dotnet;csharp;visualbasic;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>https://github.com/Byggarepop/TokenSaver/blob/main/CHANGELOG.md</PackageReleaseNotes>
@@ -29,6 +29,7 @@
   <ItemGroup>
     <!-- Share the emitter source with the CLI project (single source of truth). -->
     <Compile Include="..\Emitters\FocusedEmitter.cs" Link="Emitters\FocusedEmitter.cs" />
+    <Compile Include="..\Emitters\ProjectTraversal.cs" Link="Emitters\ProjectTraversal.cs" />
     <Compile Include="..\Emitters\RazorPreprocessor.cs" Link="Emitters\RazorPreprocessor.cs" />
     <Compile Include="..\Emitters\ILanguageEmitter.cs" Link="Emitters\ILanguageEmitter.cs" />
     <Compile Include="..\Emitters\CSharpEmitter.cs" Link="Emitters\CSharpEmitter.cs" />

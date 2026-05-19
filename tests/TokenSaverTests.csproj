@@ -12,6 +12,7 @@
   <ItemGroup>
     <!-- Link the emitter source from the parent project so tests run against the real implementation. -->
     <Compile Include="..\Emitters\FocusedEmitter.cs" Link="Emitters\FocusedEmitter.cs" />
+    <Compile Include="..\Emitters\ProjectTraversal.cs" Link="Emitters\ProjectTraversal.cs" />
     <Compile Include="..\Emitters\RazorPreprocessor.cs" Link="Emitters\RazorPreprocessor.cs" />
     <Compile Include="..\Emitters\ILanguageEmitter.cs" Link="Emitters\ILanguageEmitter.cs" />
     <Compile Include="..\Emitters\CSharpEmitter.cs" Link="Emitters\CSharpEmitter.cs" />

@@ -119,6 +119,13 @@ internal static class Program
         Run("Vb_FocusType_NonPrivateHasBody_PrivateHasSignature", Vb_FocusType_NonPrivateHasBody_PrivateHasSignature);
         Run("Vb_FocusCallers_FindsCallingMethods", Vb_FocusCallers_FindsCallingMethods);
 
+        // ---------- ProjectTraversal ----------
+        Run("Traversal_FindCallerFiles_FindsFileWithCaller", Traversal_FindCallerFiles_FindsFileWithCaller);
+        Run("Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod", Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod);
+        Run("Traversal_FindImplementors_FindsImplementingTypes", Traversal_FindImplementors_FindsImplementingTypes);
+        Run("Traversal_FindImplementors_ReturnsEmptyForUnknownInterface", Traversal_FindImplementors_ReturnsEmptyForUnknownInterface);
+        Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
+
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
         Console.WriteLine($"\n{Results.Count - failed}/{Results.Count} passed. Report: {Path.GetFullPath(ReportPath)}");
@@ -1839,6 +1846,74 @@ internal static class Program
         sb.AppendLine("- **TaskRealism_***: confirms a focused output still contains enough information for an AI reader to answer a concrete behavioural question about the method.");
 
         File.WriteAllText(ReportPath, sb.ToString());
+    }
+
+    // ---------- ProjectTraversal ----------
+
+    private static readonly string TraversalDir = Path.Combine(FixturesDir, "traversal");
+
+    private static TestOutcome Traversal_FindCallerFiles_FindsFileWithCaller()
+    {
+        // Beta.cs has Drawer.Draw which calls s.Name() — should be returned
+        var t = new ProjectTraversal(TraversalDir);
+        var files = t.FindCallerFiles("Name");
+        var foundBeta = files.Any(f => Path.GetFileName(f) == "Beta.cs");
+        var ok = files.Count >= 1 && foundBeta;
+        return new TestOutcome(ok,
+            ok ? "Beta.cs found as caller of Name()"
+               : $"files={files.Count} foundBeta={foundBeta}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod()
+    {
+        var t = new ProjectTraversal(TraversalDir);
+        var files = t.FindCallerFiles("NonExistentXyz");
+        var ok = files.Count == 0;
+        return new TestOutcome(ok,
+            ok ? "empty list for unknown method name"
+               : $"unexpectedly returned {files.Count} file(s)",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindImplementors_FindsImplementingTypes()
+    {
+        // Alpha.cs has Circle : IShape, Beta.cs has Square : IShape
+        var t = new ProjectTraversal(TraversalDir);
+        var impls = t.FindImplementors("IShape");
+        var typeNames = impls.Select(i => i.TypeName).ToList();
+        var hasCircle = typeNames.Contains("Circle");
+        var hasSquare = typeNames.Contains("Square");
+        var ok = hasCircle && hasSquare && impls.Count == 2;
+        return new TestOutcome(ok,
+            ok ? "Circle and Square found as implementors of IShape"
+               : $"types=[{string.Join(",", typeNames)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindImplementors_ReturnsEmptyForUnknownInterface()
+    {
+        var t = new ProjectTraversal(TraversalDir);
+        var impls = t.FindImplementors("IDoesNotExist");
+        var ok = impls.Count == 0;
+        return new TestOutcome(ok,
+            ok ? "empty list for unknown interface name"
+               : $"unexpectedly returned {impls.Count} result(s)",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_AcceptsCsprojPath()
+    {
+        // Pass the tests .csproj — should scan .cs files in tests/ (excluding obj/bin)
+        var csproj = Path.GetFullPath(Path.Combine(FixturesDir, "..", "TokenSaverTests.csproj"));
+        if (!File.Exists(csproj))
+            return new TestOutcome(false, $".csproj not found at {csproj}", (0, 0, 0));
+        var t = new ProjectTraversal(csproj);
+        var ok = t.FileCount > 0;
+        return new TestOutcome(ok,
+            ok ? $".csproj path accepted; {t.FileCount} file(s) scanned"
+               : "FileCount was 0 after passing .csproj path",
+            (0, 0, 0));
     }
 
     private sealed record TestOutcome(bool Passed, string Notes, (int before, int after, double percent) Tokens);

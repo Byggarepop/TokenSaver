@@ -381,6 +381,108 @@ public static class FocusedEmitterTools
         }
     }
 
+    [McpServerTool, Description(
+        "PROJECT-WIDE version of focus_callers. Scans every .cs file in a project " +
+        "directory and returns focused views of ALL methods that call the named method, " +
+        "grouped by file. Answers 'what calls X across the whole codebase?' in one call. " +
+        "Pass the project root folder or .csproj file path — obj/ and bin/ are excluded " +
+        "automatically. Uses name-based matching (same as focus_callers). " +
+        "Set depth=1 to include private helper bodies of found callers. " +
+        "C# only (.cs files).")]
+    public static string TraceCallers(
+        [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
+        [Description("The method name to find callers of across the project.")] string methodName,
+        [Description("0 = signatures only for callees (default). 1 = include private helper bodies.")] int depth = 0,
+        [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
+    {
+        try
+        {
+            var traversal = new ProjectTraversal(projectPath);
+            var callerFiles = traversal.FindCallerFiles(methodName);
+
+            if (callerFiles.Count == 0)
+                return $"// TraceCallers: no callers of '{methodName}' found in {traversal.FileCount} file(s) under {Path.GetFileName(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}.";
+
+            var sb = new System.Text.StringBuilder();
+            int totalBefore = 0, totalAfter = 0;
+
+            foreach (var filePath in callerFiles)
+            {
+                var emitter = new FocusedEmitter(filePath);
+                var result = emitter.EmitCallers(methodName, depth);
+                if (!result.Found) continue;
+
+                var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
+                totalBefore += result.OriginalTokensEstimate;
+                totalAfter += Math.Max(1, output.Length / 4);
+
+                sb.AppendLine($"// ── {Path.GetFileName(filePath)} ──────────────────────────");
+                sb.AppendLine(result.Notes.TrimEnd());
+                sb.AppendLine();
+                sb.AppendLine(output);
+            }
+
+            var header = BuildHeader(totalBefore, totalAfter, "TraceCallers", "C#",
+                $"callers={methodName} files={callerFiles.Count}/{traversal.FileCount} depth={depth} minify={minify}");
+
+            return header + $"// {callerFiles.Count} file(s) with callers of '{methodName}' (scanned {traversal.FileCount} files)\n\n" + sb;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Finds all types (classes, structs, records) across a project that implement or " +
+        "extend a named interface or base type, then returns a focused type view for each. " +
+        "Answers 'what implements IFoo?' or 'what extends BaseBar?' in one call. " +
+        "Pass the project root folder or .csproj file path — obj/ and bin/ are excluded. " +
+        "Uses name-based base-list matching (same approach as focus_callers). " +
+        "C# only (.cs files).")]
+    public static string TraceImplementors(
+        [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
+        [Description("The interface or base type name to find implementors/subclasses of (simple name, e.g. 'ILanguageEmitter').")] string interfaceName,
+        [Description("If true, strip comments and collapse whitespace for additional token savings.")] bool minify = false)
+    {
+        try
+        {
+            var traversal = new ProjectTraversal(projectPath);
+            var implementors = traversal.FindImplementors(interfaceName);
+
+            if (implementors.Count == 0)
+                return $"// TraceImplementors: no types implementing '{interfaceName}' found in {traversal.FileCount} file(s) under {Path.GetFileName(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}.";
+
+            var sb = new System.Text.StringBuilder();
+            int totalBefore = 0, totalAfter = 0;
+
+            foreach (var impl in implementors)
+            {
+                var emitter = new FocusedEmitter(impl.FilePath);
+                var result = emitter.EmitType(impl.TypeName);
+                if (!result.Found) continue;
+
+                var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
+                totalBefore += result.OriginalTokensEstimate;
+                totalAfter += Math.Max(1, output.Length / 4);
+
+                sb.AppendLine($"// ── {impl.TypeName} ({Path.GetFileName(impl.FilePath)}) ──────────────────────────");
+                sb.AppendLine(result.Notes.TrimEnd());
+                sb.AppendLine();
+                sb.AppendLine(output);
+            }
+
+            var header = BuildHeader(totalBefore, totalAfter, "TraceImplementors", "C#",
+                $"implementors={interfaceName} found={implementors.Count} files={traversal.FileCount} minify={minify}");
+
+            return header + $"// {implementors.Count} implementor(s) of '{interfaceName}' found (scanned {traversal.FileCount} files)\n\n" + sb;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
     private static bool IsVbFile(string filePath) =>
         Path.GetExtension(filePath).Equals(".vb", StringComparison.OrdinalIgnoreCase);
 

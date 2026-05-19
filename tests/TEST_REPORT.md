@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-18 21:44_
+_Generated: 2026-05-19 09:01_
 
-**100/100 scenarios passed.**
+**105/105 scenarios passed.**
 
 ## Results
 
@@ -97,17 +97,22 @@ _Generated: 2026-05-18 21:44_
 | FocusType_NotFound_ReturnsNotFound | PASS | — | — | — | EmitType returns not-found for missing type name |
 | FocusCallers_FindsCallingMethods | PASS | 441 | 264 | 40,0% | EmitCallers found Run as the caller of WeightedSum |
 | FocusCallers_NotFound_WhenNoCallers | PASS | — | — | — | EmitCallers returns not-found when no method calls the target |
-| Focus_Depth1_ExpandsPrivatePropertyBody | PASS | 104 | 86 | 17,0% | depth=1 expanded private property body (Scaled getter present in output) |
+| Focus_Depth1_ExpandsPrivatePropertyBody | PASS | 108 | 88 | 19,1% | depth=1 expanded private property body (Scaled getter present in output) |
 | Vb_Registry_DispatchesByExtension | PASS | — | — | — | .vb dispatched to VBEmitter |
-| Vb_Minify_StripsComments | PASS | 478 | 347 | 27,4% | ' and REM comments stripped; logic preserved |
-| Vb_Minify_CollapsesBlankRuns | PASS | 478 | 347 | 27,4% | blank-line runs collapsed to at most one blank |
-| Vb_Minify_SavesTokens | PASS | 478 | 347 | 27,4% | tokens 478→347 (27,4% saved) |
-| Vb_Outline_EmitsSignaturesOnly_NoBodies | PASS | 478 | 102 | 78,5% | all signatures present; no bodies; 78,5% saved |
-| Vb_Focus_IncludesFocusMethodBody | PASS | 478 | 240 | 49,7% | Run body present verbatim |
-| Vb_Focus_Depth0_HelpersAreSignaturesOnly | PASS | 478 | 240 | 49,7% | helper signatures present; helper bodies absent at depth=0 |
-| Vb_Focus_Depth1_IncludesPrivateHelperBodies | PASS | 478 | 381 | 20,4% | private helper body expanded at depth=1 |
-| Vb_FocusType_NonPrivateHasBody_PrivateHasSignature | PASS | 478 | 283 | 40,9% | public Run has full body; private ApplyBias is signature only |
-| Vb_FocusCallers_FindsCallingMethods | PASS | 478 | 241 | 49,6% | EmitCallers found Run as the caller of WeightedSum |
+| Vb_Minify_StripsComments | PASS | 493 | 347 | 29,5% | ' and REM comments stripped; logic preserved |
+| Vb_Minify_CollapsesBlankRuns | PASS | 493 | 347 | 29,5% | blank-line runs collapsed to at most one blank |
+| Vb_Minify_SavesTokens | PASS | 493 | 347 | 29,5% | tokens 493→347 (29,5% saved) |
+| Vb_Outline_EmitsSignaturesOnly_NoBodies | PASS | 493 | 102 | 79,2% | all signatures present; no bodies; 79,2% saved |
+| Vb_Focus_IncludesFocusMethodBody | PASS | 493 | 240 | 51,2% | Run body present verbatim |
+| Vb_Focus_Depth0_HelpersAreSignaturesOnly | PASS | 493 | 240 | 51,2% | helper signatures present; helper bodies absent at depth=0 |
+| Vb_Focus_Depth1_IncludesPrivateHelperBodies | PASS | 493 | 381 | 22,8% | private helper body expanded at depth=1 |
+| Vb_FocusType_NonPrivateHasBody_PrivateHasSignature | PASS | 493 | 283 | 42,6% | public Run has full body; private ApplyBias is signature only |
+| Vb_FocusCallers_FindsCallingMethods | PASS | 493 | 241 | 51,1% | EmitCallers found Run as the caller of WeightedSum |
+| Traversal_FindCallerFiles_FindsFileWithCaller | PASS | — | — | — | Beta.cs found as caller of Name() |
+| Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod | PASS | — | — | — | empty list for unknown method name |
+| Traversal_FindImplementors_FindsImplementingTypes | PASS | — | — | — | Circle and Square found as implementors of IShape |
+| Traversal_FindImplementors_ReturnsEmptyForUnknownInterface | PASS | — | — | — | empty list for unknown interface name |
+| Traversal_AcceptsCsprojPath | PASS | — | — | — | .csproj path accepted; 13 file(s) scanned |
 
 ## What each scenario proves
 

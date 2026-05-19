@@ -1,118 +1,72 @@
-# TokenStats
+# TokenSaver
 
-A tiny shared library that gives every tool in the toolkit the same
-"tokens used without tool / with tool" reporting. Same numbers, same
-visual, same wording, every time.
+An MCP server for **.NET developers** that gives your AI assistant a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform. Typical reduction: **50–95%** on C# files with no loss of logic.
 
-## Why this exists
-
-You asked: "It would be great if the tools always show the tokens used
-with or without the tool." Right now each tool reports differently —
-the CLI has a `--stats` flag, the MCP wraps results in a comment, the
-Blazor app shows numbers but no comparison. This unifies all of that.
-
-## What's in here
-
-- **`TokenReport.cs`** — the shared record type. One line per tool to
-  build the report; built-in formatters for one-line summaries, detailed
-  ASCII blocks, and cost framing.
-- **`integrations/RoslynLean.Program.cs`** — replaces the existing
-  `Program.cs` in the Roslyn focused emitter. Now always shows the
-  comparison (to stderr, so it doesn't pollute pipes).
-- **`integrations/FocusedEmissionTool.cs`** — replaces the MCP wrapper
-  so every tool result starts with a `// [Focused Emitter] Tokens...`
-  one-liner.
-- **`integrations/TokenComparison.razor`** — Blazor component for the
-  Prompt Coach playground. Drop in `Components/Shared/`.
-- **`integrations/token-comparison.css`** — append to `wwwroot/app.css`.
-- **`preview.html`** — open in any browser to see the visuals offline.
-- **`preview.py`** — simulate the CLI output without .NET installed.
-
-## Three formats, same numbers
-
-**One-line** — for log lines, MCP tool result prefixes, anywhere short:
+Install from NuGet:
 ```
-[Focused Emitter] Tokens without tool: 835  →  with tool: 415  (50% saved)
+dotnet tool install --global TokenSaver.Mcp
+tokensaver-mcp register
 ```
 
-**Detailed block** — for CLI `--stats` output, MCP tool detail prefixes,
-anywhere you have room for visual:
-```
-┌─ Focused Emitter
-│  Without tool:  ████████████████████████████████████████ 835 tokens
-│  With tool:     ████████████████████░░░░░░░░░░░░░░░░░░░░ 415 tokens
-│  Saved:         420 tokens (50%)
-│  Focus method: OnInitializedAsync. Other members: signatures only.
-└─
-```
+Works with **Visual Studio 2026** (GitHub Copilot Chat), **Claude Code**, VS Code Copilot, Claude Desktop, and any other MCP client that speaks stdio.
 
-**Blazor component** — for the Prompt Coach playground. Same shape as
-the ASCII version but rendered with real bars, the editorial typography,
-and the burnt-sienna accent for the "with tool" bar.
+→ **Full docs and setup guide:** [mcp/README.md](mcp/README.md)  
+→ **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
-## Usage in C#
+---
 
-```csharp
-using TokenStats;
+## What the tools do
 
-// Build a report
-var report = TokenReport.FromTexts(
-    toolName: "Prompt Compressor",
-    textBefore: originalText,
-    textAfter: compressedText,
-    notes: "5 filler phrases, 1 code block stripped.");
+### Single-file tools
 
-// Emit it however you need
-Console.Error.WriteLine(report.OneLineSummary());
-Console.Error.WriteLine(report.DetailedBlock());
+| Tool | What it does | Reduction |
+|---|---|---|
+| `OutlineCSharpFile` | Signatures of every type and member — no bodies. Best for "what's in this file?" | 70–95% |
+| `FocusMethod` | Named method with full body + signatures of referenced members. `depth=1` includes private helpers. | 80–97% |
+| `FocusMultipleMethods` | Same as above but multiple methods in one parse pass — deduplicates shared signatures. | 80–97% |
+| `FocusType` | Non-private members with full bodies, private members as signatures only. | 60–90% |
+| `FocusCallers` | All methods in a file that call a given method — focused view. Answers "what calls X?" | 80–95% |
+| `MinifyCSharpFile` | Lossless minify of an entire C# file — strips comments and whitespace, logic unchanged. | 20–50% |
+| `MinifyFile` | Auto-dispatch by extension. Covers C#, Razor, JS/TS, Python, HTML, CSS, JSON, YAML, XML, C, C++, VB.NET. | varies |
+| `AliasCSharpFile` | Minify + rename private symbols to short codes (`M1`, `P1`...). Best on files with very long private names. | 30–60% |
 
-// Or with explicit token counts (e.g. from the Roslyn emitter)
-var report2 = new TokenReport(
-    ToolName: "Focused Emitter",
-    TokensWithoutTool: 835,
-    TokensWithTool: 415,
-    Notes: "Focus method: OnInitializedAsync");
-```
+### Cross-file traversal tools
 
-## Usage in Blazor (Prompt Coach)
+These scan an entire project directory in one call — no need to know which file to look in first.
 
-```razor
-@using TokenStats
+| Tool | What it does |
+|---|---|
+| `TraceCallers(projectPath, methodName)` | Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers "what calls X across the whole codebase?" |
+| `TraceImplementors(projectPath, interfaceName)` | Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers "what implements IFoo?" |
 
-<TokenComparison Report="@_report" ShowCost="true" />
+Both accept a directory path or `.csproj` file — `obj/` and `bin/` are excluded automatically.
 
-@code {
-    private TokenReport _report = TokenReport.FromTexts(
-        "Prompt Compressor", _input, _result.Compressed,
-        notes: $"{_result.Stages.Count} rules applied.");
-}
-```
+---
 
-## The honest design choice
+## Token savings in practice
 
-Cost framing is **off by default**. Showing "$0.0013 saved" per call sets
-up the wrong expectation — that this is about money. It's not, mostly.
-The savings are about discipline, audit-ability, and at scale, real
-infrastructure load. The cost line is available when you want to make
-a specific point, but not the headline.
+Measured against this project's own `FocusedEmitter.cs` (9,261 tokens raw):
 
-The headline is the bars. Visual comparison teaches faster than numbers.
+| Question type | Tool | Tokens sent | Reduction |
+|---|---|---|---|
+| "What's in this file?" | `OutlineCSharpFile` | 1,039 | **89%** |
+| "Explain the `Emit` method" | `FocusMethod` (depth=1, minify) | 1,437 | **84%** |
+| "Explain `EmitOutline` and `EmitMinified`" | `FocusMultipleMethods` | 424 | **95%** |
+| "Audit the whole file" | `MinifyCSharpFile` | 5,525 | 40% |
 
-## Why this matters more than it sounds
+---
 
-The reason to put this in every tool is the same reason fitness apps show
-calorie counts on every meal: **the user's behavior changes when the cost
-is visible**. The first time someone sees their casual prompt was 2,400
-tokens and the focused version was 280, they internalize something that
-no amount of "you should write tighter prompts" advice would teach.
+## Collective impact
 
-The tools we've built are all token-savers. This makes them token-savings
-*teachers*. That's the whole point of the project, restated as a UI choice.
+Every invocation is counted at **[tokensavermcp.com](https://tokensavermcp.com)** — a live dashboard showing total tokens saved by the community. Fewer tokens processed means less GPU compute and a smaller carbon footprint for AI-assisted development.
 
-And the savings add up beyond the individual. Every token not processed is
-a small reduction in GPU compute and energy drawn from the grid. The
-community's collective impact is tracked at
-**[tokensavermcp.com](https://tokensavermcp.com)** — a live dashboard where
-you can see how much the ecosystem has saved in total. You are not only
-getting faster answers; you are contributing to more efficient AI
-infrastructure.
+---
+
+## Language support
+
+| Tier | Languages |
+|---|---|
+| **Primary** (Roslyn, full support) | C# `.cs`, Razor `.razor`, VB.NET `.vb`, .NET project files `.csproj .props .config .xml` |
+| **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++ |
+
+Cross-file traversal tools (`TraceCallers`, `TraceImplementors`) are **C# only**.

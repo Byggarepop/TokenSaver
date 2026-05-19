@@ -24,8 +24,10 @@ Works with:
 
 ## What the tools do
 
-All eight tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
+All ten tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
 basic-tier minifiers for other extensions.
+
+### Single-file tools
 
 - `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named
   method with full body plus signatures of referenced members. `depth=1`
@@ -41,8 +43,9 @@ basic-tier minifiers for other extensions.
   only. Best for "explain class X" questions when the file has multiple types
   or private helpers dominate. **C# only.**
 - `FocusCallers(filePath, methodName, depth=0, minify=false)` — find all
-  methods that call the named method and return them as a focused multi-method
-  view. Answers "what calls X?" in one round-trip. **C# only.**
+  methods in a **single file** that call the named method and return them as a
+  focused multi-method view. Answers "what calls X?" in one round-trip.
+  **C# only.** For project-wide search, use `TraceCallers`.
 - `OutlineCSharpFile(filePath)` — skeleton of a file: types and member
   signatures, no bodies. Best for navigation ("what's in this file?").
   **C# / Razor only.**
@@ -54,6 +57,21 @@ basic-tier minifiers for other extensions.
 - `AliasCSharpFile(filePath)` — minify plus rename private symbols to short
   codes (`M1`, `P1`, `F1`...). Useful on files with very long private names.
   **C# / Razor only.**
+
+### Cross-file traversal tools
+
+These scan an entire project directory in one call — no need to know which file
+to look in first. Both accept a directory path or `.csproj` file; `obj/` and
+`bin/` are excluded automatically. **C# only.**
+
+- `TraceCallers(projectPath, methodName, depth=0, minify=false)` — scans every
+  `.cs` file in the project and returns focused views of all methods that call
+  `methodName`, grouped by file. Answers "what calls X across the whole
+  codebase?" in a single call. Uses name-based matching, same as `FocusCallers`.
+- `TraceImplementors(projectPath, interfaceName, minify=false)` — finds every
+  type that implements or extends the named interface or base type, and returns
+  a focused type view for each. Answers "what implements IFoo?" or "what extends
+  BaseBar?" in a single call.
 
 Each tool result starts with a token-comparison header:
 ```
@@ -180,10 +198,7 @@ the tool was invoked.
 
 ## Manual setup for Visual Studio 2026 (GitHub Copilot Chat)
 
-Three one-time steps (skip steps 1–2 if you used `register` above). Step 3
-is unfortunately always needed because VS 2026 Copilot does **not** honor the
-MCP `ServerInstructions` field (we tested this), so the tool-selection
-guidance has to be shipped as a workspace file.
+Two one-time steps (skip step 1 if you used `register` above).
 
 **1. Register the MCP server.** Create or edit `%USERPROFILE%\.mcp.json`:
 
@@ -198,25 +213,14 @@ guidance has to be shipped as a workspace file.
 }
 ```
 
-**2. Drop the Copilot instructions into every repo where you want auto-invocation.**
-From inside the repo:
-
-```
-tokensaver-mcp print-instructions > .github\copilot-instructions.md
-```
-
-VS Copilot reads `<workspace>\.github\copilot-instructions.md` and includes
-it in the system prompt. Without this file, Copilot won't reliably pick the
-MCP tools.
-
-**3. Restart Visual Studio** so it loads the new server registration.
+**2. Restart Visual Studio** so it loads the new server registration.
 
 ### Verify it works
 
 - *View → Output*, channel = *GitHub Copilot*. On startup you should see:
   ```
   Successfully started MCP server 'tokensaver'
-  Loaded assets for MCP server 'tokensaver' with 8 tools, 0 prompts, and 0 resources.
+  Loaded assets for MCP server 'tokensaver' with 10 tools, 0 prompts, and 0 resources.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
@@ -267,6 +271,4 @@ doesn't matter.
 dotnet tool uninstall --global TokenSaver.Mcp
 claude mcp remove tokensaver -s user     # if you used Claude Code
 ```
-For VS, delete the `tokensaver` block from `%USERPROFILE%\.mcp.json` and
-delete `.github\copilot-instructions.md` from any repo where you don't
-want the tool-selection guidance.
+For VS, delete the `tokensaver` block from `%USERPROFILE%\.mcp.json`.
