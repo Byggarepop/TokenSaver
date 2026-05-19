@@ -276,50 +276,48 @@
         using var scope = ScopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ReportsDb>();
 
-        var raw = await db.Reports
+        var snapshots = await db.ToolLanguageSnapshots.ToListAsync();
+        var snapDict  = snapshots.ToDictionary(s => (s.ToolName, s.Language));
+
+        var live = await db.Reports
             .GroupBy(r => new { r.ToolName, r.Language })
             .Select(g => new
             {
                 g.Key.ToolName,
                 g.Key.Language,
-                RunCount = g.Count(),
+                RunCount     = g.Count(),
                 TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
-                TokensWith = g.Sum(r => (long)r.TokensWithTool),
+                TokensWith    = g.Sum(r => (long)r.TokensWithTool),
             })
             .ToListAsync();
+        var liveDict = live.ToDictionary(r => (r.ToolName, r.Language));
 
-        _aggregates = raw
-            .Select(r =>
+        var allKeys = snapDict.Keys.Union(liveDict.Keys);
+        _aggregates = allKeys
+            .Select(key =>
             {
-                var saved = r.TokensWithout - r.TokensWith;
-                var pct = r.TokensWithout == 0 ? 0 : (double)saved / r.TokensWithout * 100;
-                return new AggregateRow(r.ToolName, r.Language, r.RunCount, saved, pct);
+                var s       = snapDict.GetValueOrDefault(key);
+                var l       = liveDict.GetValueOrDefault(key);
+                var without = (s?.TokensWithoutTotal ?? 0) + (l?.TokensWithout ?? 0);
+                var with_   = (s?.TokensWithTotal    ?? 0) + (l?.TokensWith    ?? 0);
+                var runs    = (s?.RunCount            ?? 0) + (l?.RunCount      ?? 0);
+                var saved   = without - with_;
+                var pct     = without == 0 ? 0 : (double)saved / without * 100;
+                return new AggregateRow(key.ToolName, key.Language, (int)runs, saved, pct);
             })
             .OrderByDescending(r => r.TokensSaved)
             .ToList();
 
-        var summary = await db.Reports
+        var clientsResult = await db.Reports
             .GroupBy(_ => 1)
-            .Select(g => new
-            {
-                RunCount = g.Count(),
-                Saved = g.Sum(r => (long)(r.TokensWithoutTool - r.TokensWithTool)),
-                Without = g.Sum(r => (long)r.TokensWithoutTool),
-                Clients = g.Select(r => r.ClientId).Distinct().Count(),
-            })
+            .Select(g => new { Clients = g.Select(r => r.ClientId).Distinct().Count() })
             .FirstOrDefaultAsync();
 
-        if (summary is null)
-        {
-            _totalSaved = 0; _runCount = 0; _distinctClients = 0; _avgReduction = 0;
-        }
-        else
-        {
-            _totalSaved = summary.Saved;
-            _runCount = summary.RunCount;
-            _distinctClients = summary.Clients;
-            _avgReduction = summary.Without == 0 ? 0 : (double)summary.Saved / summary.Without * 100;
-        }
+        _distinctClients = clientsResult?.Clients ?? 0;
+        _totalSaved  = _aggregates.Sum(r => r.TokensSaved);
+        _runCount    = _aggregates.Sum(r => r.RunCount);
+        var totalWithout = snapshots.Sum(s => s.TokensWithoutTotal) + live.Sum(l => l.TokensWithout);
+        _avgReduction = totalWithout == 0 ? 0 : (double)_totalSaved / totalWithout * 100;
     }
 
     private void LoadFromFile()

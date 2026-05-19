@@ -21,3 +21,5 @@ tests/TEST_REPORT.md
 scripts/deploy.sh
 /nupkg
 /TokenSaverViewer/publish-folder
+/tests/viewer/bin
+/tests/viewer/obj

@@ -16,6 +16,7 @@ var dbPath = builder.Configuration["TokenSaver:DbPath"]
 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 builder.Services.AddDbContext<ReportsDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddSingleton<EmailNotificationService>();
+builder.Services.AddHostedService<DataRetentionService>();
 
 builder.Services.AddRateLimiter(o =>
 {
@@ -63,6 +64,20 @@ using (var scope = app.Services.CreateScope())
         drop.CommandText = "ALTER TABLE Reports DROP COLUMN ClientIpHash";
         drop.ExecuteNonQuery();
     }
+
+    // Add ToolLanguageSnapshots table for existing DBs (EnsureCreated won't alter an existing schema).
+    using var createSnapshot = conn.CreateCommand();
+    createSnapshot.CommandText = """
+        CREATE TABLE IF NOT EXISTS ToolLanguageSnapshots (
+            ToolName TEXT NOT NULL,
+            Language TEXT NOT NULL,
+            TokensWithoutTotal INTEGER NOT NULL DEFAULT 0,
+            TokensWithTotal INTEGER NOT NULL DEFAULT 0,
+            RunCount INTEGER NOT NULL DEFAULT 0,
+            CONSTRAINT PK_ToolLanguageSnapshots PRIMARY KEY (ToolName, Language)
+        )
+        """;
+    createSnapshot.ExecuteNonQuery();
 }
 
 if (!app.Environment.IsDevelopment())
@@ -123,35 +138,45 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
 
 app.MapGet("/api/stats/summary", async (ReportsDb db) =>
 {
+    var snapshots = await db.ToolLanguageSnapshots.ToListAsync();
+    var snapWithout = snapshots.Sum(s => s.TokensWithoutTotal);
+    var snapWith    = snapshots.Sum(s => s.TokensWithTotal);
+    var snapRuns    = snapshots.Sum(s => s.RunCount);
+
     var agg = await db.Reports
         .GroupBy(_ => 1)
         .Select(g => new
         {
             RunCount = g.Count(),
-            TokensSaved = g.Sum(r => (long)(r.TokensWithoutTool - r.TokensWithTool)),
             TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
+            TokensWith = g.Sum(r => (long)r.TokensWithTool),
             FirstSeen = g.Min(r => r.ReceivedUtc),
             LastSeen = g.Max(r => r.ReceivedUtc),
             DistinctClients = g.Select(r => r.ClientId).Distinct().Count(),
         })
         .FirstOrDefaultAsync();
 
-    if (agg is null)
-        return Results.Ok(new StatsSummary(0, 0, 0, null, null, 0));
+    var totalWithout = snapWithout + (agg?.TokensWithout ?? 0);
+    var totalWith    = snapWith    + (agg?.TokensWith    ?? 0);
+    var totalSaved   = totalWithout - totalWith;
+    var totalRuns    = snapRuns     + (agg?.RunCount     ?? 0);
+    var avgReduction = totalWithout == 0 ? 0 : (double)totalSaved / totalWithout * 100;
 
-    var avgReduction = agg.TokensWithout == 0 ? 0 : (double)agg.TokensSaved / agg.TokensWithout * 100;
     return Results.Ok(new StatsSummary(
-        agg.RunCount,
-        agg.TokensSaved,
+        (int)totalRuns,
+        totalSaved,
         avgReduction,
-        agg.FirstSeen,
-        agg.LastSeen,
-        agg.DistinctClients));
+        agg?.FirstSeen,
+        agg?.LastSeen,
+        agg?.DistinctClients ?? 0));
 });
 
 app.MapGet("/api/stats/by-tool-language", async (ReportsDb db) =>
 {
-    var raw = await db.Reports
+    var snapshots = await db.ToolLanguageSnapshots.ToListAsync();
+    var snapDict  = snapshots.ToDictionary(s => (s.ToolName, s.Language));
+
+    var live = await db.Reports
         .GroupBy(r => new { r.ToolName, r.Language })
         .Select(g => new
         {
@@ -159,16 +184,23 @@ app.MapGet("/api/stats/by-tool-language", async (ReportsDb db) =>
             g.Key.Language,
             RunCount = g.Count(),
             TokensWithout = g.Sum(r => (long)r.TokensWithoutTool),
-            TokensWith = g.Sum(r => (long)r.TokensWithTool),
+            TokensWith    = g.Sum(r => (long)r.TokensWithTool),
         })
         .ToListAsync();
+    var liveDict = live.ToDictionary(r => (r.ToolName, r.Language));
 
-    var rows = raw
-        .Select(r =>
+    var allKeys = snapDict.Keys.Union(liveDict.Keys);
+    var rows = allKeys
+        .Select(key =>
         {
-            var saved = r.TokensWithout - r.TokensWith;
-            var pct = r.TokensWithout == 0 ? 0 : (double)saved / r.TokensWithout * 100;
-            return new ToolLanguageRow(r.ToolName, r.Language, r.RunCount, saved, pct);
+            var s = snapDict.GetValueOrDefault(key);
+            var l = liveDict.GetValueOrDefault(key);
+            var without = (s?.TokensWithoutTotal ?? 0) + (l?.TokensWithout ?? 0);
+            var with_   = (s?.TokensWithTotal    ?? 0) + (l?.TokensWith    ?? 0);
+            var runs    = (s?.RunCount            ?? 0) + (l?.RunCount      ?? 0);
+            var saved   = without - with_;
+            var pct     = without == 0 ? 0 : (double)saved / without * 100;
+            return new ToolLanguageRow(key.ToolName, key.Language, (int)runs, saved, pct);
         })
         .OrderByDescending(r => r.TokensSaved)
         .ToList();
