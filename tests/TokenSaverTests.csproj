@@ -34,6 +34,7 @@
     <!-- Only include test sources in this folder; ignore razor.cs fixture and any other stray files. -->
     <Compile Remove="AuiGrid.razor.cs" />
     <Compile Remove="fixtures\**\*.cs" />
+    <Compile Remove="viewer\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
