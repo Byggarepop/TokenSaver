@@ -3,9 +3,10 @@
 ## Token-efficient source context via the `tokensaver` MCP server
 
 This workspace has the `tokensaver` MCP server registered. It exposes
-**six** tools that produce token-reduced views of source files. **Prefer
-these tools over reading whole files** — they typically save 30-95% of
-tokens with no loss of logic.
+**eight** tools that produce token-reduced views of source files, plus two
+**cross-file traversal tools** for project-wide queries. **Prefer these
+tools over reading whole files** — they typically save 30-95% of tokens
+with no loss of logic.
 
 > **Visual Studio 2026 — use Copilot Chat.**  MCP tools fire in both Ask
 > and Agent mode. Open the Copilot Chat panel and ask your question there;
@@ -76,6 +77,19 @@ tokens with no loss of logic.
    renamed to short codes (M1, P1, F1...) with a ledger at the top. Worth it
    only when private names are long; on small files the ledger overhead can
    wipe out the savings. C# only — no equivalent for other languages.
+
+7. **The user asks what calls a given method across the whole project**
+   ("what calls X anywhere?", "find all callers of BuildHeader", "who calls
+   this across the codebase?") → call `TraceCallers` with the project directory
+   or `.csproj` path and the method name. Returns focused caller views from
+   every file that calls it, in one call. Use instead of `FocusCallers` when
+   you don't know which file to look in. **C# only.**
+
+8. **The user asks what implements an interface or extends a base type**
+   ("what implements IFoo?", "what extends BaseBar?", "show me all emitters")
+   → call `TraceImplementors` with the project directory or `.csproj` path
+   and the interface/base type name. Returns a focused type view for each
+   implementor found across the project. **C# only.**
 
 ### Note on `#` references and Active Document (user-facing reminder)
 

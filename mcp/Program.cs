@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 const string ServerInstructions = """
-This server (tokensaver) exposes six tools that produce TOKEN-REDUCED views
+This server (tokensaver) exposes ten tools that produce TOKEN-REDUCED views
 of source files. PREFER these tools over reading whole files whenever the
 task involves a supported file type — they save 30-95% of tokens with no
 loss of logic.
@@ -55,6 +55,18 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
 
 4. C# file dominated by long private symbol names → consider AliasCSharpFile.
    Private members renamed to short codes with a ledger. C# only.
+
+5. User asks what calls a given method across the WHOLE PROJECT ("what calls X
+   anywhere?", "find all callers of Foo", "who calls this across the codebase?")
+   → call TraceCallers with the project directory or .csproj path and the method
+   name. Returns focused caller views from every file that calls it. Use instead
+   of FocusCallers when you don't know which file to look in. C# only.
+
+6. User asks what implements an interface or extends a base type ("what
+   implements IFoo?", "what extends BaseBar?", "show me all emitters") → call
+   TraceImplementors with the project directory or .csproj path and the
+   interface/base type name. Returns a focused type view for each implementor
+   found across the project. C# only.
 
 SKIP these tools for: unsupported file types (.md, .txt, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.
