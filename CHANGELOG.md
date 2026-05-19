@@ -4,6 +4,18 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-05-19
+
+### Fixed
+- Visual Studio showing a stale tool count (e.g. 8 tools instead of 10) after
+  upgrading the NuGet package
+- `serverInfo.version` is now set in the MCP `initialize` handshake so Visual
+  Studio detects a version change and invalidates its cached tool metadata
+- `AutoUpdateRegistrations` now clears `*.cache` files under
+  `%LOCALAPPDATA%\Microsoft\VisualStudio\Copilot\McpServers\` on the first
+  startup after each version upgrade; a `[tokensaver] cleared VS MCP cache`
+  message is written to stderr for each deleted file
+
 ## [1.4.0] - 2026-05-19
 
 ### Added
