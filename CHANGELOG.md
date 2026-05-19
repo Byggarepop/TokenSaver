@@ -4,6 +4,25 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-19
+
+### Added
+- `TraceCallers(projectPath, methodName)` — project-wide version of `FocusCallers`.
+  Scans every `.cs` file in a project directory and returns focused views of all
+  methods that call the named method, grouped by file. Accepts a directory path
+  or `.csproj` file; `obj/` and `bin/` are excluded automatically.
+- `TraceImplementors(projectPath, interfaceName)` — finds every type that
+  implements or extends a named interface or base type across the project and
+  returns a focused type view for each. Answers "what implements IFoo?" in one call.
+- `ProjectTraversal` — internal class powering the two new tools; uses
+  syntax-tree scanning (no full compilation required) consistent with `FocusCallers`
+- 5 new tests covering caller-file detection, implementor discovery, empty results,
+  and `.csproj` path input
+- All instruction files updated to document 10 tools (MCP server instructions,
+  `copilot-instructions.md`, `CLAUDE.md`, NuGet README, GitHub README)
+- GitHub README rewritten as a proper project overview (previously contained a
+  stale TokenStats design document)
+
 ## [1.3.0] - 2026-05-18
 
 ### Added
