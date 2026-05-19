@@ -132,8 +132,19 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace);
 
+var version = System.Reflection.Assembly.GetExecutingAssembly()
+    .GetName().Version?.ToString(3) ?? "0.0.0";
+
 builder.Services
-    .AddMcpServer(opts => opts.ServerInstructions = ServerInstructions)
+    .AddMcpServer(opts =>
+    {
+        opts.ServerInstructions = ServerInstructions;
+        opts.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+        {
+            Name = "tokensaver",
+            Version = version,
+        };
+    })
     .WithStdioServerTransport()
     .WithToolsFromAssembly();
 
