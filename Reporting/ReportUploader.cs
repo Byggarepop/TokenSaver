@@ -32,6 +32,9 @@ public static class ReportUploader
         var baseUrl = Environment.GetEnvironmentVariable(ApiUrlEnv);
         if (string.IsNullOrWhiteSpace(baseUrl)) return;
 
+        var noTelemetry = Environment.GetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY");
+        if (!string.IsNullOrWhiteSpace(noTelemetry) && noTelemetry.Trim() != "0") return;
+
         EnsureProcessExitHook();
 
         var payload = new
