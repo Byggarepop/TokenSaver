@@ -4,6 +4,32 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-05-20
+
+### Added
+- **Server-side EmissionCache** — repeated calls to `FocusMethod`,
+  `FocusMultipleMethods`, `FocusType`, or `FocusCallers` for the same method in
+  an unchanged file now skip the Roslyn re-parse entirely. The full output is
+  always returned (no dependency on prior context window state); cache hits are
+  marked `[re-parse skipped]` in the tool result header. The cache is
+  invalidated automatically when the file's last-write timestamp changes.
+- 4 new tests: `Cache_MissOnFirstCall`, `Cache_HitOnSecondCall`,
+  `Cache_InvalidatedAfterFileChange`, and an end-to-end
+  `McpTool_SecondCallReturnsReparseSkipped` that calls `FocusedEmitterTools`
+  directly.
+
+### Changed
+- Log prefix corrected from `[roslyn-lean]` to `[tokensaver]` in all MCP
+  server stderr output.
+
+### Documentation
+- `mcp/README.md` — new **Upgrading** section covering the `dotnet tool update`
+  command, the requirement to close all MCP clients (VS, Claude) before
+  upgrading, and a detailed explanation of Visual Studio's lazy-loading
+  behaviour (cached metadata at startup, server process started on first prompt,
+  cache-bust rename trick).
+- Root `README.md` — brief upgrade note added alongside the install command.
+
 ## [1.5.0] - 2026-05-19
 
 ### Fixed
