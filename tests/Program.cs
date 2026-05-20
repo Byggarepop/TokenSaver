@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -125,6 +125,10 @@ internal static class Program
         Run("Traversal_FindImplementors_FindsImplementingTypes", Traversal_FindImplementors_FindsImplementingTypes);
         Run("Traversal_FindImplementors_ReturnsEmptyForUnknownInterface", Traversal_FindImplementors_ReturnsEmptyForUnknownInterface);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
+        Run("McpTool_SecondCallReturnsReparseSkipped", McpTool_SecondCallReturnsReparseSkipped);
+        Run("Cache_MissOnFirstCall", Cache_MissOnFirstCall);
+        Run("Cache_HitOnSecondCall", Cache_HitOnSecondCall);
+        Run("Cache_InvalidatedAfterFileChange", Cache_InvalidatedAfterFileChange);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1914,6 +1918,77 @@ internal static class Program
             ok ? $".csproj path accepted; {t.FileCount} file(s) scanned"
                : "FileCount was 0 after passing .csproj path",
             (0, 0, 0));
+    }
+
+    // ---------- FocusedEmitterTools cache (end-to-end) ----------
+
+    private static TestOutcome McpTool_SecondCallReturnsReparseSkipped()
+    {
+        EmissionCache.Clear();
+        var path = Fixture("Calculator.cs");
+
+        var first  = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 0, minify: false);
+        var second = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 0, minify: false);
+
+        var firstIsFresh     = !first.Contains("[re-parse skipped]");
+        var secondIsCacheHit = second.Contains("[re-parse skipped]");
+        var secondHasBody    = second.Contains("WeightedSum");
+
+        var ok = firstIsFresh && secondIsCacheHit && secondHasBody;
+        return new TestOutcome(ok,
+            ok ? "first call fresh, second call re-parse skipped with full output"
+               : $"firstFresh={firstIsFresh} secondCacheHit={secondIsCacheHit} secondHasBody={secondHasBody}",
+            (0, 0, 0));
+    }
+
+    // ---------- EmissionCache ----------
+
+    private static TestOutcome Cache_MissOnFirstCall()
+    {
+        EmissionCache.Clear();
+        var path = Fixture("Calculator.cs");
+        var hit = EmissionCache.TryGet(path, "Run", depth: 0, minify: false, out _, out _, out _);
+        return new TestOutcome(!hit, !hit ? "cold cache returns false" : "unexpected cache hit on first call", (0, 0, 0));
+    }
+
+    private static TestOutcome Cache_HitOnSecondCall()
+    {
+        EmissionCache.Clear();
+        var path = Fixture("Calculator.cs");
+        var result = new FocusedEmitter(path).Emit("Run");
+        var stored = "// header\nsome output";
+        EmissionCache.Set(path, "Run", depth: 0, minify: false, stored, 100, 10);
+        var hit = EmissionCache.TryGet(path, "Run", depth: 0, minify: false, out var output, out _, out _);
+        var hasReparseSkipped = output.Contains("[re-parse skipped]");
+        var hasBody = output.Contains("some output");
+        var ok = hit && hasReparseSkipped && hasBody;
+        return new TestOutcome(ok,
+            ok ? "cache hit returns full output with [re-parse skipped] on header"
+               : $"hit={hit} reparseSkipped={hasReparseSkipped} body={hasBody}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Cache_InvalidatedAfterFileChange()
+    {
+        EmissionCache.Clear();
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Set(path, "Run", depth: 0, minify: false, "// header\nsome output", 100, 10);
+
+        // Simulate a file change by writing the file with a future timestamp.
+        var original = File.GetLastWriteTimeUtc(path);
+        File.SetLastWriteTimeUtc(path, original.AddSeconds(1));
+        try
+        {
+            var hit = EmissionCache.TryGet(path, "Run", depth: 0, minify: false, out _, out _, out _);
+            return new TestOutcome(!hit,
+                !hit ? "cache miss after file timestamp changed"
+                     : "cache incorrectly returned stale entry",
+                (0, 0, 0));
+        }
+        finally
+        {
+            File.SetLastWriteTimeUtc(path, original);
+        }
     }
 
     private sealed record TestOutcome(bool Passed, string Notes, (int before, int after, double percent) Tokens);

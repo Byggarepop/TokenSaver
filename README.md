@@ -8,6 +8,11 @@ dotnet tool install --global TokenSaver.Mcp
 tokensaver-mcp register
 ```
 
+To upgrade an existing install — **close Visual Studio and any Claude sessions first**, then:
+```
+dotnet tool update --global TokenSaver.Mcp
+```
+
 Works with **Visual Studio 2026** (GitHub Copilot Chat), **Claude Code**, VS Code Copilot, Claude Desktop, and any other MCP client that speaks stdio.
 
 → **Full docs and setup guide:** [mcp/README.md](mcp/README.md)  

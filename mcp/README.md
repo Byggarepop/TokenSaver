@@ -156,6 +156,40 @@ tokensaver-mcp print-instructions
 
 ---
 
+## Upgrading
+
+```
+dotnet tool update --global TokenSaver.Mcp
+```
+
+**Close all MCP clients before running this.** The old server process must not
+be running when the tool is replaced on disk — dotnet will fail or silently
+install alongside the old binary if the executable is locked.
+
+- **Claude Code / Claude Desktop** — close the app or end the session.
+- **Visual Studio** — close the IDE fully, not just the chat panel.
+
+After the update, restart your client as normal.
+
+### Visual Studio: lazy loading and the first-prompt delay
+
+Visual Studio does not start the MCP server process at IDE startup. Instead it
+reads cached tool metadata from disk (you'll see `Loaded cached state for MCP
+server 'tokensaver'...` in the Copilot output channel), and only launches the
+actual server process when you send your first Copilot prompt of the session.
+
+This means:
+
+- **After an upgrade**, VS may show the old cached metadata in the output
+  channel until the first prompt triggers a fresh start. That is normal — the
+  new binary is running from the first prompt onward.
+- **If tools look wrong after an upgrade** (e.g. a tool you expect is missing),
+  use the cache-bust trick: rename the server entry in `%USERPROFILE%\.mcp.json`
+  (e.g. `tokensaver` → `tokensaver-2`), restart VS, send one prompt, then rename
+  back. VS will rebuild the cache from scratch.
+
+---
+
 ## Manual setup for Claude Code
 
 Two one-time steps (skip if you used `register` above).

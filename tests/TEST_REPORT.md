@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-19 09:01_
+_Generated: 2026-05-19 22:06_
 
-**105/105 scenarios passed.**
+**109/109 scenarios passed.**
 
 ## Results
 
@@ -112,7 +112,11 @@ _Generated: 2026-05-19 09:01_
 | Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod | PASS | — | — | — | empty list for unknown method name |
 | Traversal_FindImplementors_FindsImplementingTypes | PASS | — | — | — | Circle and Square found as implementors of IShape |
 | Traversal_FindImplementors_ReturnsEmptyForUnknownInterface | PASS | — | — | — | empty list for unknown interface name |
-| Traversal_AcceptsCsprojPath | PASS | — | — | — | .csproj path accepted; 13 file(s) scanned |
+| Traversal_AcceptsCsprojPath | PASS | — | — | — | .csproj path accepted; 14 file(s) scanned |
+| McpTool_SecondCallReturnsReparseSkipped | PASS | — | — | — | first call fresh, second call re-parse skipped with full output |
+| Cache_MissOnFirstCall | PASS | — | — | — | cold cache returns false |
+| Cache_HitOnSecondCall | PASS | — | — | — | cache hit returns full output with [re-parse skipped] on header |
+| Cache_InvalidatedAfterFileChange | PASS | — | — | — | cache miss after file timestamp changed |
 
 ## What each scenario proves
 
