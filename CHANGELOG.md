@@ -4,6 +4,24 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-05-20
+
+### Added
+- **Telemetry opt-out** — set `TOKENSAVER_NO_TELEMETRY=1` in the MCP server's
+  `env` block to disable usage uploads entirely. The local
+  `%USERPROFILE%\.tokensaver\report.json` log is still written; only the
+  remote upload is skipped. Setting the variable to `0` re-enables uploads.
+
+### Documentation
+- `mcp/README.md` — new **Telemetry** section listing every field that is
+  uploaded on each invocation (`ToolName`, `Language`, `TokensWithoutTool`,
+  `TokensWithTool`, `Notes` / method name, anonymous `ClientId`) and
+  explicitly stating what is never sent (file paths, file contents, source
+  code). Includes opt-out instructions with a ready-to-paste JSON snippet.
+- `mcp/README.md` — Install, Upgrading, and Uninstalling consolidated into a
+  single **Install, upgrade & uninstall** section with three subsections for
+  cleaner navigation.
+
 ## [1.6.0] - 2026-05-20
 
 ### Added
