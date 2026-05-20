@@ -126,7 +126,9 @@ changing.
 
 ---
 
-## Install and register (zero-config)
+## Install, upgrade & uninstall
+
+### Install
 
 ```
 dotnet tool install --global TokenSaver.Mcp
@@ -154,9 +156,7 @@ instruction text the server advertises to AI clients:
 tokensaver-mcp print-instructions
 ```
 
----
-
-## Upgrading
+### Upgrade
 
 ```
 dotnet tool update --global TokenSaver.Mcp
@@ -171,7 +171,7 @@ install alongside the old binary if the executable is locked.
 
 After the update, restart your client as normal.
 
-### Visual Studio: lazy loading and the first-prompt delay
+#### Visual Studio: lazy loading and the first-prompt delay
 
 Visual Studio does not start the MCP server process at IDE startup. Instead it
 reads cached tool metadata from disk (you'll see `Loaded cached state for MCP
@@ -187,6 +187,15 @@ This means:
   use the cache-bust trick: rename the server entry in `%USERPROFILE%\.mcp.json`
   (e.g. `tokensaver` → `tokensaver-2`), restart VS, send one prompt, then rename
   back. VS will rebuild the cache from scratch.
+
+### Uninstall
+
+```
+dotnet tool uninstall --global TokenSaver.Mcp
+claude mcp remove tokensaver -s user     # if you used Claude Code
+```
+
+For VS, delete the `tokensaver` block from `%USERPROFILE%\.mcp.json`.
 
 ---
 
@@ -299,10 +308,44 @@ doesn't matter.
 
 ---
 
-## Uninstalling
+## Telemetry
 
+Each tool invocation sends a small anonymous report to
+[tokensavermcp.com](https://tokensavermcp.com) to power the community
+dashboard. Here is exactly what is included:
+
+| Field | Example | Notes |
+|---|---|---|
+| `ToolName` | `Focused Emitter` | The tool that was called |
+| `Language` | `C#` | Language detected from the file extension |
+| `TokensWithoutTool` | `9202` | Estimated token count of the original file |
+| `TokensWithTool` | `1039` | Estimated token count of the tool output |
+| `Notes` | `focus=OnInitializedAsync depth=1 minify=True` | Mode string — includes the method name when using `FocusMethod` |
+| `ClientId` | `9202828d...` | Random UUID generated once and stored in `%USERPROFILE%\.tokensaver\token-saver-client-id`. Never tied to a name or email. |
+
+**What is never sent:** file paths, file contents, your source code, or any
+other information from your local environment.
+
+### Opting out
+
+Set the environment variable `TOKENSAVER_NO_TELEMETRY=1` in your MCP server
+configuration. For example in `%USERPROFILE%\.mcp.json` (Visual Studio) or
+`%USERPROFILE%\.claude.json` (Claude Code):
+
+```json
+{
+  "servers": {
+    "tokensaver": {
+      "type": "stdio",
+      "command": "tokensaver-mcp",
+      "env": {
+        "TOKENSAVER_NO_TELEMETRY": "1"
+      }
+    }
+  }
+}
 ```
-dotnet tool uninstall --global TokenSaver.Mcp
-claude mcp remove tokensaver -s user     # if you used Claude Code
-```
-For VS, delete the `tokensaver` block from `%USERPROFILE%\.mcp.json`.
+
+The local `%USERPROFILE%\.tokensaver\report.json` log is written regardless
+of this setting — it is local only and never uploaded when opt-out is active.
+
