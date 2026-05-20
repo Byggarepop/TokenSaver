@@ -1,4 +1,4 @@
-// Three MCP tools wrapping the RoslynLean emitter.
+﻿// Three MCP tools wrapping the RoslynLean emitter.
 // Tool descriptions matter: they're how the host's model picks the right one.
 // Each result starts with a one-line token-comparison header so the AI can
 // surface "I used the focused emitter, saved ~X tokens" to the user.
@@ -46,6 +46,9 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
+            if (TryGetCached(filePath, methodName, depth, minify, out var cached))
+                return cached;
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.Emit(methodName, depth);
 
@@ -63,10 +66,12 @@ public static class FocusedEmitterTools
 
             var beforeTokens = result.OriginalTokensEstimate;
             var afterTokens = Math.Max(1, output.Length / 4);
-            return BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
+            SetCached(filePath, methodName, depth, minify, fullOutput, beforeTokens, afterTokens);
+            return fullOutput;
         }
         catch (Exception ex)
         {
@@ -116,6 +121,10 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
+            var multiKey = string.Join("|", names.OrderBy(n => n));
+            if (TryGetCached(filePath, multiKey, depth, minify, out var cached))
+                return cached;
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitMultiple(names, depth);
 
@@ -129,10 +138,12 @@ public static class FocusedEmitterTools
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var afterTokens = Math.Max(1, output.Length / 4);
-            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
+            SetCached(filePath, multiKey, depth, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            return fullOutput;
         }
         catch (Exception ex)
         {
@@ -309,6 +320,9 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
+            if (TryGetCached(filePath, $"type:{typeName}", depth: 0, minify, out var cached))
+                return cached;
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitType(typeName);
 
@@ -322,10 +336,12 @@ public static class FocusedEmitterTools
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var afterTokens = Math.Max(1, output.Length / 4);
-            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
+            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
+            SetCached(filePath, $"type:{typeName}", depth: 0, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            return fullOutput;
         }
         catch (Exception ex)
         {
@@ -359,6 +375,9 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
+            if (TryGetCached(filePath, $"callers:{methodName}", depth, minify, out var cached))
+                return cached;
+
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitCallers(methodName, depth);
 
@@ -370,10 +389,12 @@ public static class FocusedEmitterTools
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var afterTokens = Math.Max(1, output.Length / 4);
-            return BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
+            SetCached(filePath, $"callers:{methodName}", depth, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            return fullOutput;
         }
         catch (Exception ex)
         {
@@ -483,6 +504,16 @@ public static class FocusedEmitterTools
         }
     }
 
+    private static bool TryGetCached(string filePath, string key, int depth, bool minify, out string output)
+    {
+        if (!EmissionCache.TryGet(filePath, key, depth, minify, out output, out var before, out var after))
+            return false;
+        LogInvocation("Cache", "C#", $"{key} depth={depth} minify={minify} [re-parse skipped]", before, after);
+        return true;
+    }
+
+    private static void SetCached(string filePath, string key, int depth, bool minify, string output, int beforeTokens, int afterTokens) =>
+        EmissionCache.Set(filePath, key, depth, minify, output, beforeTokens, afterTokens);
     private static bool IsVbFile(string filePath) =>
         Path.GetExtension(filePath).Equals(".vb", StringComparison.OrdinalIgnoreCase);
 
@@ -505,7 +536,7 @@ public static class FocusedEmitterTools
 
         // Stderr so VS Output → GitHub Copilot shows it live.
         Console.Error.WriteLine(
-            $"[roslyn-lean] {DateTime.Now:yyyy-MM-dd HH:mm:ss}  {mode}  " +
+            $"[tokensaver] {DateTime.Now:yyyy-MM-dd HH:mm:ss}  {mode}  " +
             $"before={beforeTokens} after={afterTokens} saved={saved} ({pct}%)");
 
         try
