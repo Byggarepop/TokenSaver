@@ -4,6 +4,12 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-05-22
+
+### Fixed
+- Add `mcp-name` ownership verification comment to package README, required
+  for MCP Registry (`registry.modelcontextprotocol.io`) submission.
+
 ## [1.7.0] - 2026-05-20
 
 ### Added
