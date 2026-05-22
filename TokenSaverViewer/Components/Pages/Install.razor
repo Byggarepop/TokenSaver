@@ -60,8 +60,8 @@
         <p class="client-desc">Run once in your terminal — installs globally across all projects (<code>-s user</code>):</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@claudeCodeSnippet</code></pre>
-            <button class="copy-btn @(_copied.Contains("claudecode") ? "copied" : "")"
-                    @onclick="() => Copy(claudeCodeSnippet, "claudecode")">
+            <button class='copy-btn @(_copied.Contains("claudecode") ? "copied" : "")'
+                    @onclick='() => Copy(claudeCodeSnippet, "claudecode")'>
                 @(_copied.Contains("claudecode") ? "Copied!" : "Copy")
             </button>
         </div>
@@ -75,8 +75,8 @@
         <p class="client-desc">Add to <code>~/.cursor/mcp.json</code>:</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@cursorSnippet</code></pre>
-            <button class="copy-btn @(_copied.Contains("cursor") ? "copied" : "")"
-                    @onclick="() => Copy(cursorSnippet, "cursor")">
+            <button class='copy-btn @(_copied.Contains("cursor") ? "copied" : "")'
+                    @onclick='() => Copy(cursorSnippet, "cursor")'>
                 @(_copied.Contains("cursor") ? "Copied!" : "Copy")
             </button>
         </div>
@@ -90,8 +90,8 @@
         <p class="client-desc">Add to <code>claude_desktop_config.json</code>:</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@claudeSnippet</code></pre>
-            <button class="copy-btn @(_copied.Contains("claudedesktop") ? "copied" : "")"
-                    @onclick="() => Copy(claudeSnippet, "claudedesktop")">
+            <button class='copy-btn @(_copied.Contains("claudedesktop") ? "copied" : "")'
+                    @onclick='() => Copy(claudeSnippet, "claudedesktop")'>
                 @(_copied.Contains("claudedesktop") ? "Copied!" : "Copy")
             </button>
         </div>
@@ -108,8 +108,8 @@
         </p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@cliSnippet</code></pre>
-            <button class="copy-btn @(_copied.Contains("cli") ? "copied" : "")"
-                    @onclick="() => Copy(cliSnippet, "cli")">
+            <button class='copy-btn @(_copied.Contains("cli") ? "copied" : "")'
+                    @onclick='() => Copy(cliSnippet, "cli")'>
                 @(_copied.Contains("cli") ? "Copied!" : "Copy")
             </button>
         </div>
@@ -118,8 +118,8 @@
         </p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>dotnet tool update --global TokenSaver.Mcp</code></pre>
-            <button class="copy-btn @(_copied.Contains("upgrade") ? "copied" : "")"
-                    @onclick="() => Copy("dotnet tool update --global TokenSaver.Mcp", "upgrade")">
+            <button class='copy-btn @(_copied.Contains("upgrade") ? "copied" : "")'
+                    @onclick='() => Copy("dotnet tool update --global TokenSaver.Mcp", "upgrade")'>
                 @(_copied.Contains("upgrade") ? "Copied!" : "Copy")
             </button>
         </div>
