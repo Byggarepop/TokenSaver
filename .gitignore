@@ -23,3 +23,5 @@ scripts/deploy.sh
 /TokenSaverViewer/publish-folder
 /tests/viewer/bin
 /tests/viewer/obj
+*.gz
+mcp-publisher.exe
