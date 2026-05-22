@@ -7,6 +7,7 @@
         <h1>Install TokenSaver</h1>
         <p class="lead">
             One click for <strong>Visual Studio</strong> and <strong>VS Code</strong>.
+            One command for <strong>Claude Code</strong>.
             JSON snippets for Cursor, Claude Desktop, and anything else that speaks stdio.
         </p>
         <p class="how">
@@ -48,6 +49,15 @@
                 Install in VS Code Insiders
             </a>
         </div>
+    </div>
+
+    <div class="client-block">
+        <div class="client-header">
+            <span class="client-icon claudecode-icon">✦</span>
+            <h2>Claude Code</h2>
+        </div>
+        <p class="client-desc">Run once in your terminal — installs globally across all projects (<code>-s user</code>):</p>
+        <pre class="snippet"><code>@claudeCodeSnippet</code></pre>
     </div>
 
     <div class="client-block">
@@ -174,11 +184,12 @@
         letter-spacing: -0.03em;
     }
 
-    .vs-icon     { background: #68217a; color: #fff; }
-    .vscode-icon { background: #0078d4; color: #fff; font-size: 0.6rem; }
-    .cursor-icon { background: #1a1a1a; color: #fff; font-size: 1rem; font-weight: 400; }
-    .claude-icon { background: #d97706; color: #fff; font-size: 1rem; }
-    .cli-icon    { background: #2a2a2a; color: #b5f0c4; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+    .vs-icon          { background: #68217a; color: #fff; }
+    .vscode-icon      { background: #0078d4; color: #fff; font-size: 0.6rem; }
+    .claudecode-icon  { background: #d97706; color: #fff; font-size: 1rem; }
+    .cursor-icon      { background: #1a1a1a; color: #fff; font-size: 1rem; font-weight: 400; }
+    .claude-icon      { background: #d97706; color: #fff; font-size: 1rem; }
+    .cli-icon         { background: #2a2a2a; color: #b5f0c4; font-size: 0.75rem; font-family: ui-monospace, monospace; }
 
     .client-desc {
         font-size: 0.95rem;
@@ -246,6 +257,9 @@
 </style>
 
 @code {
+    private const string claudeCodeSnippet =
+        "claude mcp add -s user tokensaver -- dotnet tool execute TokenSaver.Mcp --yes";
+
     private const string cursorSnippet =
         """
         {
