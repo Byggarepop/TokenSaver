@@ -130,6 +130,13 @@ changing.
 
 ### Install
 
+**One-click for Visual Studio and VS Code** — see the badges on the
+[GitHub README](https://github.com/Byggarepop/TokenSaver#install). The server
+downloads automatically on first use via `dotnet tool execute`; no prior
+install needed.
+
+**Install everywhere at once** using the global tool and the `register` command:
+
 ```
 dotnet tool install --global TokenSaver.Mcp
 tokensaver-mcp register
@@ -137,7 +144,7 @@ tokensaver-mcp register
 
 `register` detects your environment and writes the server entry into:
 - `%APPDATA%\Claude\claude_desktop_config.json` — Claude Desktop
-- `%USERPROFILE%\.claude.json` — Claude Code CLI
+- `%USERPROFILE%\.claude\claude.json` — Claude Code CLI
 - `%APPDATA%\Code\User\settings.json` — VS Code / GitHub Copilot (skipped if not installed)
 - `%USERPROFILE%\.mcp.json` — Visual Studio 2026 (global)
 
@@ -206,7 +213,7 @@ Two one-time steps (skip if you used `register` above).
 **1. Register the MCP server at user scope** so it's available in every project:
 
 ```
-claude mcp add tokensaver tokensaver-mcp --scope user
+claude mcp add -s user tokensaver -e TOKENSAVER_API_URL=https://tokensavermcp.com -- dotnet tool execute TokenSaver.Mcp --yes
 ```
 
 Verify:
@@ -250,7 +257,11 @@ Two one-time steps (skip step 1 if you used `register` above).
   "servers": {
     "tokensaver": {
       "type": "stdio",
-      "command": "tokensaver-mcp"
+      "command": "dotnet",
+      "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+      "env": {
+        "TOKENSAVER_API_URL": "https://tokensavermcp.com"
+      }
     }
   }
 }
@@ -337,8 +348,10 @@ configuration. For example in `%USERPROFILE%\.mcp.json` (Visual Studio) or
   "servers": {
     "tokensaver": {
       "type": "stdio",
-      "command": "tokensaver-mcp",
+      "command": "dotnet",
+      "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
       "env": {
+        "TOKENSAVER_API_URL": "https://tokensavermcp.com",
         "TOKENSAVER_NO_TELEMETRY": "1"
       }
     }
