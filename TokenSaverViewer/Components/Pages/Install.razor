@@ -1,5 +1,4 @@
 @page "/install"
-@inject IJSRuntime JS
 
 <PageTitle>Install TokenSaver</PageTitle>
 
@@ -60,10 +59,7 @@
         <p class="client-desc">Run once in your terminal — installs globally across all projects (<code>-s user</code>):</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@claudeCodeSnippet</code></pre>
-            <button class='copy-btn @(_copied.Contains("claudecode") ? "copied" : "")'
-                    @onclick='() => Copy(claudeCodeSnippet, "claudecode")'>
-                @(_copied.Contains("claudecode") ? "Copied!" : "Copy")
-            </button>
+            <button class="copy-btn" data-copy-text="@claudeCodeSnippet" onclick="handleCopy(this)">Copy</button>
         </div>
     </div>
 
@@ -75,10 +71,7 @@
         <p class="client-desc">Add to <code>~/.cursor/mcp.json</code>:</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@cursorSnippet</code></pre>
-            <button class='copy-btn @(_copied.Contains("cursor") ? "copied" : "")'
-                    @onclick='() => Copy(cursorSnippet, "cursor")'>
-                @(_copied.Contains("cursor") ? "Copied!" : "Copy")
-            </button>
+            <button class="copy-btn" data-copy-text="@cursorSnippet" onclick="handleCopy(this)">Copy</button>
         </div>
     </div>
 
@@ -90,10 +83,7 @@
         <p class="client-desc">Add to <code>claude_desktop_config.json</code>:</p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@claudeSnippet</code></pre>
-            <button class='copy-btn @(_copied.Contains("claudedesktop") ? "copied" : "")'
-                    @onclick='() => Copy(claudeSnippet, "claudedesktop")'>
-                @(_copied.Contains("claudedesktop") ? "Copied!" : "Copy")
-            </button>
+            <button class="copy-btn" data-copy-text="@claudeSnippet" onclick="handleCopy(this)">Copy</button>
         </div>
     </div>
 
@@ -108,20 +98,14 @@
         </p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>@cliSnippet</code></pre>
-            <button class='copy-btn @(_copied.Contains("cli") ? "copied" : "")'
-                    @onclick='() => Copy(cliSnippet, "cli")'>
-                @(_copied.Contains("cli") ? "Copied!" : "Copy")
-            </button>
+            <button class="copy-btn" data-copy-text="@cliSnippet" onclick="handleCopy(this)">Copy</button>
         </div>
         <p class="upgrade-note">
             To upgrade later — close Visual Studio and any Claude sessions first, then:
         </p>
         <div class="snippet-wrap">
             <pre class="snippet"><code>dotnet tool update --global TokenSaver.Mcp</code></pre>
-            <button class='copy-btn @(_copied.Contains("upgrade") ? "copied" : "")'
-                    @onclick='() => Copy("dotnet tool update --global TokenSaver.Mcp", "upgrade")'>
-                @(_copied.Contains("upgrade") ? "Copied!" : "Copy")
-            </button>
+            <button class="copy-btn" data-copy-text="dotnet tool update --global TokenSaver.Mcp" onclick="handleCopy(this)">Copy</button>
         </div>
     </div>
 </section>
@@ -320,19 +304,21 @@
     }
 </style>
 
-@code {
-    private readonly HashSet<string> _copied = new();
-
-    private async Task Copy(string text, string key)
-    {
-        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text.Trim());
-        _copied.Add(key);
-        StateHasChanged();
-        await Task.Delay(2000);
-        _copied.Remove(key);
-        StateHasChanged();
+<script>
+    function handleCopy(btn) {
+        var text = btn.getAttribute('data-copy-text').trim();
+        navigator.clipboard.writeText(text).then(function () {
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(function () {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        });
     }
+</script>
 
+@code {
     private const string claudeCodeSnippet =
         "claude mcp add -s user tokensaver -- dotnet tool execute TokenSaver.Mcp --yes";
 
