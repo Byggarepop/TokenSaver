@@ -19,8 +19,10 @@
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
-7. Once NuGet publish completes, update the MCP Registry:
+7. Once NuGet publish completes, update the MCP Registry — log in immediately
+   before publishing since the session token expires quickly:
    ```
+   mcp-publisher login github
    mcp-publisher publish
    ```
 
