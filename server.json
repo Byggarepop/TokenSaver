@@ -13,6 +13,13 @@
       "registryType": "nuget",
       "identifier": "TokenSaver.Mcp",
       "version": "1.7.1",
+      "runtimeHint": "dnx",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--yes"
+        }
+      ],
       "transport": {
         "type": "stdio"
       },
