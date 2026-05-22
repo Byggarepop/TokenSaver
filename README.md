@@ -65,6 +65,8 @@ This is the universal fallback — writes config for all detected clients in one
 
 > If `dotnet tool execute` isn't recognized, you need [.NET 10 SDK](https://dotnet.microsoft.com/download) or later.
 
+> **Maintainer:** when publishing a new NuGet version, update the `"version"` fields in `server.json` and run `mcp-publisher publish` to keep the MCP Registry entry in sync.
+
 ---
 
 ## What the tools do

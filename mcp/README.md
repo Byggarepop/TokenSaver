@@ -171,6 +171,10 @@ tokensaver-mcp print-instructions
 dotnet tool update --global TokenSaver.Mcp
 ```
 
+> **Maintainer note:** when publishing a new NuGet version, also update the
+> `"version"` fields in `server.json` (repo root) to match, then run
+> `mcp-publisher publish` to keep the MCP Registry entry current.
+
 **Close all MCP clients before running this.** The old server process must not
 be running when the tool is replaced on disk — dotnet will fail or silently
 install alongside the old binary if the executable is locked.
