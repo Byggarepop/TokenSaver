@@ -1,4 +1,5 @@
 @page "/install"
+@inject IJSRuntime JS
 
 <PageTitle>Install TokenSaver</PageTitle>
 
@@ -57,7 +58,13 @@
             <h2>Claude Code</h2>
         </div>
         <p class="client-desc">Run once in your terminal — installs globally across all projects (<code>-s user</code>):</p>
-        <pre class="snippet"><code>@claudeCodeSnippet</code></pre>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@claudeCodeSnippet</code></pre>
+            <button class="copy-btn @(_copied.Contains("claudecode") ? "copied" : "")"
+                    @onclick="() => Copy(claudeCodeSnippet, "claudecode")">
+                @(_copied.Contains("claudecode") ? "Copied!" : "Copy")
+            </button>
+        </div>
     </div>
 
     <div class="client-block">
@@ -66,7 +73,13 @@
             <h2>Cursor</h2>
         </div>
         <p class="client-desc">Add to <code>~/.cursor/mcp.json</code>:</p>
-        <pre class="snippet"><code>@cursorSnippet</code></pre>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@cursorSnippet</code></pre>
+            <button class="copy-btn @(_copied.Contains("cursor") ? "copied" : "")"
+                    @onclick="() => Copy(cursorSnippet, "cursor")">
+                @(_copied.Contains("cursor") ? "Copied!" : "Copy")
+            </button>
+        </div>
     </div>
 
     <div class="client-block">
@@ -75,7 +88,13 @@
             <h2>Claude Desktop</h2>
         </div>
         <p class="client-desc">Add to <code>claude_desktop_config.json</code>:</p>
-        <pre class="snippet"><code>@claudeSnippet</code></pre>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@claudeSnippet</code></pre>
+            <button class="copy-btn @(_copied.Contains("claudedesktop") ? "copied" : "")"
+                    @onclick="() => Copy(claudeSnippet, "claudedesktop")">
+                @(_copied.Contains("claudedesktop") ? "Copied!" : "Copy")
+            </button>
+        </div>
     </div>
 
     <div class="client-block client-block-fallback">
@@ -87,11 +106,23 @@
             The <code>register</code> command detects installed MCP clients and writes the config for all of them in one shot.
             Recommended for CI and scripted setup.
         </p>
-        <pre class="snippet"><code>@cliSnippet</code></pre>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@cliSnippet</code></pre>
+            <button class="copy-btn @(_copied.Contains("cli") ? "copied" : "")"
+                    @onclick="() => Copy(cliSnippet, "cli")">
+                @(_copied.Contains("cli") ? "Copied!" : "Copy")
+            </button>
+        </div>
         <p class="upgrade-note">
             To upgrade later — close Visual Studio and any Claude sessions first, then:
         </p>
-        <pre class="snippet"><code>dotnet tool update --global TokenSaver.Mcp</code></pre>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>dotnet tool update --global TokenSaver.Mcp</code></pre>
+            <button class="copy-btn @(_copied.Contains("upgrade") ? "copied" : "")"
+                    @onclick="() => Copy("dotnet tool update --global TokenSaver.Mcp", "upgrade")">
+                @(_copied.Contains("upgrade") ? "Copied!" : "Copy")
+            </button>
+        </div>
     </div>
 </section>
 
@@ -232,21 +263,54 @@
     .btn-vscode          { background: #0078d4; color: #fff; }
     .btn-vscode-insiders { background: #24bfa5; color: #fff; }
 
+    .snippet-wrap {
+        position: relative;
+        margin: 0 0 0.75rem;
+    }
+
+    .snippet-wrap:last-child {
+        margin-bottom: 0;
+    }
+
     .snippet {
         background: #1e1e2e;
         color: #cdd6f4;
         border-radius: 8px;
         padding: 1rem 1.25rem;
+        padding-right: 5.5rem;
         font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
         font-size: 0.88rem;
         line-height: 1.6;
         overflow-x: auto;
-        margin: 0 0 0.75rem;
+        margin: 0;
         white-space: pre;
     }
 
-    .snippet:last-child {
-        margin-bottom: 0;
+    .copy-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        background: #313244;
+        color: #cdd6f4;
+        border: 1px solid #45475a;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+        cursor: pointer;
+        transition: background 0.1s ease, color 0.1s ease;
+        white-space: nowrap;
+    }
+
+    .copy-btn:hover {
+        background: #45475a;
+        color: #fff;
+    }
+
+    .copy-btn.copied {
+        background: #1f7a37;
+        border-color: #2a9d4a;
+        color: #d4f4dc;
     }
 
     .upgrade-note {
@@ -257,6 +321,18 @@
 </style>
 
 @code {
+    private readonly HashSet<string> _copied = new();
+
+    private async Task Copy(string text, string key)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text.Trim());
+        _copied.Add(key);
+        StateHasChanged();
+        await Task.Delay(2000);
+        _copied.Remove(key);
+        StateHasChanged();
+    }
+
     private const string claudeCodeSnippet =
         "claude mcp add -s user tokensaver -- dotnet tool execute TokenSaver.Mcp --yes";
 
