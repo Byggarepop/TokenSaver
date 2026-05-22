@@ -1,5 +1,7 @@
 # TokenSaver.Mcp
 
+<!-- mcp-name: io.github.byggarepop/tokensaver -->
+
 An MCP server built for **.NET developers** — it gives your AI assistant a
 token-efficient view of C#, Razor, and .NET project files using the Roslyn
 compiler platform. Typical reduction: **50–95 %** on C# files with no loss
@@ -168,6 +170,10 @@ tokensaver-mcp print-instructions
 ```
 dotnet tool update --global TokenSaver.Mcp
 ```
+
+> **Maintainer note:** when publishing a new NuGet version, also update the
+> `"version"` fields in `server.json` (repo root) to match, then run
+> `mcp-publisher publish` to keep the MCP Registry entry current.
 
 **Close all MCP clients before running this.** The old server process must not
 be running when the tool is replaced on disk — dotnet will fail or silently
