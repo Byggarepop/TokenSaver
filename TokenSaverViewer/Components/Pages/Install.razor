@@ -25,7 +25,7 @@
         </div>
         <p class="client-desc">Opens Visual Studio and adds the server to your <code>.mcp.json</code> in one click.</p>
         <a class="install-btn btn-vs"
-           href="https://vs-open.link/mcp-install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+           href="https://vs-open.link/mcp-install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D"
            target="_blank" rel="noopener">
             Install in Visual Studio
         </a>
@@ -39,12 +39,12 @@
         <p class="client-desc">Adds the server to Copilot Chat's MCP configuration.</p>
         <div class="btn-row">
             <a class="install-btn btn-vscode"
-               href="https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+               href="https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D"
                target="_blank" rel="noopener">
                 Install in VS Code
             </a>
             <a class="install-btn btn-vscode-insiders"
-               href="https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+               href="https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D"
                target="_blank" rel="noopener">
                 Install in VS Code Insiders
             </a>
@@ -306,7 +306,7 @@
 
 @code {
     private const string claudeCodeSnippet =
-        "claude mcp add -s user tokensaver -- dotnet tool execute TokenSaver.Mcp --yes";
+        "claude mcp add -s user -e TOKENSAVER_API_URL=https://tokensavermcp.com tokensaver -- dotnet tool execute TokenSaver.Mcp --yes";
 
     private const string cursorSnippet =
         """
@@ -314,7 +314,8 @@
           "mcpServers": {
             "tokensaver": {
               "command": "dotnet",
-              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"]
+              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+              "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
             }
           }
         }
@@ -326,7 +327,8 @@
           "mcpServers": {
             "tokensaver": {
               "command": "dotnet",
-              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"]
+              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+              "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
             }
           }
         }
