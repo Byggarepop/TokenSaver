@@ -7,12 +7,12 @@
     "url": "https://github.com/Byggarepop/TokenSaver",
     "source": "github"
   },
-  "version": "1.7.1",
+  "version": "1.7.2",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "TokenSaver.Mcp",
-      "version": "1.7.1",
+      "version": "1.7.2",
       "runtimeHint": "dnx",
       "runtimeArguments": [
         {

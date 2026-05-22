@@ -4,6 +4,13 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-05-22
+
+### Fixed
+- Add `runtimeHint: dnx` and `runtimeArguments: --yes` to `server.json` so
+  Visual Studio and other clients can install the server directly from the
+  MCP Registry without manual configuration.
+
 ## [1.7.1] - 2026-05-22
 
 ### Fixed
