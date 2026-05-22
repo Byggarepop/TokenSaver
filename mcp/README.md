@@ -1,6 +1,6 @@
 # TokenSaver.Mcp
 
-<!-- mcp-name: io.github.byggarepop/tokensaver -->
+<!-- mcp-name: io.github.Byggarepop/tokensaver -->
 
 An MCP server built for **.NET developers** — it gives your AI assistant a
 token-efficient view of C#, Razor, and .NET project files using the Roslyn
