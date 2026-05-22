@@ -1,0 +1,278 @@
+@page "/install"
+
+<PageTitle>Install TokenSaver</PageTitle>
+
+<section class="hero-small">
+    <div class="hero-inner">
+        <h1>Install TokenSaver</h1>
+        <p class="lead">
+            One click for <strong>Visual Studio</strong> and <strong>VS Code</strong>.
+            JSON snippets for Cursor, Claude Desktop, and anything else that speaks stdio.
+        </p>
+        <p class="how">
+            Requires <strong>.NET 10 SDK</strong> or later. The server downloads automatically
+            on first use — no separate install step.
+        </p>
+    </div>
+</section>
+
+<section class="install-section">
+    <div class="client-block">
+        <div class="client-header">
+            <span class="client-icon vs-icon">VS</span>
+            <h2>Visual Studio 2026 / 2022 17.14+</h2>
+        </div>
+        <p class="client-desc">Opens Visual Studio and adds the server to your <code>.mcp.json</code> in one click.</p>
+        <a class="install-btn btn-vs"
+           href="https://vs-open.link/mcp-install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+           target="_blank" rel="noopener">
+            Install in Visual Studio
+        </a>
+    </div>
+
+    <div class="client-block">
+        <div class="client-header">
+            <span class="client-icon vscode-icon">VS&#8203;Code</span>
+            <h2>VS Code</h2>
+        </div>
+        <p class="client-desc">Adds the server to Copilot Chat's MCP configuration.</p>
+        <div class="btn-row">
+            <a class="install-btn btn-vscode"
+               href="https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+               target="_blank" rel="noopener">
+                Install in VS Code
+            </a>
+            <a class="install-btn btn-vscode-insiders"
+               href="https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%7D"
+               target="_blank" rel="noopener">
+                Install in VS Code Insiders
+            </a>
+        </div>
+    </div>
+
+    <div class="client-block">
+        <div class="client-header">
+            <span class="client-icon cursor-icon">↗</span>
+            <h2>Cursor</h2>
+        </div>
+        <p class="client-desc">Add to <code>~/.cursor/mcp.json</code>:</p>
+        <pre class="snippet"><code>@cursorSnippet</code></pre>
+    </div>
+
+    <div class="client-block">
+        <div class="client-header">
+            <span class="client-icon claude-icon">♦</span>
+            <h2>Claude Desktop</h2>
+        </div>
+        <p class="client-desc">Add to <code>claude_desktop_config.json</code>:</p>
+        <pre class="snippet"><code>@claudeSnippet</code></pre>
+    </div>
+
+    <div class="client-block client-block-fallback">
+        <div class="client-header">
+            <span class="client-icon cli-icon">&gt;_</span>
+            <h2>Other clients, or install everywhere at once</h2>
+        </div>
+        <p class="client-desc">
+            The <code>register</code> command detects installed MCP clients and writes the config for all of them in one shot.
+            Recommended for CI and scripted setup.
+        </p>
+        <pre class="snippet"><code>@cliSnippet</code></pre>
+        <p class="upgrade-note">
+            To upgrade later — close Visual Studio and any Claude sessions first, then:
+        </p>
+        <pre class="snippet"><code>dotnet tool update --global TokenSaver.Mcp</code></pre>
+    </div>
+</section>
+
+<style>
+    .hero-small {
+        background: linear-gradient(135deg, #0d2b4e 0%, #1a4a7a 60%, #2d7dd2 100%);
+        color: #fff;
+        padding: 2.5rem 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(13, 43, 78, 0.25);
+    }
+
+    .hero-small .hero-inner {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .hero-small h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-small .lead {
+        font-size: 1.15rem;
+        margin: 0 0 0.5rem;
+        opacity: 0.95;
+    }
+
+    .hero-small .lead strong {
+        color: #b5f0c4;
+    }
+
+    .hero-small .how {
+        margin: 0;
+        opacity: 0.75;
+        font-size: 0.95rem;
+    }
+
+    .hero-small .how strong {
+        color: #b5f0c4;
+        opacity: 1;
+    }
+
+    .install-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .client-block {
+        border: 1px solid #e3e5e8;
+        border-radius: 10px;
+        padding: 1.5rem 1.75rem;
+        background: #fff;
+    }
+
+    .client-block-fallback {
+        background: #f9fafc;
+        border-color: #d0d4da;
+    }
+
+    .client-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .client-header h2 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0;
+        color: #1a1a1a;
+    }
+
+    .client-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        letter-spacing: -0.03em;
+    }
+
+    .vs-icon     { background: #68217a; color: #fff; }
+    .vscode-icon { background: #0078d4; color: #fff; font-size: 0.6rem; }
+    .cursor-icon { background: #1a1a1a; color: #fff; font-size: 1rem; font-weight: 400; }
+    .claude-icon { background: #d97706; color: #fff; font-size: 1rem; }
+    .cli-icon    { background: #2a2a2a; color: #b5f0c4; font-size: 0.75rem; font-family: ui-monospace, monospace; }
+
+    .client-desc {
+        font-size: 0.95rem;
+        color: #555;
+        margin: 0 0 1rem;
+    }
+
+    .client-desc code {
+        font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+        font-size: 0.88em;
+        background: #eef0f3;
+        padding: 0.1rem 0.35rem;
+        border-radius: 3px;
+        color: #1a4a7a;
+    }
+
+    .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .install-btn {
+        display: inline-block;
+        padding: 0.55rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: filter 0.12s ease, transform 0.12s ease;
+    }
+
+    .install-btn:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .btn-vs              { background: #68217a; color: #fff; }
+    .btn-vscode          { background: #0078d4; color: #fff; }
+    .btn-vscode-insiders { background: #24bfa5; color: #fff; }
+
+    .snippet {
+        background: #1e1e2e;
+        color: #cdd6f4;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+        font-size: 0.88rem;
+        line-height: 1.6;
+        overflow-x: auto;
+        margin: 0 0 0.75rem;
+        white-space: pre;
+    }
+
+    .snippet:last-child {
+        margin-bottom: 0;
+    }
+
+    .upgrade-note {
+        font-size: 0.9rem;
+        color: #666;
+        margin: 0.75rem 0 0.5rem;
+    }
+</style>
+
+@code {
+    private const string cursorSnippet =
+        """
+        {
+          "mcpServers": {
+            "tokensaver": {
+              "command": "dotnet",
+              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"]
+            }
+          }
+        }
+        """;
+
+    private const string claudeSnippet =
+        """
+        {
+          "mcpServers": {
+            "tokensaver": {
+              "command": "dotnet",
+              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"]
+            }
+          }
+        }
+        """;
+
+    private const string cliSnippet =
+        """
+        dotnet tool install -g TokenSaver.Mcp
+        tokensaver-mcp register
+        """;
+}
