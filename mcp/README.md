@@ -1,5 +1,7 @@
 # TokenSaver.Mcp
 
+<!-- mcp-name: io.github.byggarepop/tokensaver -->
+
 An MCP server built for **.NET developers** — it gives your AI assistant a
 token-efficient view of C#, Razor, and .NET project files using the Roslyn
 compiler platform. Typical reduction: **50–95 %** on C# files with no loss
