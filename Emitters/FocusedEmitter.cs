@@ -911,26 +911,29 @@ public sealed class FocusedEmitter
     private static string? ToSignature(MemberDeclarationSyntax member) => member switch
     {
         MethodDeclarationSyntax m =>
-            $"{Mods(m.Modifiers)} {m.ReturnType} {m.Identifier}{m.TypeParameterList}{m.ParameterList};",
+            $"{Prefix(m.Modifiers)}{m.ReturnType} {m.Identifier}{m.TypeParameterList}{m.ParameterList};",
         PropertyDeclarationSyntax p =>
-            $"{Mods(p.Modifiers)} {p.Type} {p.Identifier} {PropertyAccessors(p)}",
+            $"{Prefix(p.Modifiers)}{p.Type} {p.Identifier} {PropertyAccessors(p)}",
         FieldDeclarationSyntax f =>
-            $"{Mods(f.Modifiers)} {f.Declaration.Type} {string.Join(", ", f.Declaration.Variables.Select(v => v.Identifier.Text))};",
+            $"{Prefix(f.Modifiers)}{f.Declaration.Type} {string.Join(", ", f.Declaration.Variables.Select(v => v.Identifier.Text))};",
         ConstructorDeclarationSyntax c =>
-            $"{Mods(c.Modifiers)} {c.Identifier}{c.ParameterList};",
+            $"{Prefix(c.Modifiers)}{c.Identifier}{c.ParameterList};",
         EventFieldDeclarationSyntax e =>
-            $"{Mods(e.Modifiers)} event {e.Declaration};",
+            $"{Prefix(e.Modifiers)}event {e.Declaration};",
         IndexerDeclarationSyntax i =>
-            $"{Mods(i.Modifiers)} {i.Type} this{i.ParameterList} {AccessorBlock(i.AccessorList, i.ExpressionBody is not null)}",
+            $"{Prefix(i.Modifiers)}{i.Type} this{i.ParameterList} {AccessorBlock(i.AccessorList, i.ExpressionBody is not null)}",
         OperatorDeclarationSyntax o =>
-            $"{Mods(o.Modifiers)} {o.ReturnType} operator {o.OperatorToken}{o.ParameterList};",
+            $"{Prefix(o.Modifiers)}{o.ReturnType} operator {o.OperatorToken}{o.ParameterList};",
         ConversionOperatorDeclarationSyntax cv =>
-            $"{Mods(cv.Modifiers)} {cv.ImplicitOrExplicitKeyword} operator {cv.Type}{cv.ParameterList};",
+            $"{Prefix(cv.Modifiers)}{cv.ImplicitOrExplicitKeyword} operator {cv.Type}{cv.ParameterList};",
         _ => null
     };
 
     private static string Mods(SyntaxTokenList tokens) =>
         string.Join(" ", tokens.Select(t => t.Text));
+
+    private static string Prefix(SyntaxTokenList tokens) =>
+        tokens.Count == 0 ? "" : Mods(tokens) + " ";
 
     private static string IndentLines(string text, string indent) =>
         string.Join('\n', text.Split('\n').Select(l => indent + l));
@@ -941,6 +944,15 @@ public sealed class FocusedEmitter
     /// </summary>
     private static bool IsPrivate(MemberDeclarationSyntax member)
     {
+        // Interface members are implicitly public unless explicitly marked private.
+        if (member.Parent is InterfaceDeclarationSyntax)
+            return member switch
+            {
+                BaseMethodDeclarationSyntax m => m.Modifiers.Any(t => t.IsKind(SyntaxKind.PrivateKeyword)),
+                BasePropertyDeclarationSyntax p => p.Modifiers.Any(t => t.IsKind(SyntaxKind.PrivateKeyword)),
+                _ => false
+            };
+
         SyntaxTokenList mods = member switch
         {
             BaseMethodDeclarationSyntax m => m.Modifiers,
