@@ -1,8 +1,8 @@
 # TokenSaver — Test Report
 
-_Generated: 2026-05-19 22:06_
+_Generated: 2026-05-23 16:51_
 
-**109/109 scenarios passed.**
+**112/112 scenarios passed.**
 
 ## Results
 
@@ -22,8 +22,8 @@ _Generated: 2026-05-19 22:06_
 | Alias_OutputReparsesCleanly | PASS | 441 | 246 | 44,3% | aliased output parses without errors |
 | Generics_And_Records_Survive_Minify | PASS | 168 | 149 | 11,3% | records, generic constraints, and switch arms survive |
 | TaskRealism_FocusOutputContainsAnswerableLogic | PASS | 441 | 355 | 19,4% | focus output contains the zero-branch, bias, and clamp — enough to answer the task |
-| RealWorld_Minify_LargeSourceFile | PASS | 11568 | 6497 | 43,8% | FocusedEmitter.cs minified losslessly; 43,8% saved |
-| RealWorld_Focus_LargeSourceFile | PASS | 11568 | 3141 | 72,8% | Focus on Emit with depth=1: 72,8% reduction with helpers preserved |
+| RealWorld_Minify_LargeSourceFile | PASS | 11714 | 6593 | 43,7% | FocusedEmitter.cs minified losslessly; 43,7% saved |
+| RealWorld_Focus_LargeSourceFile | PASS | 11714 | 3141 | 73,2% | Focus on Emit with depth=1: 73,2% reduction with helpers preserved |
 | Js_Minify_StripsComments | PASS | 153 | 85 | 44,3% | all // and /* */ comment forms stripped |
 | Js_Minify_PreservesStringContents | PASS | 153 | 85 | 44,3% | strings, escapes, and template literals preserved verbatim |
 | Js_Minify_SavesTokens | PASS | 153 | 85 | 44,3% | sample.js minified; 44,3% saved |
@@ -98,6 +98,9 @@ _Generated: 2026-05-19 22:06_
 | FocusCallers_FindsCallingMethods | PASS | 441 | 264 | 40,0% | EmitCallers found Run as the caller of WeightedSum |
 | FocusCallers_NotFound_WhenNoCallers | PASS | — | — | — | EmitCallers returns not-found when no method calls the target |
 | Focus_Depth1_ExpandsPrivatePropertyBody | PASS | 108 | 88 | 19,1% | depth=1 expanded private property body (Scaled getter present in output) |
+| Interface_Outline_NoLeadingSpaceOnSignatures | PASS | 98 | 48 | 51,4% | interface member signatures have no extra leading space from empty modifier list |
+| Interface_FocusType_DefaultImplHasBody_PrivateIsSignature | PASS | 98 | 85 | 13,4% | default interface impl has full body; private method is signature only |
+| Interface_FocusMethod_FindsAbstractMethod | PASS | 98 | 29 | 69,9% | FocusMethod finds abstract interface method by name |
 | Vb_Registry_DispatchesByExtension | PASS | — | — | — | .vb dispatched to VBEmitter |
 | Vb_Minify_StripsComments | PASS | 493 | 347 | 29,5% | ' and REM comments stripped; logic preserved |
 | Vb_Minify_CollapsesBlankRuns | PASS | 493 | 347 | 29,5% | blank-line runs collapsed to at most one blank |
@@ -112,7 +115,7 @@ _Generated: 2026-05-19 22:06_
 | Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod | PASS | — | — | — | empty list for unknown method name |
 | Traversal_FindImplementors_FindsImplementingTypes | PASS | — | — | — | Circle and Square found as implementors of IShape |
 | Traversal_FindImplementors_ReturnsEmptyForUnknownInterface | PASS | — | — | — | empty list for unknown interface name |
-| Traversal_AcceptsCsprojPath | PASS | — | — | — | .csproj path accepted; 14 file(s) scanned |
+| Traversal_AcceptsCsprojPath | PASS | — | — | — | .csproj path accepted; 15 file(s) scanned |
 | McpTool_SecondCallReturnsReparseSkipped | PASS | — | — | — | first call fresh, second call re-parse skipped with full output |
 | Cache_MissOnFirstCall | PASS | — | — | — | cold cache returns false |
 | Cache_HitOnSecondCall | PASS | — | — | — | cache hit returns full output with [re-parse skipped] on header |

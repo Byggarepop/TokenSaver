@@ -107,6 +107,11 @@ internal static class Program
         Run("FocusCallers_NotFound_WhenNoCallers", FocusCallers_NotFound_WhenNoCallers);
         Run("Focus_Depth1_ExpandsPrivatePropertyBody", Focus_Depth1_ExpandsPrivatePropertyBody);
 
+        // ---------- C# interfaces ----------
+        Run("Interface_Outline_NoLeadingSpaceOnSignatures", Interface_Outline_NoLeadingSpaceOnSignatures);
+        Run("Interface_FocusType_DefaultImplHasBody_PrivateIsSignature", Interface_FocusType_DefaultImplHasBody_PrivateIsSignature);
+        Run("Interface_FocusMethod_FindsAbstractMethod", Interface_FocusMethod_FindsAbstractMethod);
+
         // ---------- VB.NET ----------
         Run("Vb_Registry_DispatchesByExtension", Vb_Registry_DispatchesByExtension);
         Run("Vb_Minify_StripsComments", Vb_Minify_StripsComments);
@@ -1623,6 +1628,58 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "depth=1 expanded private property body (Scaled getter present in output)"
                : $"found={r.Found} propBody={hasPropertyBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- C# interfaces ----------
+
+    private static TestOutcome Interface_Outline_NoLeadingSpaceOnSignatures()
+    {
+        // Before the Prefix() fix, modifier-less members produced " double Compute(...)"
+        // (empty Mods() + space + type). The outline indents by 4 spaces, so the line
+        // became "     double" (5 spaces) instead of "    double" (4 spaces).
+        var path = Fixture("SampleInterface.cs");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var hasCorrectIndent = r.Output.Contains("    double Compute(");  // 4 spaces, no extra
+        var hasExtraSpace    = r.Output.Contains("     double Compute("); // 5 spaces = bug
+
+        var ok = r.Found && hasCorrectIndent && !hasExtraSpace;
+        return new TestOutcome(ok,
+            ok ? "interface member signatures have no extra leading space from empty modifier list"
+               : $"found={r.Found} correct={hasCorrectIndent} extraSpace={hasExtraSpace}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Interface_FocusType_DefaultImplHasBody_PrivateIsSignature()
+    {
+        // After the IsPrivate fix, modifier-less interface members are treated as non-private
+        // (public by default). EmitType should show their full body. An explicitly private
+        // interface member should still be signature only.
+        var path = Fixture("SampleInterface.cs");
+        var r = new FocusedEmitter(path).EmitType("ICalculator");
+
+        var hasDefaultBody = r.Output.Contains("* 2.0");      // ComputeWithDefault body
+        var hasPrivateSig  = r.Output.Contains("Scale");      // private method still listed
+        var noPrivateBody  = !r.Output.Contains("v / 100.0"); // private body must NOT appear
+
+        var ok = r.Found && hasDefaultBody && hasPrivateSig && noPrivateBody;
+        return new TestOutcome(ok,
+            ok ? "default interface impl has full body; private method is signature only"
+               : $"found={r.Found} defaultBody={hasDefaultBody} privSig={hasPrivateSig} noPrivBody={noPrivateBody}",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Interface_FocusMethod_FindsAbstractMethod()
+    {
+        // FocusMethod must locate a plain (abstract) interface method by name.
+        var path = Fixture("SampleInterface.cs");
+        var r = new FocusedEmitter(path).Emit("Compute", depth: 0);
+
+        var ok = r.Found && r.Output.Contains("Compute");
+        return new TestOutcome(ok,
+            ok ? "FocusMethod finds abstract interface method by name"
+               : $"found={r.Found}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
