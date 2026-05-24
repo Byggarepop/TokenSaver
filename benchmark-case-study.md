@@ -117,6 +117,121 @@ price discount.
 
 ---
 
+---
+
+## Case Study 2: Add a new method to an existing class
+
+**Task:** Add a `Prune(int keepDays)` method to `ReportWriter.cs` — removes entries
+older than N days from the JSON report file, following the same lock + load pattern
+as the existing `Append` method.
+
+This exercise was performed live. File: `Reporting/ReportWriter.cs` (88 lines).
+Every token count below is taken directly from the tool's own header line, e.g.
+`// Tokens without tool: 682 → with tool: 164 (75% saved)`. No estimates.
+
+---
+
+### Agentic flow — With TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Navigate the class | `outline_c_sharp_file` | **164** | Tool header: `with tool: 164` |
+| Read `Append` + `LoadOrRecover` bodies | `focus_method` (depth=1, minify) | **288** | Tool header: `with tool: 288` |
+| Read raw file for `Edit` | `Read` | **682** | Tool header: `without tool: 682` (same file, no MCP reduction possible here) |
+| **Total** | | **1,134** | |
+
+---
+
+### Agentic flow — Without TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Read the file | `Read` | **682** | Tool header: `without tool: 682` |
+| **Total** | | **682** | |
+
+One Read call gives everything an agent needs: class structure, method bodies, and exact
+text for the `Edit` call.
+
+---
+
+### Comparison
+
+```
+With TokenSaver:    ████████████████████████████████████░░░░░░░   1,134 tokens
+Without TokenSaver: █████████████████████░░░░░░░░░░░░░░░░░░░░░     682 tokens
+```
+
+| Metric | Value |
+|---|---|
+| Overhead | **+452 tokens (+66%)** |
+| Result quality | Identical — one correct `Edit`, zero errors |
+
+**For small files, TokenSaver adds overhead on edit tasks.** The outline and focus steps
+cost 452 tokens to produce understanding that a single `Read` would also provide — and
+the Edit-prep `Read` (682 tokens) cannot be eliminated regardless. The overhead only
+pays off when the file is large enough that the Edit-prep step can be a targeted partial
+read rather than a full file read.
+
+The numbers from Case Study 1 illustrate the crossover: `FocusedEmitter.cs` costs
+11,568 tokens to `Read` in full, but only 1,074 to outline and 208 to focus on the
+target method. On a file that size, outline + focus + a targeted partial read of the
+insertion region comes in well under 2,000 tokens — an 83%+ reduction.
+
+---
+
+## Case Study 3: Answer a code-review question about a method
+
+**Task:** A reviewer asks: "Can we avoid re-serializing the entire file on every
+`Append` call?" Determine whether the concern is valid by reading the write path.
+
+This is a pure comprehension task — no edit. File: `Reporting/ReportWriter.cs`.
+
+---
+
+All token counts below are taken directly from the tool's own header line. No estimates.
+
+### Agentic flow — With TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Read `Append` + `LoadOrRecover` bodies | `focus_method` (depth=1, minify) | **288** | Tool header: `with tool: 288` |
+| **Total** | | **288** | |
+
+Result: every `Append` call deserializes the whole file, appends one entry, then
+re-serializes it in full — confirmed O(n) write. The concern is valid.
+
+---
+
+### Agentic flow — Without TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Read the file | `Read` | **682** | Tool header: `without tool: 682` |
+| **Total** | | **682** | |
+
+Only ~30 lines across two methods are relevant to the question. The remaining 58 lines
+enter context regardless.
+
+---
+
+### Comparison
+
+```
+With TokenSaver:    ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   288 tokens
+Without TokenSaver: ████████████████████████████░░░░░░░░░░░░░░░   682 tokens
+```
+
+| Metric | Value |
+|---|---|
+| Tokens saved | **394** |
+| Reduction | **58%** |
+| Result quality | Identical — same correct analysis |
+
+Comprehension tasks have no unavoidable Edit-prep Read, so TokenSaver captures the
+full saving. The smaller and more focused the question, the larger the proportional win.
+
+---
+
 ## Test file
 
 `Emitters/FocusedEmitter.cs` — 1,004 lines, part of the open-source

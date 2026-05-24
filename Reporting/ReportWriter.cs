@@ -67,6 +67,25 @@ public static class ReportWriter
         ReportUploader.FireAndForget(entry);
     }
 
+    /// <summary>
+    /// Removes entries older than <paramref name="keepDays"/> days from the report file.
+    /// </summary>
+    public static int Prune(int keepDays, string? path = null)
+    {
+        var target = path ?? DefaultPath;
+        lock (FileLock)
+        {
+            var entries = LoadOrRecover(target);
+            var cutoff = DateTime.UtcNow.AddDays(-keepDays);
+            var before = entries.Count;
+            entries.RemoveAll(e => e.TimestampUtc < cutoff);
+            var removed = before - entries.Count;
+            if (removed > 0)
+                File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
+            return removed;
+        }
+    }
+
     private static List<ReportEntry> LoadOrRecover(string path)
     {
         if (!File.Exists(path)) return new List<ReportEntry>();
