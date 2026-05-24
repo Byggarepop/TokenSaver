@@ -4,6 +4,41 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-05-24
+
+### Fixed
+- `FocusType` incorrectly classified all interface members as private and hid
+  default interface implementation bodies. `IsPrivate` now exempts interface
+  members (implicitly public) and only marks a member private when it carries an
+  explicit `private` keyword.
+- Leading-space artifact in signatures of interface methods and other
+  implicit-access members: `ToSignature` now uses a `Prefix()` helper that only
+  appends a trailing space when modifiers are non-empty.
+- Three tests added covering both fixed behaviours (112/112 passing).
+
+### Changed
+- Token counts in every tool result header now use the **tiktoken cl100k_base**
+  BPE tokenizer (via `Microsoft.ML.Tokenizers`) instead of the previous
+  char÷4 heuristic. Before/after numbers and savings percentages now reflect
+  real token counts. The vocabulary is embedded — no network download required.
+- `Microsoft.Bcl.Memory` pinned to 10.0.8 to override a vulnerable 9.0.4
+  transitive dependency introduced by `Microsoft.ML.Tokenizers`.
+- `tests/TEST_REPORT.md` untracked (already in `.gitignore`; was previously
+  committed).
+- Edit-prep guidance in all three instruction files (`copilot-instructions.md`,
+  `mcp/Program.cs`, `CLAUDE.md`) clarified: use a targeted partial `Read` of
+  only the lines around the insertion point rather than a full file read.
+
+### Documentation
+- `README.md` — new **Prerequisites** section promoting the .NET 10 SDK
+  requirement before the Install section; removes the easy-to-miss footnote.
+- `README.md` — new **Claude Code** install subsection with ready-to-paste
+  `claude mcp add` command.
+- `benchmark-case-study.md` — four case studies covering comprehension, single-
+  edit, and multi-edit tasks; all token counts taken from actual tool header
+  output. Case Study 4 demonstrates 83% token reduction on a large file using
+  `FocusMultipleMethods` + `Grep` across three edits.
+
 ## [1.7.2] - 2026-05-22
 
 ### Fixed
