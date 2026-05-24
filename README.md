@@ -9,6 +9,12 @@ Works with **Visual Studio 2026** (GitHub Copilot Chat), **Claude Code**, VS Cod
 
 ---
 
+## Prerequisites
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download) or later — required to run the MCP server (`dotnet tool execute`).
+
+---
+
 ## Install
 
 ### Visual Studio 2026 / 2022 17.14+
@@ -62,8 +68,6 @@ dotnet tool update --global TokenSaver.Mcp
 ```
 
 This is the universal fallback — writes config for all detected clients in one shot, and is the recommended path for CI or scripted setup.
-
-> If `dotnet tool execute` isn't recognized, you need [.NET 10 SDK](https://dotnet.microsoft.com/download) or later.
 
 > **Maintainer:** when publishing a new NuGet version, update the `"version"` fields in `server.json` and run `mcp-publisher publish` to keep the MCP Registry entry in sync.
 
