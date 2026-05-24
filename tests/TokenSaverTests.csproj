@@ -33,6 +33,7 @@
     <Compile Include="..\Emitters\VBFocusedEmitter.cs" Link="Emitters\VBFocusedEmitter.cs" />
     <Compile Include="..\Emitters\EmissionCache.cs" Link="Emitters\EmissionCache.cs" />
     <Compile Include="..\mcp\FocusedEmitterTools.cs" Link="mcp\FocusedEmitterTools.cs" />
+    <Compile Include="..\mcp\TokenCounter.cs" Link="mcp\TokenCounter.cs" />
     <Compile Include="..\Reporting\TokenReport.cs" Link="Reporting\TokenReport.cs" />
     <Compile Include="..\Reporting\ReportWriter.cs" Link="Reporting\ReportWriter.cs" />
     <Compile Include="..\Reporting\ReportUploader.cs" Link="Reporting\ReportUploader.cs" />
@@ -48,6 +49,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="5.3.0" />
     <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.Cl100kBase" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Bcl.Memory" Version="10.0.8" />
   </ItemGroup>
 
 </Project>

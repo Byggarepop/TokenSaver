@@ -42,7 +42,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}")
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -64,8 +64,8 @@ public static class FocusedEmitterTools
             if (minify)
                 output = FocusedEmitter.MinifyText(output);
 
-            var beforeTokens = result.OriginalTokensEstimate;
-            var afterTokens = Math.Max(1, output.Length / 4);
+            var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
+            var afterTokens = TokenCounter.Count(output);
             var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
@@ -117,7 +117,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -137,12 +137,13 @@ public static class FocusedEmitterTools
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
-            var afterTokens = Math.Max(1, output.Length / 4);
-            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+            var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
+            var afterTokens = TokenCounter.Count(output);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, multiKey, depth, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            SetCached(filePath, multiKey, depth, minify, fullOutput, beforeTokens, afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -164,17 +165,15 @@ public static class FocusedEmitterTools
     {
         try
         {
+            var originalText = File.ReadAllText(filePath);
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitMinified();
 
-            var afterCharsCs = result.FocusedChars >= result.OriginalChars
-                ? result.OriginalChars
-                : result.FocusedChars;
             var bodyCs = result.FocusedChars >= result.OriginalChars
-                ? File.ReadAllText(filePath)
+                ? originalText
                 : result.Output;
 
-            return BuildHeader(result.OriginalTokensEstimate, Math.Max(1, afterCharsCs / 4), "MinifyCSharpFile", "C#", "whole-file lossless minify")
+            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(bodyCs), "MinifyCSharpFile", "C#", "whole-file lossless minify")
                  + result.Notes
                  + "\n"
                  + bodyCs;
@@ -208,16 +207,14 @@ public static class FocusedEmitterTools
             if (emitter is null)
                 return $"ERROR: No minifier registered for extension '{Path.GetExtension(filePath)}'.";
 
+            var originalText = File.ReadAllText(filePath);
             var result = emitter.Minify(filePath);
 
-            var afterChars = result.OutputChars >= result.OriginalChars
-                ? result.OriginalChars
-                : result.OutputChars;
             var body = result.OutputChars >= result.OriginalChars
-                ? File.ReadAllText(filePath)
+                ? originalText
                 : result.Output;
 
-            return BuildHeader(result.OriginalTokensEstimate, Math.Max(1, afterChars / 4), "MinifyFile", emitter.Language, $"{emitter.Language} minify")
+            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(body), "MinifyFile", emitter.Language, $"{emitter.Language} minify")
                  + result.Notes
                  + "\n"
                  + body;
@@ -245,13 +242,13 @@ public static class FocusedEmitterTools
             {
                 var vb = new VBFocusedEmitter(filePath);
                 var vbResult = vb.EmitOutline();
-                return BuildHeader(vbResult.OriginalTokensEstimate, vbResult.FocusedTokensEstimate, "OutlineCSharpFile", "VB.NET", "outline (signatures only)")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbResult.Output), "OutlineCSharpFile", "VB.NET", "outline (signatures only)")
                      + vbResult.Notes + "\n" + vbResult.Output;
             }
 
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitOutline();
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "OutlineCSharpFile", "C#", "outline (signatures only)")
+            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "OutlineCSharpFile", "C#", "outline (signatures only)")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -278,7 +275,7 @@ public static class FocusedEmitterTools
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitAliased();
 
-            return BuildHeader(result.OriginalTokensEstimate, result.FocusedTokensEstimate, "AliasCSharpFile", "C#", "aliased + minified")
+            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "AliasCSharpFile", "C#", "aliased + minified")
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -316,7 +313,7 @@ public static class FocusedEmitterTools
                            $"Available types:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "FocusType", "VB.NET", $"type={typeName} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}")
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -335,12 +332,13 @@ public static class FocusedEmitterTools
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
-            var afterTokens = Math.Max(1, output.Length / 4);
-            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
+            var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
+            var afterTokens = TokenCounter.Count(output);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, $"type:{typeName}", depth: 0, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            SetCached(filePath, $"type:{typeName}", depth: 0, minify, fullOutput, beforeTokens, afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -371,7 +369,7 @@ public static class FocusedEmitterTools
                 if (!vbResult.Found)
                     return $"' No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(vbResult.OriginalTokensEstimate, Math.Max(1, vbOutput.Length / 4), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}")
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -388,12 +386,13 @@ public static class FocusedEmitterTools
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
-            var afterTokens = Math.Max(1, output.Length / 4);
-            var fullOutput = BuildHeader(result.OriginalTokensEstimate, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
+            var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
+            var afterTokens = TokenCounter.Count(output);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, $"callers:{methodName}", depth, minify, fullOutput, result.OriginalTokensEstimate, afterTokens);
+            SetCached(filePath, $"callers:{methodName}", depth, minify, fullOutput, beforeTokens, afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -434,8 +433,8 @@ public static class FocusedEmitterTools
                 if (!result.Found) continue;
 
                 var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
-                totalBefore += result.OriginalTokensEstimate;
-                totalAfter += Math.Max(1, output.Length / 4);
+                totalBefore += TokenCounter.Count(File.ReadAllText(filePath));
+                totalAfter += TokenCounter.Count(output);
 
                 sb.AppendLine($"// ── {Path.GetFileName(filePath)} ──────────────────────────");
                 sb.AppendLine(result.Notes.TrimEnd());
@@ -484,8 +483,8 @@ public static class FocusedEmitterTools
                 if (!result.Found) continue;
 
                 var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
-                totalBefore += result.OriginalTokensEstimate;
-                totalAfter += Math.Max(1, output.Length / 4);
+                totalBefore += TokenCounter.Count(File.ReadAllText(impl.FilePath));
+                totalAfter += TokenCounter.Count(output);
 
                 sb.AppendLine($"// ── {impl.TypeName} ({Path.GetFileName(impl.FilePath)}) ──────────────────────────");
                 sb.AppendLine(result.Notes.TrimEnd());
