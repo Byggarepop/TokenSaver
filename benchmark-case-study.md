@@ -114,6 +114,10 @@ price discount.
   file, with no caching or pre-loading advantage for either approach.
 - The result of both rounds was verified to be identical: three correct `Edit`
   calls, zero errors.
+- `FocusedEmitter.cs` has grown since this benchmark was first run. The current
+  file measures `without tool: 11,714` and outline `with tool: 1,089`. The
+  numbers above are from the original session and remain valid as a record of
+  that run.
 
 ---
 
@@ -200,10 +204,10 @@ re-serializes it in full — confirmed O(n) write. The concern is valid.
 
 | Step | Tool | Token count | Source |
 |---|---|---|---|
-| Read the file | `Read` | **682** | Tool header: `without tool: 682` |
-| **Total** | | **682** | |
+| Read the file | `Read` | **860** | Tool header: `without tool: 860` |
+| **Total** | | **860** | |
 
-Only ~30 lines across two methods are relevant to the question. The remaining 58 lines
+Only ~30 lines across two methods are relevant to the question. The remaining ~75 lines
 enter context regardless.
 
 ---
@@ -211,18 +215,73 @@ enter context regardless.
 ### Comparison
 
 ```
-With TokenSaver:    ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   288 tokens
-Without TokenSaver: ████████████████████████████░░░░░░░░░░░░░░░   682 tokens
+With TokenSaver:    ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   288 tokens
+Without TokenSaver: ████████████████████████████████░░░░░░░░░░░   860 tokens
 ```
 
 | Metric | Value |
 |---|---|
-| Tokens saved | **394** |
-| Reduction | **58%** |
+| Tokens saved | **572** |
+| Reduction | **67%** |
 | Result quality | Identical — same correct analysis |
 
 Comprehension tasks have no unavoidable Edit-prep Read, so TokenSaver captures the
 full saving. The smaller and more focused the question, the larger the proportional win.
+
+---
+
+## Case Study 4: Multiple edits at different locations in a large file
+
+**Task:** Change the default value of the `depth` parameter from `0` to `1` in three
+separate methods — `Emit`, `EmitMultiple`, and `EmitCallers` — in `FocusedEmitter.cs`.
+This requires understanding all three methods and making edits at line 94, line 205,
+and line 399 respectively.
+
+This exercise was performed live. File: `Emitters/FocusedEmitter.cs` (11,714 raw tokens
+per MCP tool header).
+
+---
+
+### Agentic flow — With TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Understand all three methods | `focus_multiple_methods` (minify) | **1,884** | Tool header: `with tool: 1,884` |
+| Locate exact line numbers + get match text | `Grep` | **~152** | ~609 chars ÷ 4 (Grep has no token header) |
+| **Total** | | **~2,036** | |
+
+`Grep` returned the exact on-disk signature lines needed for all three `Edit` calls —
+no `Read` required at all.
+
+---
+
+### Agentic flow — Without TokenSaver
+
+| Step | Tool | Token count | Source |
+|---|---|---|---|
+| Read the file | `Read` | **11,714** | Tool header: `without tool: 11,714` |
+| **Total** | | **11,714** | |
+
+---
+
+### Comparison
+
+```
+With TokenSaver:    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   2,036 tokens
+Without TokenSaver: █████████████████████████████████████████████  11,714 tokens
+```
+
+| Metric | Value |
+|---|---|
+| Tokens saved | **~9,678** |
+| Reduction | **~83%** |
+| Result quality | Identical — three correct `Edit` calls, zero errors |
+
+**Multi-edit tasks on large files show the largest savings.** `focus_multiple_methods`
+reads all three method bodies in a single call, and `Grep` supplies the exact match
+strings for all three `Edit` calls at near-zero cost — no partial `Read` needed.
+The 83% reduction holds regardless of how many edits are needed, because `Grep` cost
+grows slowly (one line per match) while a full `Read` is always the entire file.
 
 ---
 
