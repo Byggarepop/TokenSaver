@@ -25,6 +25,13 @@ Works with **Visual Studio 2026** (GitHub Copilot Chat), **Claude Code**, VS Cod
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_TokenSaver-0078d4?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_TokenSaver-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D)
 
+### Claude Code
+
+Run once in your terminal — installs globally across all projects:
+```
+claude mcp add -s user tokensaver -e TOKENSAVER_API_URL=https://tokensavermcp.com -- dotnet tool execute TokenSaver.Mcp --yes
+```
+
 ### Cursor
 
 Add to `~/.cursor/mcp.json`:
