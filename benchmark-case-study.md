@@ -117,28 +117,28 @@ price discount.
 
 ---
 
----
-
 ## Case Study 2: Add a new method to an existing class
 
 **Task:** Add a `Prune(int keepDays)` method to `ReportWriter.cs` — removes entries
 older than N days from the JSON report file, following the same lock + load pattern
 as the existing `Append` method.
 
-This exercise was performed live. File: `Reporting/ReportWriter.cs` (88 lines).
-Every token count below is taken directly from the tool's own header line, e.g.
-`// Tokens without tool: 682 → with tool: 164 (75% saved)`. No estimates.
+This exercise was performed live. File: `Reporting/ReportWriter.cs` (88 lines, 682
+raw tokens per MCP tool header).
 
 ---
 
 ### Agentic flow — With TokenSaver
 
+The task already names the method to follow (`Append`), so `outline_c_sharp_file` is
+skipped — go straight to `focus_method`. For the `Edit` call, only the exact lines
+around the insertion point are read, not the whole file.
+
 | Step | Tool | Token count | Source |
 |---|---|---|---|
-| Navigate the class | `outline_c_sharp_file` | **164** | Tool header: `with tool: 164` |
-| Read `Append` + `LoadOrRecover` bodies | `focus_method` (depth=1, minify) | **288** | Tool header: `with tool: 288` |
-| Read raw file for `Edit` | `Read` | **682** | Tool header: `without tool: 682` (same file, no MCP reduction possible here) |
-| **Total** | | **1,134** | |
+| Understand `Append` + `LoadOrRecover` | `focus_method` (depth=1, minify) | **288** | Tool header: `with tool: 288` |
+| Get exact insertion text | `Read` 7 lines around insertion point | **~49** | 197 chars ÷ 4 (Read has no token header) |
+| **Total** | | **~337** | |
 
 ---
 
@@ -149,33 +149,27 @@ Every token count below is taken directly from the tool's own header line, e.g.
 | Read the file | `Read` | **682** | Tool header: `without tool: 682` |
 | **Total** | | **682** | |
 
-One Read call gives everything an agent needs: class structure, method bodies, and exact
-text for the `Edit` call.
+One `Read` call gives everything: method bodies, class structure, and exact text for
+the `Edit` call.
 
 ---
 
 ### Comparison
 
 ```
-With TokenSaver:    ████████████████████████████████████░░░░░░░   1,134 tokens
-Without TokenSaver: █████████████████████░░░░░░░░░░░░░░░░░░░░░     682 tokens
+With TokenSaver:    ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   337 tokens
+Without TokenSaver: █████████████████████████░░░░░░░░░░░░░░░░░░   682 tokens
 ```
 
 | Metric | Value |
 |---|---|
-| Overhead | **+452 tokens (+66%)** |
+| Tokens saved | **~345** |
+| Reduction | **~51%** |
 | Result quality | Identical — one correct `Edit`, zero errors |
 
-**For small files, TokenSaver adds overhead on edit tasks.** The outline and focus steps
-cost 452 tokens to produce understanding that a single `Read` would also provide — and
-the Edit-prep `Read` (682 tokens) cannot be eliminated regardless. The overhead only
-pays off when the file is large enough that the Edit-prep step can be a targeted partial
-read rather than a full file read.
-
-The numbers from Case Study 1 illustrate the crossover: `FocusedEmitter.cs` costs
-11,568 tokens to `Read` in full, but only 1,074 to outline and 208 to focus on the
-target method. On a file that size, outline + focus + a targeted partial read of the
-insertion region comes in well under 2,000 tokens — an 83%+ reduction.
+The key insight: skip `outline_c_sharp_file` when the task already names the target
+method. And replace a full file `Read` for Edit prep with a targeted partial `Read` of
+only the lines around the insertion point — 7 lines instead of 88.
 
 ---
 
