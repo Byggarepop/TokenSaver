@@ -133,17 +133,18 @@ not its real shape.
    when writing code the user will paste into their file. Use the ledger
    only to understand the relationships.
 
-If acting in agent / edit mode (directly modifying files), **always read
-the actual file from disk before applying changes** rather than relying on
-tool output as the basis for the edit. Tool output is a reasoning aid,
-not a representation of the file's real content.
+If acting in agent / edit mode (directly modifying files), read only the
+lines containing the match string from disk before applying an `Edit` — a
+targeted partial Read of the insertion region, not the whole file. Tool
+output is a reasoning aid, not a representation of the file's real content.
 
 ### When NOT to use these tools
 
 - File type not in the supported table above (e.g. `.md`, `.txt`, binary).
 - The user explicitly asks you to read the raw file.
 - The file is already small (< 50 lines).
-- You need exact on-disk text for an `Edit` call — read raw so the diff matches.
+- You need exact on-disk text for an `Edit` call — read only the lines around
+  the insertion point (targeted partial Read), not the whole file.
 
 ### Reporting
 

@@ -89,8 +89,10 @@ When suggesting code or making edits, always:
 - Preserve existing comments and doc comments when modifying a function.
 - Use original symbol names (not M1/P1/F1 aliases) in code the user will
   paste into their file.
-- In agent / edit mode, READ THE FILE FROM DISK before applying changes.
-  Tool output is a reasoning aid, not a basis for the edit text.
+- In agent / edit mode, read only the lines containing the match string
+  from disk before applying an Edit — a targeted partial Read of the
+  insertion region, not the whole file. Tool output is a reasoning aid,
+  not a basis for the edit text.
 
 REPORTING TO THE USER:
 Each tool result starts with a header like
