@@ -193,9 +193,10 @@ public static class FocusedEmitterTools
         "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
         "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
         "C (.c, .h), C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl), " +
-        "and VB.NET (.vb — Roslyn comment strip + blank-run collapse). " +
+        "VB.NET (.vb — Roslyn comment strip + blank-run collapse), " +
+        "and Markdown (.md, .markdown — HTML comments stripped, blank-run collapse). " +
         "Code minifiers strip comments and collapse whitespace. " +
-        "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
+        "Indent-sensitive formats (Python, YAML, Markdown) preserve leading indentation. " +
         "Use this when working in a polyglot codebase or when reading " +
         "config/project files.")]
     public static string MinifyFile(

@@ -38,6 +38,7 @@ public static class LanguageEmitterRegistry
         new CEmitter(),
         new CppEmitter(),
         new VBEmitter(),
+        new MarkdownEmitter(),
     };
 
     public static ILanguageEmitter? Find(string filePath) =>

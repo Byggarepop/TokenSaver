@@ -29,6 +29,7 @@ with no loss of logic.
 | C | `.c`, `.h` | `//` + `/* */` strip, whitespace collapse, `#directives` preserved |
 | C++ | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`, `.inl` | same as C |
 | VB.NET | `.vb` | Roslyn comment strip (`'` and `REM`), blank-run collapse |
+| Markdown | `.md`, `.markdown` | HTML comments stripped, blank-run collapse |
 
 ### Tool selection rules — follow these by default, no need to ask
 
