@@ -124,6 +124,12 @@ internal static class Program
         Run("Vb_FocusType_NonPrivateHasBody_PrivateHasSignature", Vb_FocusType_NonPrivateHasBody_PrivateHasSignature);
         Run("Vb_FocusCallers_FindsCallingMethods", Vb_FocusCallers_FindsCallingMethods);
 
+        // ---------- Markdown ----------
+        Run("Md_Registry_DispatchesByExtension", Md_Registry_DispatchesByExtension);
+        Run("Md_Minify_StripsHtmlComments", Md_Minify_StripsHtmlComments);
+        Run("Md_Minify_CollapsesBlankRuns", Md_Minify_CollapsesBlankRuns);
+        Run("Md_Minify_PreservesIndentation", Md_Minify_PreservesIndentation);
+
         // ---------- ProjectTraversal ----------
         Run("Traversal_FindCallerFiles_FindsFileWithCaller", Traversal_FindCallerFiles_FindsFileWithCaller);
         Run("Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod", Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod);
@@ -2046,6 +2052,63 @@ internal static class Program
         {
             File.SetLastWriteTimeUtc(path, original);
         }
+    }
+
+    // ---------- Markdown emitter ----------
+
+    private static TestOutcome Md_Registry_DispatchesByExtension()
+    {
+        var md = LanguageEmitterRegistry.Find("readme.md");
+        var markdown = LanguageEmitterRegistry.Find("doc.markdown");
+        var ok = md is MarkdownEmitter && markdown is MarkdownEmitter;
+        return new TestOutcome(ok,
+            ok ? ".md and .markdown dispatched to MarkdownEmitter"
+               : $"md={md?.GetType().Name} markdown={markdown?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Md_Minify_StripsHtmlComments()
+    {
+        var path = Fixture("sample.md");
+        var r = new MarkdownEmitter().Minify(path);
+
+        var hasTopComment = r.Output.Contains("top-level comment");
+        var hasSectionComment = r.Output.Contains("section comment");
+        var hasHeading = r.Output.Contains("# Sample Document");
+
+        var ok = !hasTopComment && !hasSectionComment && hasHeading;
+        return new TestOutcome(ok,
+            ok ? "HTML comments stripped, headings preserved"
+               : $"topComment={hasTopComment} sectionComment={hasSectionComment} heading={hasHeading}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Md_Minify_CollapsesBlankRuns()
+    {
+        var path = Fixture("sample.md");
+        var r = new MarkdownEmitter().Minify(path);
+
+        var hasTripleBlank = r.Output.Contains("\n\n\n");
+        var ok = !hasTripleBlank;
+        return new TestOutcome(ok,
+            ok ? "blank-line runs collapsed to single blank"
+               : "still has 3+ consecutive newlines",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Md_Minify_PreservesIndentation()
+    {
+        var path = Fixture("sample.md");
+        var r = new MarkdownEmitter().Minify(path);
+
+        var hasIndentedCode = r.Output.Contains("    indented code block");
+        var hasNestedList = r.Output.Contains("    - nested item");
+
+        var ok = hasIndentedCode && hasNestedList;
+        return new TestOutcome(ok,
+            ok ? "leading indentation preserved for code block and nested list"
+               : $"indentedCode={hasIndentedCode} nestedList={hasNestedList}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
     }
 
     private sealed record TestOutcome(bool Passed, string Notes, (int before, int after, double percent) Tokens);

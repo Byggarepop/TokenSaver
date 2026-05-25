@@ -132,6 +132,6 @@ Every invocation is counted at **[tokensavermcp.com](https://tokensavermcp.com)*
 | Tier | Languages |
 |---|---|
 | **Primary** (Roslyn, full support) | C# `.cs`, Razor `.razor`, VB.NET `.vb`, .NET project files `.csproj .props .config .xml` |
-| **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++ |
+| **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, Markdown |
 
 Cross-file traversal tools (`TraceCallers`, `TraceImplementors`) are **C# only**.
