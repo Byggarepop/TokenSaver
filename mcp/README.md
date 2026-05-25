@@ -130,7 +130,7 @@ changing.
 
 ## Install, upgrade & uninstall
 
-See the [install guide on GitHub](https://github.com/Byggarepop/TokenSaver#install) for one-click badges, per-client config snippets, the `register` command, upgrade and uninstall instructions, and troubleshooting.
+See **[tokensavermcp.com/install](https://tokensavermcp.com/install)** for one-click install buttons, per-client config snippets, the `register` command, upgrade/uninstall instructions, and troubleshooting.
 
 ---
 
