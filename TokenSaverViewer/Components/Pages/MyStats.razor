@@ -68,14 +68,16 @@
 
         <section class="report-section mt-4">
             <h2>Breakdown by tool</h2>
-            <table class="table table-striped">
+            <div class="table-responsive">
+            <table class="ts-table">
                 <thead>
                     <tr>
                         <th>Tool</th>
                         <th>Language</th>
                         <th class="text-end">Runs</th>
-                        <th class="text-end">Tokens saved</th>
-                        <th style="width: 30%;">Avg reduction</th>
+                        <th class="text-end">Saved</th>
+                        <th class="d-none d-sm-table-cell" style="width: 30%;">Avg reduction</th>
+                        <th class="d-sm-none text-end">Reduction</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -86,7 +88,7 @@
                             <td>@(string.IsNullOrEmpty(row.Language) ? "—" : row.Language)</td>
                             <td class="text-end">@row.RunCount.ToString("N0")</td>
                             <td class="text-end text-success">@row.TokensSaved.ToString("N0")</td>
-                            <td>
+                            <td class="d-none d-sm-table-cell">
                                 <div class="progress" style="height: 1.25rem;">
                                     <div class="progress-bar bg-success" role="progressbar"
                                          style="width: @row.AvgReductionPercent.ToString("F0")%;">
@@ -94,10 +96,12 @@
                                     </div>
                                 </div>
                             </td>
+                            <td class="d-sm-none text-end text-success">@row.AvgReductionPercent.ToString("F0")%</td>
                         </tr>
                     }
                 </tbody>
             </table>
+            </div>
         </section>
     }
 }
