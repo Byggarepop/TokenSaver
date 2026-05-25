@@ -17,13 +17,55 @@ Works with **Visual Studio 2026** (GitHub Copilot Chat), **Claude Code**, VS Cod
 
 ## Install
 
+> Requires **.NET 10 SDK** or later. The server downloads automatically on first use — no separate install step.
+
 ### Visual Studio 2026 / 2022 17.14+
 
 [![Install in Visual Studio](https://img.shields.io/badge/Visual_Studio-Install_TokenSaver-purple?style=flat-square&logo=visualstudio&logoColor=white)](https://vs-open.link/mcp-install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D)
 
+<details>
+<summary>No installation prompt? Add manually</summary>
+
+Add the entry to `%USERPROFILE%\.mcp.json` on Windows (or `~/.mcp.json` on macOS). Create the file if it doesn't exist. Restart Visual Studio after saving.
+
+```json
+{
+  "servers": {
+    "tokensaver": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+      "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
+    }
+  }
+}
+```
+</details>
+
 ### VS Code
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_TokenSaver-0078d4?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect?url=vscode:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D) [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_TokenSaver-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install?%7B%22name%22%3A%22tokensaver%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22dotnet%22%2C%22args%22%3A%5B%22tool%22%2C%22execute%22%2C%22TokenSaver.Mcp%22%2C%22--yes%22%5D%2C%22env%22%3A%7B%22TOKENSAVER_API_URL%22%3A%22https%3A%2F%2Ftokensavermcp.com%22%7D%7D)
+
+<details>
+<summary>No installation prompt? Add manually</summary>
+
+Open **User Settings (JSON)** via `Ctrl+Shift+P` → *Open User Settings (JSON)* and merge in the following. Reload VS Code after saving.
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "tokensaver": {
+        "type": "stdio",
+        "command": "dotnet",
+        "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+        "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
+      }
+    }
+  }
+}
+```
+</details>
 
 ### Claude Code
 
@@ -62,19 +104,50 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-### Other clients, or install everywhere at once
+### Install everywhere at once
+
+The `register` command detects installed MCP clients and writes the config for all of them in one shot. Recommended for CI and scripted setup.
 
 ```
 dotnet tool install -g TokenSaver.Mcp
 tokensaver-mcp register
 ```
 
-To upgrade later — **close Visual Studio and any Claude sessions first**, then:
+`register` writes the server entry into:
+- `%APPDATA%\Claude\claude_desktop_config.json` — Claude Desktop
+- `%USERPROFILE%\.claude\claude.json` — Claude Code CLI
+- `%APPDATA%\Code\User\settings.json` — VS Code / GitHub Copilot (skipped if not installed)
+- `%USERPROFILE%\.mcp.json` — Visual Studio 2026 (global)
+
+It merges safely — existing entries from other MCP servers are left untouched. Restart your MCP host after running it.
+
+**Flags:**
+- `--claude-desktop` / `--claude-code` / `--vscode` / `--vs` — register only one target
+- `--local` — write a solution-local `mcp.json` in the current directory instead of the global VS config (useful when you want per-repo opt-in)
+
+### Upgrade & Uninstall
+
+**To upgrade** — close all MCP clients first, then:
+
 ```
 dotnet tool update --global TokenSaver.Mcp
 ```
 
-This is the universal fallback — writes config for all detected clients in one shot, and is the recommended path for CI or scripted setup.
+- **Claude Code / Claude Desktop** — close the app or end the session.
+- **Visual Studio** — close the IDE fully, not just the chat panel.
+
+Restart your client after the update.
+
+> Visual Studio reads cached tool metadata at startup and only launches the server on your first Copilot prompt. After an upgrade, VS may briefly show old metadata — that's normal. If tools look wrong, rename the entry in `%USERPROFILE%\.mcp.json` (e.g. `tokensaver` → `tokensaver-2`), restart VS, send one prompt, then rename back to force a cache rebuild.
+
+**To uninstall:**
+
+```
+dotnet tool uninstall --global TokenSaver.Mcp
+claude mcp remove tokensaver -s user     # if you used Claude Code
+```
+
+For VS, also delete the `tokensaver` block from `%USERPROFILE%\.mcp.json`.
 
 > **Maintainer:** when publishing a new NuGet version, update the `"version"` fields in `server.json` and run `mcp-publisher publish` to keep the MCP Registry entry in sync.
 
