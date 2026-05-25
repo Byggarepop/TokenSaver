@@ -110,6 +110,41 @@
     </div>
 </section>
 
+<section class="troubleshoot-section">
+    <h2 class="troubleshoot-heading">Troubleshooting</h2>
+
+    <div class="troubleshoot-block">
+        <div class="troubleshoot-header">
+            <span class="client-icon vs-icon">VS</span>
+            <h3>Visual Studio — no prompt after clicking the link?</h3>
+        </div>
+        <p class="client-desc">
+            Add the entry manually to <code>%USERPROFILE%\.mcp.json</code> on Windows
+            (or <code>~/.mcp.json</code> on macOS). Create the file if it doesn't exist.
+            Restart Visual Studio after saving.
+        </p>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@vsMcpJsonSnippet</code></pre>
+            <button class="copy-btn" data-copy-text="@vsMcpJsonSnippet" onclick="handleCopy(this)">Copy</button>
+        </div>
+    </div>
+
+    <div class="troubleshoot-block">
+        <div class="troubleshoot-header">
+            <span class="client-icon vscode-icon">VS&#8203;Code</span>
+            <h3>VS Code — no prompt after clicking the link?</h3>
+        </div>
+        <p class="client-desc">
+            Open <strong>User Settings (JSON)</strong> via <kbd>Ctrl+Shift+P</kbd> → <em>Open User Settings (JSON)</em>
+            and merge in the following. Reload VS Code after saving.
+        </p>
+        <div class="snippet-wrap">
+            <pre class="snippet"><code>@vsCodeSettingsSnippet</code></pre>
+            <button class="copy-btn" data-copy-text="@vsCodeSettingsSnippet" onclick="handleCopy(this)">Copy</button>
+        </div>
+    </div>
+</section>
+
 <style>
     .hero-small {
         background: linear-gradient(135deg, #0d2b4e 0%, #1a4a7a 60%, #2d7dd2 100%);
@@ -302,6 +337,44 @@
         color: #666;
         margin: 0.75rem 0 0.5rem;
     }
+
+    .troubleshoot-section {
+        margin-bottom: 2.5rem;
+    }
+
+    .troubleshoot-heading {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin: 0 0 1rem;
+    }
+
+    .troubleshoot-block {
+        border: 1px solid #f0c040;
+        border-left: 4px solid #d97706;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        background: #fffbf0;
+        margin-bottom: 1rem;
+    }
+
+    .troubleshoot-block:last-child {
+        margin-bottom: 0;
+    }
+
+    .troubleshoot-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .troubleshoot-header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        color: #1a1a1a;
+    }
 </style>
 
 @code {
@@ -329,6 +402,36 @@
               "command": "dotnet",
               "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
               "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
+            }
+          }
+        }
+        """;
+
+    private const string vsMcpJsonSnippet =
+        """
+        {
+          "servers": {
+            "tokensaver": {
+              "type": "stdio",
+              "command": "dotnet",
+              "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+              "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
+            }
+          }
+        }
+        """;
+
+    private const string vsCodeSettingsSnippet =
+        """
+        {
+          "mcp": {
+            "servers": {
+              "tokensaver": {
+                "type": "stdio",
+                "command": "dotnet",
+                "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+                "env": { "TOKENSAVER_API_URL": "https://tokensavermcp.com" }
+              }
             }
           }
         }

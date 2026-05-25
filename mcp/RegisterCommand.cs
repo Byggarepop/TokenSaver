@@ -277,7 +277,8 @@ internal static class RegisterCommand
     static JsonObject BuildVsEntry() => new()
     {
         ["type"] = "stdio",
-        ["command"] = "tokensaver-mcp",
+        ["command"] = "dotnet",
+        ["args"] = new JsonArray("tool", "execute", "TokenSaver.Mcp", "--yes"),
         ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
 
