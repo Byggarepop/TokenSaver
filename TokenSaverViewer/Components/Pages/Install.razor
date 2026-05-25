@@ -29,6 +29,14 @@
            target="_blank" rel="noopener">
             Install in Visual Studio
         </a>
+        <details class="manual-install">
+            <summary>No prompt after clicking the link, or prompt not working?</summary>
+            <p class="manual-desc">Add to <code>%USERPROFILE%\.mcp.json</code> on Windows (or <code>~/.mcp.json</code> on macOS). Create the file if it doesn't exist. Restart Visual Studio after saving.</p>
+            <div class="snippet-wrap">
+                <pre class="snippet"><code>@vsMcpJsonSnippet</code></pre>
+                <button class="copy-btn" data-copy-text="@vsMcpJsonSnippet" onclick="handleCopy(this)">Copy</button>
+            </div>
+        </details>
     </div>
 
     <div class="client-block">
@@ -49,6 +57,14 @@
                 Install in VS Code Insiders
             </a>
         </div>
+        <details class="manual-install">
+            <summary>No prompt after clicking the link, or prompt not working?</summary>
+            <p class="manual-desc">Open <strong>User Settings (JSON)</strong> via <kbd>Ctrl+Shift+P</kbd> → <em>Open User Settings (JSON)</em> and merge in the following. Reload VS Code after saving.</p>
+            <div class="snippet-wrap">
+                <pre class="snippet"><code>@vsCodeSettingsSnippet</code></pre>
+                <button class="copy-btn" data-copy-text="@vsCodeSettingsSnippet" onclick="handleCopy(this)">Copy</button>
+            </div>
+        </details>
     </div>
 
     <div class="client-block">
@@ -110,40 +126,6 @@
     </div>
 </section>
 
-<section class="troubleshoot-section">
-    <h2 class="troubleshoot-heading">Troubleshooting</h2>
-
-    <div class="troubleshoot-block">
-        <div class="troubleshoot-header">
-            <span class="client-icon vs-icon">VS</span>
-            <h3>Visual Studio — no prompt after clicking the link?</h3>
-        </div>
-        <p class="client-desc">
-            Add the entry manually to <code>%USERPROFILE%\.mcp.json</code> on Windows
-            (or <code>~/.mcp.json</code> on macOS). Create the file if it doesn't exist.
-            Restart Visual Studio after saving.
-        </p>
-        <div class="snippet-wrap">
-            <pre class="snippet"><code>@vsMcpJsonSnippet</code></pre>
-            <button class="copy-btn" data-copy-text="@vsMcpJsonSnippet" onclick="handleCopy(this)">Copy</button>
-        </div>
-    </div>
-
-    <div class="troubleshoot-block">
-        <div class="troubleshoot-header">
-            <span class="client-icon vscode-icon">VS&#8203;Code</span>
-            <h3>VS Code — no prompt after clicking the link?</h3>
-        </div>
-        <p class="client-desc">
-            Open <strong>User Settings (JSON)</strong> via <kbd>Ctrl+Shift+P</kbd> → <em>Open User Settings (JSON)</em>
-            and merge in the following. Reload VS Code after saving.
-        </p>
-        <div class="snippet-wrap">
-            <pre class="snippet"><code>@vsCodeSettingsSnippet</code></pre>
-            <button class="copy-btn" data-copy-text="@vsCodeSettingsSnippet" onclick="handleCopy(this)">Copy</button>
-        </div>
-    </div>
-</section>
 
 <style>
     .hero-small {
@@ -338,42 +320,38 @@
         margin: 0.75rem 0 0.5rem;
     }
 
-    .troubleshoot-section {
-        margin-bottom: 2.5rem;
+    .manual-install {
+        margin-top: 1rem;
+        border-top: 1px solid #e3e5e8;
+        padding-top: 0.75rem;
     }
 
-    .troubleshoot-heading {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin: 0 0 1rem;
-    }
-
-    .troubleshoot-block {
-        border: 1px solid #f0c040;
-        border-left: 4px solid #d97706;
-        border-radius: 10px;
-        padding: 1.25rem 1.5rem;
-        background: #fffbf0;
-        margin-bottom: 1rem;
-    }
-
-    .troubleshoot-block:last-child {
-        margin-bottom: 0;
-    }
-
-    .troubleshoot-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.6rem;
-    }
-
-    .troubleshoot-header h3 {
-        font-size: 1rem;
+    .manual-install summary {
+        font-size: 0.88rem;
+        color: #d97706;
         font-weight: 600;
-        margin: 0;
-        color: #1a1a1a;
+        cursor: pointer;
+        user-select: none;
+        margin-bottom: 0.75rem;
+    }
+
+    .manual-install summary:hover {
+        color: #b45309;
+    }
+
+    .manual-desc {
+        font-size: 0.88rem;
+        color: #555;
+        margin: 0.5rem 0 0.75rem;
+    }
+
+    .manual-desc code {
+        font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+        font-size: 0.88em;
+        background: #eef0f3;
+        padding: 0.1rem 0.35rem;
+        border-radius: 3px;
+        color: #1a4a7a;
     }
 </style>
 
