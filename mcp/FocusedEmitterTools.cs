@@ -351,7 +351,12 @@ public static class FocusedEmitterTools
     [McpServerTool, Description(
         "Finds all methods in a C# or VB.NET file that CALL a given method name, then returns " +
         "them as a focused multi-method view (full bodies + shared signatures). " +
-        "Answers 'what calls X?' or 'who uses this?' without loading the whole file. " +
+        "USE FOR DISCOVERY ONLY — call this when you do not yet know which methods call the target. " +
+        "Once you know the caller names, use focus_multiple_methods instead (cheaper). " +
+        "Do NOT call this if the callers are already in context. " +
+        "Avoid when callers are large methods — the tool emits their full bodies, so output can " +
+        "approach the whole file size (0% savings). In that case prefer focus_multiple_methods or " +
+        "a narrow Read of the relevant lines. " +
         "Uses name-based matching, so it catches direct calls — calls through " +
         "delegates or interfaces may be missed. Set depth=1 to also include private " +
         "helper bodies of the found callers. Supports .cs, .razor.cs, and .vb files.")]
