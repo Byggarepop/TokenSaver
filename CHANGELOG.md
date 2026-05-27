@@ -4,6 +4,26 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-05-27
+
+### Added
+- **Markdown emitter** — `MinifyFile` now handles `.md` and `.markdown` files:
+  strips HTML comments and collapses blank runs, with no other content altered.
+
+### Changed
+- `focus_callers` tool description updated to clarify it is for **discovery
+  only**. Once callers are identified, switch to `focus_multiple_methods` or a
+  targeted `Read` for the actual edit — calling `focus_callers` again after the
+  callers are already known wastes tokens.
+- Copilot instructions (`copilot-instructions.md`) updated with the same
+  `focus_callers` guidance.
+
+### Documentation
+- Install sections in `README.md` now point to `tokensavermcp.com/install`.
+- VS / VS Code troubleshooting moved inline into the install cards for faster
+  self-service.
+- VS install configuration fixed and install docs consolidated (#43).
+
 ## [1.8.0] - 2026-05-24
 
 ### Fixed
