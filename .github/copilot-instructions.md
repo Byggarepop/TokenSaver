@@ -66,11 +66,14 @@ with no loss of logic.
    non-private members with full bodies and private members as signatures only.
    Cheaper than `MinifyCSharpFile` when private methods dominate file length.
 
-5. **The user asks what calls a given method** ("where is X used?", "what
-   calls BuildHeader?", "who invokes OnSave?")
-   → call `FocusCallers` with the method name. Returns all caller methods as
-   a focused view (full bodies + shared signatures) — no manual method-name
-   lookup required.
+5. **The user asks what calls a given method and you don't yet know which
+   methods are the callers** ("where is X used?", "what calls BuildHeader?",
+   "who invokes OnSave?")
+   → call `FocusCallers` for **discovery only**. Once you know the caller
+   names (e.g. from a prior outline or focus result), stop — use
+   `FocusMultipleMethods` on the known names instead. Never call `FocusCallers`
+   when the callers' bodies are already in context. Avoid it when callers are
+   large methods: the tool emits their full bodies and savings drop to ~0%.
 
 6. **The user is working with a C# file dominated by long private symbol names**
    (repositories, validators, mappers with verbose internal naming)
