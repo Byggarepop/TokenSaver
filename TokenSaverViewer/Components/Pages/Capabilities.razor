@@ -39,6 +39,18 @@
     </p>
 </section>
 
+<section class="caveat caveat-info">
+    <div class="caveat-title">First call in a session</div>
+    <p>
+        When an AI session starts, the model loads the server instructions and all tool
+        descriptions before any tool is invoked — roughly <strong>3,300 tokens</strong> of fixed
+        overhead. TokenSaver deducts this cost from the savings reported on the first tool call
+        of each session, so the number you see is always the <em>net</em> saving, not a gross figure
+        that ignores startup cost. Subsequent calls in the same session show full savings with no
+        deduction.
+    </p>
+</section>
+
 <section class="tools">
     <h2>The tools</h2>
     <div class="tool-grid">
@@ -174,6 +186,15 @@
         border-radius: 6px;
         padding: 1rem 1.25rem;
         margin-bottom: 2rem;
+    }
+
+    .caveat.caveat-info {
+        border-left-color: #2d7dd2;
+        background: #f0f6ff;
+    }
+
+    .caveat.caveat-info .caveat-title {
+        color: #1a4a7a;
     }
 
     .caveat-title {

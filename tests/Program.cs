@@ -140,6 +140,10 @@ internal static class Program
         Run("Cache_MissOnFirstCall", Cache_MissOnFirstCall);
         Run("Cache_HitOnSecondCall", Cache_HitOnSecondCall);
         Run("Cache_InvalidatedAfterFileChange", Cache_InvalidatedAfterFileChange);
+        Run("InitialCall_HeaderLabelsAsInitial", InitialCall_HeaderLabelsAsInitial);
+        Run("InitialCall_WithToolTokensIncludesOverhead", InitialCall_WithToolTokensIncludesOverhead);
+        Run("SubsequentCall_NoInitialLabel", SubsequentCall_NoInitialLabel);
+        Run("InitialCall_ToolSchemaOverheadCost", InitialCall_ToolSchemaOverheadCost);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1883,6 +1887,73 @@ internal static class Program
         Results.Add(new TestRecord(name, outcome.Passed, outcome.Notes, outcome.Tokens));
         var status = outcome.Passed ? "PASS" : "FAIL";
         Console.WriteLine($"  [{status}] {name}  —  {outcome.Notes}");
+    }
+
+    private static TestOutcome InitialCall_HeaderLabelsAsInitial()
+    {
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 1000; // also resets call count
+        var path = Fixture("Calculator.cs");
+        var output = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path);
+        var header = output.Split('\n')[0];
+        var ok = header.Contains("(Initial)") && header.Contains("MCP overhead tokens");
+        return new TestOutcome(ok,
+            ok ? $"header: {header}" : $"missing label or overhead note — header: {header}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome InitialCall_WithToolTokensIncludesOverhead()
+    {
+        const int overhead = 1000;
+        var path = Fixture("Calculator.cs");
+
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        var baselineHeader = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
+        var baselineWith = ParseWithToolTokens(baselineHeader);
+
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = overhead;
+        var initialHeader = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
+        var initialWith = ParseWithToolTokens(initialHeader);
+
+        var ok = initialWith == baselineWith + overhead;
+        return new TestOutcome(ok,
+            ok ? $"with tool = {initialWith} (baseline {baselineWith} + overhead {overhead})"
+               : $"expected {baselineWith + overhead} but got {initialWith}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome SubsequentCall_NoInitialLabel()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 1000;
+        TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path); // first (initial) call
+        EmissionCache.Clear();
+        var header = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
+        var ok = !header.Contains("(Initial)") && header.Contains("[Focused Emitter]");
+        return new TestOutcome(ok,
+            ok ? $"header: {header}" : $"unexpected initial label — header: {header}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome InitialCall_ToolSchemaOverheadCost()
+    {
+        var schemaTokens = TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens("");
+        var ok = schemaTokens > 0;
+        return new TestOutcome(ok,
+            ok ? $"tool schema (descriptions only): {schemaTokens} tokens; server instructions add on top"
+               : "schema token count should be > 0",
+            (0, 0, 0));
+    }
+
+    private static int ParseWithToolTokens(string header)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(header, @"with tool:\s*([\d\s, ]+)");
+        if (!m.Success) return -1;
+        var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s, ]", "");
+        return int.TryParse(raw, out var n) ? n : -1;
     }
 
     private static void WriteReport()
