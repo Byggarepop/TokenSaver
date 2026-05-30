@@ -350,7 +350,9 @@ internal static class RegisterCommand
                     if (bytes.AsSpan().IndexOf("tokensaver"u8) < 0)
                         continue;
                     File.Delete(file);
-                    Console.Error.WriteLine($"[tokensaver] cleared VS MCP cache: {Path.GetFileName(file)}");
+                    var msg = $"cleared VS MCP cache: {Path.GetFileName(file)}";
+                    Console.Error.WriteLine($"[tokensaver] {msg}");
+                    StartupLog.Write(msg);
                 }
                 catch { }
             }
