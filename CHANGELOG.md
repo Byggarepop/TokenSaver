@@ -4,6 +4,27 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-05-30
+
+### Changed
+- **Net savings on first tool call** — the first tool call in a session now
+  deducts the fixed MCP overhead (~3,300 tokens: server instructions + all tool
+  descriptions) from reported savings. The header is labelled
+  `[ToolName (Initial)]` and the "with tool" token count reflects the true net
+  cost. Subsequent calls in the same session report full gross savings as before.
+- Telemetry records the adjusted cost and the `(Initial)` tool name so the
+  viewer can distinguish first-call entries.
+- `tokensaver-mcp print-overhead` prints a breakdown of instructions vs schema
+  token counts.
+- Four new tests verify the label, the math, and that subsequent calls are
+  unaffected (120/120 passing).
+
+### Documentation
+- Capabilities page on [tokensavermcp.com](https://tokensavermcp.com) now notes
+  the ~3,300 token first-call overhead so users understand when a session breaks
+  even.
+- Token savings since tagline on the viewer now shows months in addition to days.
+
 ## [1.9.0] - 2026-05-27
 
 ### Added
