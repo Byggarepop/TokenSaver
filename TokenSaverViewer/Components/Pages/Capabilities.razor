@@ -73,6 +73,18 @@
             <div class="tool-savings">50 – 80 %</div>
         </div>
         <div class="tool-card">
+            <div class="tool-name">Trace callers</div>
+            <div class="tool-desc">Project-wide caller search — scans every .cs file and returns focused views of all callers grouped by file. Right when you need the full blast radius before changing a method signature.</div>
+            <div class="tool-example">&ldquo;What calls ProcessPayment anywhere in the project?&rdquo;</div>
+            <div class="tool-savings">50 – 80 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Trace implementors</div>
+            <div class="tool-desc">Scans the whole project and returns a focused type view for every class that implements an interface or extends a base type. Replaces grep + manual navigation.</div>
+            <div class="tool-example">&ldquo;What implements IOrderRepository?&rdquo;</div>
+            <div class="tool-savings">50 – 80 %</div>
+        </div>
+        <div class="tool-card">
             <div class="tool-name">Minify C# file</div>
             <div class="tool-desc">C#-specific minify using Roslyn's syntax tree — strips comments and XML docs, collapses whitespace, preserves every line of logic. Use when the AI needs the whole file but questions span multiple methods.</div>
             <div class="tool-example">&ldquo;Read OrderService.cs and explain how status transitions work.&rdquo;</div>
@@ -377,6 +389,18 @@
             ".cs",
             "What calls BuildHeader? I'm changing its return type.",
             "Focus callers auto-discovers every caller in the file and returns a focused view of each one — no manual method-name lookup needed.",
+            50, 80),
+
+        new("C# trace callers",
+            ".cs",
+            "What calls ProcessPayment anywhere in the project?",
+            "Trace callers scans every .cs file in the project and returns focused views of all callers grouped by file — full blast-radius analysis before changing a signature.",
+            50, 80),
+
+        new("C# trace implementors",
+            ".cs",
+            "What implements IOrderRepository?",
+            "Trace implementors scans the whole project and returns a focused type view for every class that implements an interface or extends a base type.",
             50, 80),
 
         new("C# minify (Roslyn)",
