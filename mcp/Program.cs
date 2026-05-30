@@ -107,6 +107,15 @@ and remove any # or Active Document reference. Reserve those for small files
 where reduction doesn't matter.
 """;
 
+var startupVersion = System.Reflection.Assembly.GetExecutingAssembly()
+    .GetName().Version?.ToString(3) ?? "0.0.0";
+
+TokenSaver.Mcp.StartupLog.Initialize();
+TokenSaver.Mcp.StartupLog.Write($"starting v{startupVersion} args=[{string.Join(' ', args)}]");
+
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+    TokenSaver.Mcp.StartupLog.Write($"unhandled exception: {e.ExceptionObject}");
+
 // `tokensaver-mcp print-instructions` emits the copilot-instructions content
 // to stdout, so users can pipe it into their repo's .github/ folder during setup:
 //   tokensaver-mcp print-instructions > .github/copilot-instructions.md
@@ -142,7 +151,9 @@ if (args.Length > 0 && args[0] == "register")
 
 // Silently update TOKENSAVER_API_URL in any already-registered config files
 // if it is missing or stale. Gated by a version sentinel — runs once per version.
+TokenSaver.Mcp.StartupLog.Write("AutoUpdateRegistrations: begin");
 TokenSaver.Mcp.RegisterCommand.AutoUpdateRegistrations();
+TokenSaver.Mcp.StartupLog.Write("AutoUpdateRegistrations: done");
 
 TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens =
     TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens(ServerInstructions);
@@ -168,4 +179,6 @@ builder.Services
     .WithStdioServerTransport()
     .WithToolsFromAssembly();
 
+TokenSaver.Mcp.StartupLog.Write("MCP host built, entering RunAsync");
 await builder.Build().RunAsync();
+TokenSaver.Mcp.StartupLog.Write("RunAsync returned (server stopped)");
