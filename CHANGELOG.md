@@ -4,6 +4,19 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-05-30
+
+### Changed
+- **Prefer Grep for existence checks** — all instruction files (server
+  instructions, `copilot-instructions.md`, `CLAUDE.md`, and the
+  `trace_callers` tool description) now include an explicit exception rule:
+  for "is X used?"-style questions, use `Grep` first and only escalate to
+  `trace_callers` when caller context is needed. A widely-used method can
+  cost 100K+ tokens with `trace_callers`.
+- **Startup file log** — the MCP server writes a startup log file to help
+  diagnose VS MCP activation failures when the server silently does not
+  start.
+
 ## [1.10.0] - 2026-05-30
 
 ### Changed
