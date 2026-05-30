@@ -61,6 +61,10 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    → call TraceCallers with the project directory or .csproj path and the method
    name. Returns focused caller views from every file that calls it. Use instead
    of FocusCallers when you don't know which file to look in. C# only.
+   EXCEPTION - existence checks: if the question is "is X used?", "is X called
+   anywhere?", or "does anything reference X?", use Grep first. Only escalate
+   to TraceCallers if you need to see HOW callers use the method, not just
+   confirm it is called. A widely-used method can cost 100K+ tokens.
 
 6. User asks what implements an interface or extends a base type ("what
    implements IFoo?", "what extends BaseBar?", "show me all emitters") → call
