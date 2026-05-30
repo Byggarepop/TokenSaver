@@ -447,7 +447,9 @@ public static class FocusedEmitterTools
         "Pass the project root folder or .csproj file path — obj/ and bin/ are excluded " +
         "automatically. Uses name-based matching (same as focus_callers). " +
         "Set depth=1 to include private helper bodies of found callers. " +
-        "C# only (.cs files).")]
+        "C# only (.cs files). " +
+        "CAUTION: for existence-only questions ('is X used?', 'is X called anywhere?') " +
+        "use Grep instead — a method with many callers can cost 100K+ tokens here.")]
     public static string TraceCallers(
         [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
         [Description("The method name to find callers of across the project.")] string methodName,
