@@ -116,6 +116,21 @@ if (args.Length > 0 && args[0] == "print-instructions")
     return;
 }
 
+// `tokensaver-mcp print-overhead` prints the token cost of the MCP overhead
+// (server instructions + all tool descriptions) so users can see the true
+// break-even point for the first tool call in a session.
+if (args.Length > 0 && args[0] == "print-overhead")
+{
+    var total = TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens(ServerInstructions);
+    var schemaOnly = TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens("");
+    var instructionsOnly = total - schemaOnly;
+    Console.WriteLine($"MCP overhead breakdown:");
+    Console.WriteLine($"  Server instructions : {instructionsOnly,6} tokens");
+    Console.WriteLine($"  Tool descriptions   : {schemaOnly,6} tokens");
+    Console.WriteLine($"  Total               : {total,6} tokens");
+    return;
+}
+
 // `tokensaver-mcp register [--local] [--claude-desktop] [--vs]`
 // Injects the server entry into Claude Desktop and/or VS 2026 MCP config files.
 if (args.Length > 0 && args[0] == "register")
@@ -128,6 +143,9 @@ if (args.Length > 0 && args[0] == "register")
 // Silently update TOKENSAVER_API_URL in any already-registered config files
 // if it is missing or stale. Gated by a version sentinel — runs once per version.
 TokenSaver.Mcp.RegisterCommand.AutoUpdateRegistrations();
+
+TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens =
+    TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens(ServerInstructions);
 
 var builder = Host.CreateApplicationBuilder(args);
 

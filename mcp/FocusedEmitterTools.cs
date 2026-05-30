@@ -4,6 +4,7 @@
 // surface "I used the focused emitter, saved ~X tokens" to the user.
 
 using System.ComponentModel;
+using System.Reflection;
 using ModelContextProtocol.Server;
 using RoslynLean;
 
@@ -12,6 +13,38 @@ namespace TokenSaver.Mcp;
 [McpServerToolType]
 public static class FocusedEmitterTools
 {
+    public static int OverheadTokens
+    {
+        get => _overheadTokens;
+        set { _overheadTokens = value; Interlocked.Exchange(ref _callCount, 0); }
+    }
+    private static int _overheadTokens;
+    private static int _callCount;
+
+    public static int ComputeOverheadTokens(string serverInstructions)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(serverInstructions);
+        var flags = BindingFlags.Public | BindingFlags.Static;
+        foreach (var type in typeof(FocusedEmitterTools).Assembly.GetTypes())
+        {
+            if (type.GetCustomAttribute<McpServerToolTypeAttribute>() is null) continue;
+            foreach (var method in type.GetMethods(flags))
+            {
+                if (method.GetCustomAttribute<McpServerToolAttribute>() is null) continue;
+                sb.Append(method.Name);
+                if (method.GetCustomAttribute<DescriptionAttribute>() is { Description: var md })
+                    sb.Append(md);
+                foreach (var param in method.GetParameters())
+                {
+                    sb.Append(param.Name);
+                    if (param.GetCustomAttribute<DescriptionAttribute>() is { Description: var pd })
+                        sb.Append(pd);
+                }
+            }
+        }
+        return TokenCounter.Count(sb.ToString());
+    }
     [McpServerTool, Description(
         "Returns a focused subset of a C# or VB.NET file: the named method with full body, " +
         "plus the SIGNATURES of anything it references. Drops unrelated members " +
@@ -525,10 +558,21 @@ public static class FocusedEmitterTools
     private static string BuildHeader(int before, int after, string toolName, string language, string mode)
     {
         after = Math.Min(after, before); // never log that the tool increased token count
-        var saved = Math.Max(0, before - after);
-        var pct = before == 0 ? 0 : saved * 100 / before;
+
+        bool isInitial = OverheadTokens > 0 && Interlocked.Increment(ref _callCount) == 1;
+        if (isInitial)
+        {
+            var afterWithOverhead = after + OverheadTokens;
+            var saved = Math.Max(0, before - afterWithOverhead);
+            var pct = before == 0 ? 0 : saved * 100 / before;
+            LogInvocation(toolName + " (Initial)", language, mode, before, afterWithOverhead);
+            return $"// [{toolName} (Initial)] Tokens without tool: {before:N0}  →  with tool: {afterWithOverhead:N0}  ({pct}% saved, incl. {OverheadTokens:N0} MCP overhead tokens) — mode: {mode}\n";
+        }
+
+        var savedNormal = Math.Max(0, before - after);
+        var pctNormal = before == 0 ? 0 : savedNormal * 100 / before;
         LogInvocation(toolName, language, mode, before, after);
-        return $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {after:N0}  ({pct}% saved) — mode: {mode}\n";
+        return $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {after:N0}  ({pctNormal}% saved) — mode: {mode}\n";
     }
 
     // Every invocation is appended to the shared report JSON at
