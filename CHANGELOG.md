@@ -4,6 +4,17 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **Removed the VS MCP cache delete** — `AutoUpdateRegistrations` no longer
+  deletes Visual Studio's `*.cache` files on the first run after an upgrade.
+  Deleting that file from inside the running server process raced with VS's
+  active use of it, forcing a re-reconcile mid-query and stalling the first
+  prompt after every version bump. VS re-queries `tools/list` live when it
+  starts the server for a session, and `serverInfo.version` (set in
+  `Program.cs`) signals invalidation, so the brute-force delete was redundant.
+  If a future VS build is observed serving stale tool metadata after an
+  upgrade, restore the delete with better timing.
+
 ## [1.11.0] - 2026-05-30
 
 ### Changed
