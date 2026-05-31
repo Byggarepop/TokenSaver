@@ -4,6 +4,8 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-05-31
+
 ### Changed
 - **Removed the VS MCP cache delete** — `AutoUpdateRegistrations` no longer
   deletes Visual Studio's `*.cache` files on the first run after an upgrade.
