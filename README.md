@@ -27,7 +27,7 @@ See **[tokensavermcp.com/install](https://tokensavermcp.com/install)** for one-c
 | `FocusType` | Non-private members with full bodies, private members as signatures only. | 60–90% |
 | `FocusCallers` | All methods in a file that call a given method — focused view. Answers "what calls X?" | 80–95% |
 | `MinifyCSharpFile` | Lossless minify of an entire C# file — strips comments and whitespace, logic unchanged. | 20–50% |
-| `MinifyFile` | Auto-dispatch by extension. Covers C#, Razor, JS/TS, Python, HTML, CSS, JSON, YAML, XML, C, C++, VB.NET. | varies |
+| `MinifyFile` | Auto-dispatch by extension. Covers C#, Razor, JS/TS, Python, HTML, CSS, JSON, YAML, XML, C, C++, X++, VB.NET. | varies |
 | `AliasCSharpFile` | Minify + rename private symbols to short codes (`M1`, `P1`...). Best on files with very long private names. | 30–60% |
 
 ### Cross-file traversal tools
@@ -67,6 +67,6 @@ Every invocation is counted at **[tokensavermcp.com](https://tokensavermcp.com)*
 | Tier | Languages |
 |---|---|
 | **Primary** (Roslyn, full support) | C# `.cs`, Razor `.razor`, VB.NET `.vb`, .NET project files `.csproj .props .config .xml` |
-| **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, Markdown |
+| **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, X++, Markdown |
 
 Cross-file traversal tools (`TraceCallers`, `TraceImplementors`) are **C# only**.

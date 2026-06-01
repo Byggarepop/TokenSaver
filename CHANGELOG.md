@@ -4,6 +4,13 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Added
+- **X++ support** — `MinifyFile` now handles Dynamics 365 Finance & Operations
+  X++ source files (`.xpp`). Basic tier: X++ shares C-style comment syntax
+  (`//` and `/* */`) and `#`-prefixed macro directives, so it reuses the C/C++
+  strip-and-collapse pass — comments stripped, whitespace collapsed, `#macro`
+  directives preserved.
+
 ## [1.11.1] - 2026-05-31
 
 ### Changed

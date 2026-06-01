@@ -37,6 +37,7 @@ public static class LanguageEmitterRegistry
         new CssEmitter(),
         new CEmitter(),
         new CppEmitter(),
+        new XppEmitter(),
         new VBEmitter(),
         new MarkdownEmitter(),
     };
