@@ -4,6 +4,8 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-06-01
+
 ### Added
 - **Background self-update for dnx installs** — when launched via
   `dotnet tool execute`, the server keeps itself current without the
