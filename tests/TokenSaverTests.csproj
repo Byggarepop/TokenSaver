@@ -37,6 +37,7 @@
     <Compile Include="..\Emitters\EmissionCache.cs" Link="Emitters\EmissionCache.cs" />
     <Compile Include="..\mcp\FocusedEmitterTools.cs" Link="mcp\FocusedEmitterTools.cs" />
     <Compile Include="..\mcp\TokenCounter.cs" Link="mcp\TokenCounter.cs" />
+    <Compile Include="..\mcp\RegisterCommand.cs" Link="mcp\RegisterCommand.cs" />
     <Compile Include="..\Reporting\TokenReport.cs" Link="Reporting\TokenReport.cs" />
     <Compile Include="..\Reporting\ReportWriter.cs" Link="Reporting\ReportWriter.cs" />
     <Compile Include="..\Reporting\ReportUploader.cs" Link="Reporting\ReportUploader.cs" />

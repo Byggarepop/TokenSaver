@@ -145,6 +145,25 @@ if (args.Length > 0 && args[0] == "print-overhead")
     return;
 }
 
+// `tokensaver-mcp print-version` prints the running NuGet package version and exits.
+// The background self-update runs this on a freshly-resolved copy to discover the
+// latest version available on the configured feeds. Must stay above
+// AutoUpdateRegistrations and the host build so the child exits immediately.
+if (args.Length > 0 && args[0] == "print-version")
+{
+    Console.WriteLine(TokenSaver.Mcp.RegisterCommand.CurrentPackageVersion());
+    return;
+}
+
+// `tokensaver-mcp self-update` runs the background update check synchronously and
+// exits — a manual "update now" trigger, and the deterministic hook used to test
+// the update cycle. Ignores the time throttle.
+if (args.Length > 0 && args[0] == "self-update")
+{
+    TokenSaver.Mcp.SelfUpdate.RunInBackgroundAsync(force: true).GetAwaiter().GetResult();
+    return;
+}
+
 // `tokensaver-mcp register [--local] [--claude-desktop] [--vs]`
 // Injects the server entry into Claude Desktop and/or VS 2026 MCP config files.
 if (args.Length > 0 && args[0] == "register")
@@ -185,5 +204,10 @@ builder.Services
     .WithToolsFromAssembly();
 
 TokenSaver.Mcp.StartupLog.Write("MCP host built, entering RunAsync");
+
+// Fire-and-forget: check the feed for a newer version, prefetch it into the dnx
+// cache, and re-pin the registered configs — all off the request critical path.
+_ = TokenSaver.Mcp.SelfUpdate.RunInBackgroundAsync();
+
 await builder.Build().RunAsync();
 TokenSaver.Mcp.StartupLog.Write("RunAsync returned (server stopped)");

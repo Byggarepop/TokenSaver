@@ -4,6 +4,28 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Background self-update for dnx installs** — when launched via
+  `dotnet tool execute`, the server keeps itself current without the
+  first-query stall an unpinned launch hits after a new release. Registered
+  config entries are pinned to an explicit `--version`, so every launch runs an
+  already-cached package (instant) instead of resolving + downloading the latest
+  on the critical path. After the host is serving, a throttled background task
+  checks the feed, prefetches any newer version into the dnx cache, and **only
+  then** re-pins the config — the new version is always on disk before any
+  launch points at it, so the upgrade applies on the next launch with no stall.
+  Adds the `print-version` and `self-update` (manual "update now") commands and
+  the `TOKENSAVER_DISABLE_AUTOUPDATE` / `TOKENSAVER_UPDATE_INTERVAL_MINUTES`
+  environment knobs.
+
+### Changed
+- **All registration entries now use the `dotnet tool execute` (dnx) model**,
+  including Claude Desktop and Claude Code (previously the global
+  `tokensaver-mcp` command). One launch model for every host — no separate
+  `dotnet tool install -g` — and all hosts share the background auto-update.
+  Existing global-command entries are left untouched by the updater; existing
+  unpinned entries migrate themselves to the pinned form on first launch.
+
 ## [1.12.0] - 2026-06-01
 
 ### Added
