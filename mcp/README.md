@@ -134,6 +134,37 @@ See **[tokensavermcp.com/install](https://tokensavermcp.com/install)** for one-c
 
 ---
 
+## Automatic updates
+
+When the server is launched with `dotnet tool execute` (the default for every
+client), it keeps itself up to date **without** the slow first query an unpinned
+launch hits right after a new release.
+
+How it works:
+
+- Registered config entries pin an explicit `--version`, so each launch runs an
+  already-cached package and starts instantly — no "resolve latest + download"
+  on the launch path.
+- Once the server is serving, a throttled background task checks the NuGet feed
+  for a newer version, downloads it into the dnx cache, and **only then** re-pins
+  the `--version` in your config files. The new version is always on disk before
+  anything points at it, so the upgrade applies on the next launch with no stall.
+- Existing unpinned entries migrate to the pinned form automatically on the first
+  launch of a version that supports this.
+
+You normally don't need to touch any of this. Two environment variables tune it,
+set in the `env` block of your MCP server config (same place as the telemetry
+opt-out below):
+
+| Variable | Effect |
+|---|---|
+| `TOKENSAVER_DISABLE_AUTOUPDATE=1` | Turns the background update check off. Launches stay pinned to whatever version your config names. |
+| `TOKENSAVER_UPDATE_INTERVAL_MINUTES` | Minimum minutes between background checks (default `360`). `0` checks on every launch. |
+
+To update on demand, run `dotnet tool execute TokenSaver.Mcp --yes -- self-update`.
+
+---
+
 ## Manual setup for Claude Code
 
 Two one-time steps (skip if you used `register` above).

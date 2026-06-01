@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Text.Json.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -148,6 +149,14 @@ internal static class Program
         Run("InitialCall_WithToolTokensIncludesOverhead", InitialCall_WithToolTokensIncludesOverhead);
         Run("SubsequentCall_NoInitialLabel", SubsequentCall_NoInitialLabel);
         Run("InitialCall_ToolSchemaOverheadCost", InitialCall_ToolSchemaOverheadCost);
+
+        // ---------- dnx background auto-update / config pinning ----------
+        Run("AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers", AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers);
+        Run("AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps", AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps);
+        Run("AutoUpdate_IsNewer_ComparesCoreVersions", AutoUpdate_IsNewer_ComparesCoreVersions);
+        Run("AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated", AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated);
+        Run("AutoUpdate_PinInVsCode_RepinsNestedEntry", AutoUpdate_PinInVsCode_RepinsNestedEntry);
+        Run("AutoUpdate_PinInFlat_LeavesGlobalEntryUntouched", AutoUpdate_PinInFlat_LeavesGlobalEntryUntouched);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -1904,6 +1913,165 @@ internal static class Program
             ok ? "EmitCallers found Run as the caller of WeightedSum"
                : $"found={r.Found} body={hasCallerBody} notes={notesOk}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // ---------- dnx background auto-update / config pinning ----------
+
+    private static JsonObject MakeDnxEntry(params string[] args) => new()
+    {
+        ["type"] = "stdio",
+        ["command"] = "dotnet",
+        ["args"] = new JsonArray(args.Select(a => (JsonNode)a!).ToArray()),
+    };
+
+    private static string ArgsCsv(JsonObject entry) =>
+        string.Join(",", ((JsonArray)entry["args"]!).Select(n => n!.GetValue<string>()));
+
+    private static string TempDir()
+    {
+        var d = Path.Combine(Path.GetTempPath(), "ts_cfgtest_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(d);
+        return d;
+    }
+
+    private static void CleanupDir(string d) { try { Directory.Delete(d, true); } catch { } }
+
+    private static TestOutcome AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers()
+    {
+        var dnx = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--yes");
+        var global = new JsonObject { ["command"] = "tokensaver-mcp", ["args"] = new JsonArray() };
+        var unrelated = new JsonObject { ["command"] = "dotnet", ["args"] = new JsonArray("run", "Other") };
+
+        var a = TokenSaver.Mcp.RegisterCommand.IsDnxEntry(dnx);
+        var b = TokenSaver.Mcp.RegisterCommand.IsDnxEntry(global);
+        var c = TokenSaver.Mcp.RegisterCommand.IsDnxEntry(unrelated);
+
+        var ok = a && !b && !c;
+        return new TestOutcome(ok,
+            ok ? "dnx recognized; global + unrelated rejected"
+               : $"dnx={a} global={b} unrelated={c}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps()
+    {
+        var insert = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--yes");
+        var ch1 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(insert, "1.99.1");
+        var inserted = ArgsCsv(insert) == "tool,execute,TokenSaver.Mcp,--version,1.99.1,--yes";
+
+        var replace = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--version", "1.99.0", "--yes");
+        var ch2 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(replace, "1.99.1");
+        var replaced = ArgsCsv(replace) == "tool,execute,TokenSaver.Mcp,--version,1.99.1,--yes";
+
+        var ch3 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(replace, "1.99.1");
+
+        var ok = ch1 && inserted && ch2 && replaced && !ch3;
+        return new TestOutcome(ok,
+            ok ? "insert after package id; replace existing; no-op when unchanged"
+               : $"insert(ch={ch1},ok={inserted}) replace(ch={ch2},ok={replaced}) noop(ch={ch3})",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome AutoUpdate_IsNewer_ComparesCoreVersions()
+    {
+        var newer = TokenSaver.Mcp.RegisterCommand.IsNewer("1.99.1", "1.99.0");
+        var older = !TokenSaver.Mcp.RegisterCommand.IsNewer("1.12.0", "1.99.0");
+        var equal = !TokenSaver.Mcp.RegisterCommand.IsNewer("1.99.1", "1.99.1");
+        var prerelease = !TokenSaver.Mcp.RegisterCommand.IsNewer("1.12.1-localtest", "1.12.1");
+
+        var ok = newer && older && equal && prerelease;
+        return new TestOutcome(ok,
+            ok ? "newer>older true; older/equal false; prerelease suffix ignored"
+               : $"newer={newer} older={older} equal={equal} prerelease={prerelease}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated()
+    {
+        var dir = TempDir();
+        var path = Path.Combine(dir, "mcp.json");
+        var ts = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--version", "1.99.0", "--yes");
+        ts["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = "https://tokensavermcp.com" };
+        var root = new JsonObject
+        {
+            ["inputs"] = new JsonArray(),
+            ["servers"] = new JsonObject
+            {
+                ["other-server"] = new JsonObject { ["command"] = "node", ["args"] = new JsonArray("server.js") },
+                ["tokensaver"] = ts,
+            },
+        };
+        File.WriteAllText(path, root.ToJsonString());
+
+        TokenSaver.Mcp.RegisterCommand.PinInFlat(path, "servers", "1.99.1");
+        var outp = File.ReadAllText(path);
+        CleanupDir(dir);
+
+        var repinned = outp.Contains("1.99.1") && !outp.Contains("1.99.0");
+        var preserved = outp.Contains("other-server") && outp.Contains("server.js")
+                     && outp.Contains("inputs") && outp.Contains("TOKENSAVER_API_URL");
+
+        var ok = repinned && preserved;
+        return new TestOutcome(ok,
+            ok ? "tokensaver re-pinned to 1.99.1; unrelated keys/servers/env preserved"
+               : $"repinned={repinned} preserved={preserved}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome AutoUpdate_PinInVsCode_RepinsNestedEntry()
+    {
+        var dir = TempDir();
+        var path = Path.Combine(dir, "settings.json");
+        var root = new JsonObject
+        {
+            ["editor.fontSize"] = 14,
+            ["mcp"] = new JsonObject
+            {
+                ["servers"] = new JsonObject
+                {
+                    ["tokensaver"] = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--yes"),
+                    ["foo"] = new JsonObject { ["command"] = "foo" },
+                },
+            },
+        };
+        File.WriteAllText(path, root.ToJsonString());
+
+        TokenSaver.Mcp.RegisterCommand.PinInVsCode(path, "1.99.1");
+        var outp = File.ReadAllText(path);
+        CleanupDir(dir);
+
+        var repinned = outp.Contains("--version") && outp.Contains("1.99.1");
+        var preserved = outp.Contains("editor.fontSize") && outp.Contains("foo");
+
+        var ok = repinned && preserved;
+        return new TestOutcome(ok,
+            ok ? "nested mcp.servers.tokensaver pinned; sibling + settings preserved"
+               : $"repinned={repinned} preserved={preserved}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome AutoUpdate_PinInFlat_LeavesGlobalEntryUntouched()
+    {
+        var dir = TempDir();
+        var path = Path.Combine(dir, "claude.json");
+        var root = new JsonObject
+        {
+            ["mcpServers"] = new JsonObject
+            {
+                ["tokensaver"] = new JsonObject { ["command"] = "tokensaver-mcp", ["args"] = new JsonArray() },
+            },
+        };
+        File.WriteAllText(path, root.ToJsonString());
+
+        TokenSaver.Mcp.RegisterCommand.PinInFlat(path, "mcpServers", "1.99.1");
+        var outp = File.ReadAllText(path);
+        CleanupDir(dir);
+
+        var ok = !outp.Contains("--version");
+        return new TestOutcome(ok,
+            ok ? "global-command entry not rewritten (no --version added)"
+               : "global entry was incorrectly modified",
+            (0, 0, 0));
     }
 
     private static string Fixture(string name) => Path.Combine(FixturesDir, name);

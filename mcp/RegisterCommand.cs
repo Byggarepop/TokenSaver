@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -111,7 +112,8 @@ internal static class RegisterCommand
 
     static JsonObject BuildClaudeEntry() => new()
     {
-        ["command"] = "tokensaver-mcp",
+        ["command"] = "dotnet",
+        ["args"] = BuildDnxArgs(),
         ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
 
@@ -156,8 +158,8 @@ internal static class RegisterCommand
     static JsonObject BuildClaudeCodeEntry() => new()
     {
         ["type"] = "stdio",
-        ["command"] = "tokensaver-mcp",
-        ["args"] = new JsonArray(),
+        ["command"] = "dotnet",
+        ["args"] = BuildDnxArgs(),
         ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
 
@@ -278,19 +280,103 @@ internal static class RegisterCommand
     {
         ["type"] = "stdio",
         ["command"] = "dotnet",
-        ["args"] = new JsonArray("tool", "execute", "TokenSaver.Mcp", "--yes"),
+        ["args"] = BuildDnxArgs(),
         ["env"] = new JsonObject { ["TOKENSAVER_API_URL"] = ApiUrl }
     };
+
+    // -------------------------------------------------------------------------
+    // Version pinning + dnx entry helpers
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// The NuGet package version of the running server (e.g. "1.12.0", or
+    /// "1.12.1-localtest" for a prerelease). Uses the informational version,
+    /// which preserves any prerelease suffix, and strips build metadata after '+'.
+    /// </summary>
+    internal static string CurrentPackageVersion()
+    {
+        string? info = typeof(RegisterCommand).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(info))
+        {
+            int plus = info.IndexOf('+');
+            return plus >= 0 ? info[..plus] : info;
+        }
+        return typeof(RegisterCommand).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    }
+
+    /// <summary>The pinned dnx launch args: <c>tool execute TokenSaver.Mcp --version &lt;current&gt; --yes</c>.</summary>
+    static JsonArray BuildDnxArgs() =>
+        new("tool", "execute", "TokenSaver.Mcp", "--version", CurrentPackageVersion(), "--yes");
+
+    /// <summary>True if the entry launches via <c>dotnet tool execute TokenSaver.Mcp</c> (the dnx model).</summary>
+    internal static bool IsDnxEntry(JsonObject entry)
+    {
+        if (entry["command"]?.GetValue<string>() != "dotnet") return false;
+        if (entry["args"] is not JsonArray args) return false;
+
+        bool execute = false, package = false;
+        foreach (JsonNode? a in args)
+        {
+            string? s = a?.GetValue<string>();
+            if (s == "execute") execute = true;
+            else if (s == "TokenSaver.Mcp") package = true;
+        }
+        return execute && package;
+    }
+
+    /// <summary>
+    /// Ensures a dnx entry's args pin <c>--version &lt;version&gt;</c>. Replaces an existing
+    /// pinned value, or inserts the flag right after the package id. Returns true if the
+    /// args were changed.
+    /// </summary>
+    internal static bool SetPinnedVersion(JsonObject entry, string version)
+    {
+        if (entry["args"] is not JsonArray args) return false;
+
+        for (int i = 0; i < args.Count; i++)
+        {
+            if (args[i]?.GetValue<string>() != "--version") continue;
+            if (i + 1 < args.Count && args[i + 1]?.GetValue<string>() == version)
+                return false;                        // already pinned to this version
+            if (i + 1 < args.Count) args[i + 1] = version;
+            else args.Add(version);
+            return true;
+        }
+
+        int pkg = -1;
+        for (int i = 0; i < args.Count; i++)
+            if (args[i]?.GetValue<string>() == "TokenSaver.Mcp") { pkg = i; break; }
+        if (pkg < 0) return false;
+
+        args.Insert(pkg + 1, "--version");
+        args.Insert(pkg + 2, version);
+        return true;
+    }
+
+    /// <summary>True if <paramref name="candidate"/> is a newer version than <paramref name="current"/> (ignoring prerelease suffixes).</summary>
+    internal static bool IsNewer(string candidate, string current)
+    {
+        static Version Core(string v)
+        {
+            int dash = v.IndexOf('-');
+            string core = dash >= 0 ? v[..dash] : v;
+            return Version.TryParse(core, out Version? ver) ? ver : new Version(0, 0, 0);
+        }
+        return Core(candidate) > Core(current);
+    }
 
     // -------------------------------------------------------------------------
     // Auto-update on startup
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Called on every MCP server startup. Silently updates the TOKENSAVER_API_URL
-    /// env var in any already-registered config files if it is missing or stale.
-    /// Gated by a version sentinel so the work only happens once per installed version.
-    /// Logs to stderr only — stdout is reserved for JSON-RPC traffic.
+    /// Called on every MCP server startup. Reconciles any already-registered config
+    /// entries: refreshes a missing/stale TOKENSAVER_API_URL and, for dnx entries,
+    /// pins <c>--version</c> to the running version (always safe — the running version
+    /// is by definition already in the dnx cache). Gated by a version sentinel so the
+    /// work only happens once per installed version. Logs to stderr only — stdout is
+    /// reserved for JSON-RPC traffic.
     /// </summary>
     internal static void AutoUpdateRegistrations()
     {
@@ -323,7 +409,7 @@ internal static class RegisterCommand
         catch { }
     }
 
-    /// <summary>Updates an existing tokensaver entry in a flat config (root → serversKey → ServerName).</summary>
+    /// <summary>Reconciles an existing tokensaver entry in a flat config (root → serversKey → ServerName).</summary>
     static void TryUpdateFlatConfig(string path, string serversKey)
     {
         if (!File.Exists(path)) return;
@@ -332,16 +418,15 @@ internal static class RegisterCommand
             var root = LoadOrCreate(path);
             if (root[serversKey] is not JsonObject servers) return;
             if (servers[ServerName] is not JsonObject entry) return;
-            if (!NeedsUrlUpdate(entry)) return;
+            if (!ReconcileEntry(entry, CurrentPackageVersion())) return;
 
-            ApplyUrl(entry);
             Save(path, root);
-            Console.Error.WriteLine($"[tokensaver] updated TOKENSAVER_API_URL in {path}");
+            Console.Error.WriteLine($"[tokensaver] reconciled entry in {path}");
         }
         catch { }
     }
 
-    /// <summary>Updates an existing tokensaver entry in VS Code's nested config (root → mcp → servers → ServerName).</summary>
+    /// <summary>Reconciles an existing tokensaver entry in VS Code's nested config (root → mcp → servers → ServerName).</summary>
     static void TryUpdateVsCodeConfig(string path)
     {
         if (!File.Exists(path)) return;
@@ -351,11 +436,79 @@ internal static class RegisterCommand
             if (root["mcp"] is not JsonObject mcp) return;
             if (mcp["servers"] is not JsonObject servers) return;
             if (servers[ServerName] is not JsonObject entry) return;
-            if (!NeedsUrlUpdate(entry)) return;
+            if (!ReconcileEntry(entry, CurrentPackageVersion())) return;
 
-            ApplyUrl(entry);
             Save(path, root);
-            Console.Error.WriteLine($"[tokensaver] updated TOKENSAVER_API_URL in {path}");
+            Console.Error.WriteLine($"[tokensaver] reconciled entry in {path}");
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Brings an existing entry up to date: refreshes TOKENSAVER_API_URL and, for dnx
+    /// entries, pins <paramref name="pinVersion"/>. Returns true if anything changed.
+    /// </summary>
+    static bool ReconcileEntry(JsonObject entry, string pinVersion)
+    {
+        bool changed = false;
+        if (NeedsUrlUpdate(entry)) { ApplyUrl(entry); changed = true; }
+        if (IsDnxEntry(entry) && SetPinnedVersion(entry, pinVersion)) changed = true;
+        return changed;
+    }
+
+    // -------------------------------------------------------------------------
+    // Background self-update support (called from SelfUpdate)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Pins every registered dnx-style tokensaver entry to <paramref name="version"/>.
+    /// Called by the background self-update only after that version has been confirmed
+    /// present in the dnx cache, so the next launch is offline-instant. Safe to call
+    /// from a background thread; failures are swallowed per-file.
+    /// </summary>
+    internal static void PinDnxEntriesToVersion(string version)
+    {
+        PinInFlat(GetClaudeDesktopConfigPath(), "mcpServers", version);
+        PinInFlat(GetClaudeCodeConfigPath(), "mcpServers", version);
+
+        string? vsCodePath = GetVsCodeSettingsPath();
+        if (vsCodePath is not null)
+            PinInVsCode(vsCodePath, version);
+
+        PinInFlat(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json"),
+            "servers", version);
+    }
+
+    internal static void PinInFlat(string path, string serversKey, string version)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            var root = LoadOrCreate(path);
+            if (root[serversKey] is not JsonObject servers) return;
+            if (servers[ServerName] is not JsonObject entry) return;
+            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return;
+
+            Save(path, root);
+            Console.Error.WriteLine($"[tokensaver] pinned {version} in {path}");
+        }
+        catch { }
+    }
+
+    internal static void PinInVsCode(string path, string version)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            var root = LoadOrCreate(path);
+            if (root["mcp"] is not JsonObject mcp) return;
+            if (mcp["servers"] is not JsonObject servers) return;
+            if (servers[ServerName] is not JsonObject entry) return;
+            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return;
+
+            Save(path, root);
+            Console.Error.WriteLine($"[tokensaver] pinned {version} in {path}");
         }
         catch { }
     }
