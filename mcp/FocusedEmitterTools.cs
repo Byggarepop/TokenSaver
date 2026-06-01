@@ -226,6 +226,7 @@ public static class FocusedEmitterTools
         "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
         "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
         "C (.c, .h), C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl), " +
+        "X++ (.xpp — C-style comment strip + whitespace collapse), " +
         "VB.NET (.vb — Roslyn comment strip + blank-run collapse), " +
         "and Markdown (.md, .markdown — HTML comments stripped, blank-run collapse). " +
         "Code minifiers strip comments and collapse whitespace. " +

@@ -28,6 +28,8 @@
     <Compile Include="..\Emitters\CppMinifier.cs" Link="Emitters\CppMinifier.cs" />
     <Compile Include="..\Emitters\CEmitter.cs" Link="Emitters\CEmitter.cs" />
     <Compile Include="..\Emitters\CppEmitter.cs" Link="Emitters\CppEmitter.cs" />
+    <Compile Include="..\Emitters\XppMinifier.cs" Link="Emitters\XppMinifier.cs" />
+    <Compile Include="..\Emitters\XppEmitter.cs" Link="Emitters\XppEmitter.cs" />
     <Compile Include="..\Emitters\RazorEmitter.cs" Link="Emitters\RazorEmitter.cs" />
     <Compile Include="..\Emitters\VBEmitter.cs" Link="Emitters\VBEmitter.cs" />
     <Compile Include="..\Emitters\MarkdownEmitter.cs" Link="Emitters\MarkdownEmitter.cs" />

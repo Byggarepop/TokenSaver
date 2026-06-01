@@ -77,6 +77,10 @@ internal static class Program
         Run("Cpp_Minify_StripsComments", Cpp_Minify_StripsComments);
         Run("Cpp_Minify_PreservesPreprocessorDirectives", Cpp_Minify_PreservesPreprocessorDirectives);
         Run("Cpp_Minify_BracesInStringsDoNotCorrupt", Cpp_Minify_BracesInStringsDoNotCorrupt);
+        Run("Xpp_Registry_DispatchesByExtension", Xpp_Registry_DispatchesByExtension);
+        Run("Xpp_Minify_StripsComments", Xpp_Minify_StripsComments);
+        Run("Xpp_Minify_PreservesMacroDirectives", Xpp_Minify_PreservesMacroDirectives);
+        Run("Xpp_Minify_BracesInStringsDoNotCorrupt", Xpp_Minify_BracesInStringsDoNotCorrupt);
         Run("LazyModel_OutlineDoesNotLoadModel", LazyModel_OutlineDoesNotLoadModel);
         Run("LazyModel_MinifyDoesNotLoadModel", LazyModel_MinifyDoesNotLoadModel);
         Run("LazyModel_FocusLoadsModel", LazyModel_FocusLoadsModel);
@@ -1171,6 +1175,68 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "} inside string literal did not corrupt output"
                : $"class={hasClass} add={hasAdd} string={hasString}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    // ---------- X++ emitter ----------
+
+    private static TestOutcome Xpp_Registry_DispatchesByExtension()
+    {
+        var xpp = LanguageEmitterRegistry.Find("SalesOrderProcessor.xpp");
+        var ok = xpp is XppEmitter;
+        return new TestOutcome(ok,
+            ok ? ".xpp dispatched to XppEmitter"
+               : $"xpp={xpp?.GetType().Name}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Xpp_Minify_StripsComments()
+    {
+        var path = Fixture("sample.xpp");
+        var r = new XppEmitter().Minify(path);
+
+        var hasBlock   = r.Output.Contains("top-level block comment");
+        var hasLine    = r.Output.Contains("line comment about the class");
+        var hasInline  = r.Output.Contains("inline note");
+        var hasMulti   = r.Output.Contains("multi-line block comment");
+        var hasTrail   = r.Output.Contains("another comment");
+
+        var ok = !hasBlock && !hasLine && !hasInline && !hasMulti && !hasTrail;
+        return new TestOutcome(ok,
+            ok ? "all // and /* */ comment forms stripped"
+               : $"block={hasBlock} line={hasLine} inline={hasInline} multi={hasMulti} trail={hasTrail}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Xpp_Minify_PreservesMacroDirectives()
+    {
+        var path = Fixture("sample.xpp");
+        var r = new XppEmitter().Minify(path);
+
+        var hasMax   = r.Output.Contains("#define.MaxItems(100)");
+        var hasGreet = r.Output.Contains("#define.Greeting('Hello')");
+
+        var ok = hasMax && hasGreet;
+        return new TestOutcome(ok,
+            ok ? "#define macro directives preserved"
+               : $"max={hasMax} greet={hasGreet}",
+            TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Xpp_Minify_BracesInStringsDoNotCorrupt()
+    {
+        var path = Fixture("sample.xpp");
+        var r = new XppEmitter().Minify(path);
+
+        // The string "result = {0} } trailing" has a lone } — must survive intact.
+        var hasClass   = r.Output.Contains("class SalesOrderProcessor");
+        var hasProcess = r.Output.Contains("int process(");
+        var hasString  = r.Output.Contains("result = {0} } trailing");
+
+        var ok = hasClass && hasProcess && hasString;
+        return new TestOutcome(ok,
+            ok ? "} inside string literal did not corrupt output"
+               : $"class={hasClass} process={hasProcess} string={hasString}",
             TokenSaving(r.OriginalChars, r.OutputChars));
     }
 

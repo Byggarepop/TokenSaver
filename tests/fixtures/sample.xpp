@@ -1,0 +1,26 @@
+/* top-level block comment */
+#define.MaxItems(100)
+#define.Greeting('Hello')
+
+// line comment about the class
+class SalesOrderProcessor
+{
+    /*
+     * multi-line block comment
+     * explaining process()
+     */
+    public int process(int qty)
+    {
+        // inline note
+        int total = qty * 2;
+        return total;
+    }
+
+    public str describe(int id)
+    {
+        /* another comment */
+        str msg = "result = {0} } trailing"; /* } in string must not end a block */
+        info(msg);
+        return msg;
+    }
+}

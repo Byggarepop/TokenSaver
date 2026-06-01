@@ -26,6 +26,7 @@ SUPPORTED FILE TYPES (via MinifyFile, auto-dispatched by extension):
   XML / .NET project   .xml, .csproj, .props, .targets, .config, .resx
   C                    .c, .h
   C++                  .cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl
+  X++                  .xpp
 
 TOOL SELECTION RULES — follow by default, no need to ask the user:
 
