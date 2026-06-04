@@ -143,18 +143,23 @@ not its real shape.
    when writing code the user will paste into their file. Use the ledger
    only to understand the relationships.
 
-If acting in agent / edit mode (directly modifying files), read only the
-lines containing the match string from disk before applying an `Edit` — a
-targeted partial Read of the insertion region, not the whole file. Tool
-output is a reasoning aid, not a representation of the file's real content.
+If acting in agent / edit mode (directly modifying files), comprehension
+still goes through a tokensaver tool **first** — never read a supported file
+just to understand it before editing. Only after the tool has shown you the
+target do you read from disk, and then only the lines containing the match
+string (the insertion region ±5) — never the whole file, and never before
+the tool. Tool output is a reasoning aid, not a representation of the file's
+real content.
 
 ### When NOT to use these tools
 
-- File type not in the supported table above (e.g. `.md`, `.txt`, binary).
+- File type not in the supported table above (e.g. `.txt`, `.sql`, binary).
 - The user explicitly asks you to read the raw file.
 - The file is already small (< 50 lines).
-- You need exact on-disk text for an `Edit` call — read only the lines around
-  the insertion point (targeted partial Read), not the whole file.
+- You need exact on-disk text for an `Edit` call — but only as a *second* step,
+  after a tokensaver tool has located the target. Then read only the lines
+  around the insertion point (±5), never the whole file, and never before the
+  tool. Comprehension always goes through a tool first.
 
 ### Reporting
 
