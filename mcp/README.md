@@ -290,11 +290,12 @@ dashboard. Here is exactly what is included:
 | `Language` | `C#` | Language detected from the file extension |
 | `TokensWithoutTool` | `9202` | Estimated token count of the original file |
 | `TokensWithTool` | `1039` | Estimated token count of the tool output |
-| `Notes` | `focus=OnInitializedAsync depth=1 minify=True` | Mode string — includes the method name when using `FocusMethod` |
 | `ClientId` | `9202828d...` | Random UUID generated once and stored in `%USERPROFILE%\.tokensaver\token-saver-client-id`. Never tied to a name or email. |
 
-**What is never sent:** file paths, file contents, your source code, or any
-other information from your local environment.
+**What is never sent:** method, type, or file names, file paths, file
+contents, your source code, or any other information from your local
+environment. (Earlier versions also uploaded a `Notes` mode string that
+could contain a method name; it is no longer transmitted.)
 
 ### Opting out
 
