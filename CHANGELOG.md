@@ -4,6 +4,27 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-06-04
+
+### Changed
+- **Telemetry no longer uploads the `Notes` field.** The field carried the mode
+  string, which for `FocusMethod` / `FocusType` / `FocusCallers` (plus cache
+  hits and the CLI path) embedded user code identifiers — method, type, and file
+  names — from private codebases. The dashboard never displayed it and `ToolName`
+  already records which tool ran, so the field is simply omitted from the upload
+  payload, covering every current and future mode format. The local `report.json`
+  still records `Notes` in full for the user's own stats. The MCP README's
+  telemetry disclosure is updated to match.
+- **Shipped instruction surfaces reworded to keep agents tool-first.** Both the
+  server `ServerInstructions` and `copilot-instructions.md` previously granted a
+  standing permission to `Read` a supported file for comprehension before
+  editing, which made the tokensaver tools easy to bypass. Comprehension now
+  always goes through a tokensaver tool first, with `Read` reduced to a narrow
+  second-step edit-prep action (target lines ±5, never before the tool, never the
+  whole file). Also added VB.NET and Markdown to the server instructions'
+  supported-types list and corrected the stale `.md` "unsupported" examples in
+  both files.
+
 ## [1.13.0] - 2026-06-01
 
 ### Added
