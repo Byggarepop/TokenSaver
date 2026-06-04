@@ -43,7 +43,9 @@ public static class ReportUploader
             entry.Language,
             entry.TokensWithoutTool,
             entry.TokensWithTool,
-            entry.Notes,
+            // Notes is intentionally NOT uploaded: it can contain user code
+            // identifiers (method, type, and file names) and is never surfaced
+            // on the dashboard. The local report.json still records it in full.
             ClientId = ClientId.Value,
         };
 
