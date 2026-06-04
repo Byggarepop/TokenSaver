@@ -27,6 +27,8 @@ SUPPORTED FILE TYPES (via MinifyFile, auto-dispatched by extension):
   C                    .c, .h
   C++                  .cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl
   X++                  .xpp
+  VB.NET               .vb
+  Markdown             .md, .markdown
 
 TOOL SELECTION RULES — follow by default, no need to ask the user:
 
@@ -73,7 +75,7 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    interface/base type name. Returns a focused type view for each implementor
    found across the project. C# only.
 
-SKIP these tools for: unsupported file types (.md, .txt, binary), small files
+SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.
 
 THE TOOL OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH:
@@ -94,10 +96,12 @@ When suggesting code or making edits, always:
 - Preserve existing comments and doc comments when modifying a function.
 - Use original symbol names (not M1/P1/F1 aliases) in code the user will
   paste into their file.
-- In agent / edit mode, read only the lines containing the match string
-  from disk before applying an Edit — a targeted partial Read of the
-  insertion region, not the whole file. Tool output is a reasoning aid,
-  not a basis for the edit text.
+- In agent / edit mode, comprehension still goes through a tokensaver tool
+  FIRST — never Read a supported file just to understand it before editing.
+  Only after the tool has shown you the target do you Read, and then only the
+  lines containing the match string (the insertion region ±5) — never the
+  whole file, and never before the tool. Tool output is a reasoning aid, not
+  a basis for the edit text.
 
 REPORTING TO THE USER:
 Each tool result starts with a header like
