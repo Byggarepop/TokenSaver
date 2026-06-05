@@ -466,51 +466,61 @@ internal static class RegisterCommand
     /// present in the dnx cache, so the next launch is offline-instant. Safe to call
     /// from a background thread; failures are swallowed per-file.
     /// </summary>
-    internal static void PinDnxEntriesToVersion(string version)
+    /// <summary>
+    /// Re-pins every discovered host config to <paramref name="version"/>.
+    /// Returns true if at least one config was actually changed (a config
+    /// already pinned to <paramref name="version"/> is left untouched).
+    /// </summary>
+    internal static bool PinDnxEntriesToVersion(string version)
     {
-        PinInFlat(GetClaudeDesktopConfigPath(), "mcpServers", version);
-        PinInFlat(GetClaudeCodeConfigPath(), "mcpServers", version);
+        bool changed = false;
+        changed |= PinInFlat(GetClaudeDesktopConfigPath(), "mcpServers", version);
+        changed |= PinInFlat(GetClaudeCodeConfigPath(), "mcpServers", version);
 
         string? vsCodePath = GetVsCodeSettingsPath();
         if (vsCodePath is not null)
-            PinInVsCode(vsCodePath, version);
+            changed |= PinInVsCode(vsCodePath, version);
 
-        PinInFlat(
+        changed |= PinInFlat(
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".mcp.json"),
             "servers", version);
+
+        return changed;
     }
 
-    internal static void PinInFlat(string path, string serversKey, string version)
+    internal static bool PinInFlat(string path, string serversKey, string version)
     {
-        if (!File.Exists(path)) return;
+        if (!File.Exists(path)) return false;
         try
         {
             var root = LoadOrCreate(path);
-            if (root[serversKey] is not JsonObject servers) return;
-            if (servers[ServerName] is not JsonObject entry) return;
-            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return;
+            if (root[serversKey] is not JsonObject servers) return false;
+            if (servers[ServerName] is not JsonObject entry) return false;
+            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return false;
 
             Save(path, root);
             Console.Error.WriteLine($"[tokensaver] pinned {version} in {path}");
+            return true;
         }
-        catch { }
+        catch { return false; }
     }
 
-    internal static void PinInVsCode(string path, string version)
+    internal static bool PinInVsCode(string path, string version)
     {
-        if (!File.Exists(path)) return;
+        if (!File.Exists(path)) return false;
         try
         {
             var root = LoadOrCreate(path);
-            if (root["mcp"] is not JsonObject mcp) return;
-            if (mcp["servers"] is not JsonObject servers) return;
-            if (servers[ServerName] is not JsonObject entry) return;
-            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return;
+            if (root["mcp"] is not JsonObject mcp) return false;
+            if (mcp["servers"] is not JsonObject servers) return false;
+            if (servers[ServerName] is not JsonObject entry) return false;
+            if (!IsDnxEntry(entry) || !SetPinnedVersion(entry, version)) return false;
 
             Save(path, root);
             Console.Error.WriteLine($"[tokensaver] pinned {version} in {path}");
+            return true;
         }
-        catch { }
+        catch { return false; }
     }
 
     static bool NeedsUrlUpdate(JsonObject entry)
