@@ -4,6 +4,24 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.4] - 2026-06-05
+
+### Fixed
+- **Cache hits no longer overstate savings against the whole-file baseline.** A
+  cached re-serve logged the raw whole-file token count as its baseline (e.g.
+  8,201 → 246, 97%) while the original call recorded the conservative
+  relevant-code baseline (303 → 246, 19%) — re-crediting a whole-file saving the
+  session ledger and in-chat header never re-credit, and inflating the
+  dashboard's aggregate totals on every repeat view. The cache now stores the
+  same conservative baseline the first call logged, so a cache-hit row is
+  identical to the original. Applies to `focus_method`, `focus_multiple_methods`,
+  `focus_type`, and `focus_callers`.
+
+### Changed
+- **Cache-hit telemetry rows are tagged with the originating tool.** A re-served
+  result logged a bare `Cache` tool name, hiding which tool produced it; rows are
+  now labelled `<tool> Cache` (e.g. `Focused Emitter (multi) Cache`).
+
 ## [1.13.3] - 2026-06-05
 
 ### Added
