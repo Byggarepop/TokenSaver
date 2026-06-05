@@ -24,6 +24,9 @@ internal static class Program
         Run("Focus_DropsUnrelatedMembers", Focus_DropsUnrelatedMembers);
         Run("Focus_Depth0_HelpersAreSignaturesOnly", Focus_Depth0_HelpersAreSignaturesOnly);
         Run("Focus_Depth1_IncludesPrivateHelperBodies", Focus_Depth1_IncludesPrivateHelperBodies);
+        Run("Focus_RelevantSourceText_IsFocusPlusHelpers", Focus_RelevantSourceText_IsFocusPlusHelpers);
+        Run("TargetedReadBaseline_AppearsInHeader", TargetedReadBaseline_AppearsInHeader);
+        Run("TelemetryBaseline_UsesConservativeValue", TelemetryBaseline_UsesConservativeValue);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Alias_RenamesPrivateOnly", Alias_RenamesPrivateOnly);
         Run("Alias_PreservesNameofArgument", Alias_PreservesNameofArgument);
@@ -145,10 +148,10 @@ internal static class Program
         Run("Cache_MissOnFirstCall", Cache_MissOnFirstCall);
         Run("Cache_HitOnSecondCall", Cache_HitOnSecondCall);
         Run("Cache_InvalidatedAfterFileChange", Cache_InvalidatedAfterFileChange);
-        Run("InitialCall_HeaderLabelsAsInitial", InitialCall_HeaderLabelsAsInitial);
-        Run("InitialCall_WithToolTokensIncludesOverhead", InitialCall_WithToolTokensIncludesOverhead);
-        Run("SubsequentCall_NoInitialLabel", SubsequentCall_NoInitialLabel);
-        Run("InitialCall_ToolSchemaOverheadCost", InitialCall_ToolSchemaOverheadCost);
+        Run("PerCallHeader_IsOverheadFree", PerCallHeader_IsOverheadFree);
+        Run("SessionLine_SubtractsOverheadOnce", SessionLine_SubtractsOverheadOnce);
+        Run("PerCallHeader_NeverLabelsInitial", PerCallHeader_NeverLabelsInitial);
+        Run("ToolSchemaOverheadCost", ToolSchemaOverheadCost);
 
         // ---------- dnx background auto-update / config pinning ----------
         Run("AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers", AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers);
@@ -286,6 +289,67 @@ internal static class Program
             ok ? "WeightedSum/Sum/ApplyBias bodies all present at depth=1"
                : $"weighted={hasWeightedSumBody} sum={hasSumBody} bias={hasApplyBiasBody}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Focus_RelevantSourceText_IsFocusPlusHelpers()
+    {
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("Run", depth: 1);
+
+        var rel = r.RelevantSourceText ?? "";
+        var wholeFile = System.IO.File.ReadAllText(path);
+
+        // The relevant text holds the focus body and the expanded helper bodies...
+        var hasFocus = rel.Contains("LastMean = Math.Max(0, biased)");
+        var hasHelper = rel.Contains("s += values[i] * weights[i]");
+        // ...but not the rest of the file, so it is a strict subset.
+        var smaller = rel.Length > 0 && rel.Length < wholeFile.Length;
+
+        var ok = r.Found && hasFocus && hasHelper && smaller;
+        return new TestOutcome(ok,
+            ok ? $"relevant text {rel.Length} chars < file {wholeFile.Length}; focus + helpers present"
+               : $"focus={hasFocus} helper={hasHelper} smaller={smaller}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome TargetedReadBaseline_AppearsInHeader()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        var output = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 1, minify: true);
+
+        var hasTargetedLine = output.Contains("vs a targeted read of just the relevant code");
+
+        // The targeted-read baseline is a subset of the file, so it must sit strictly
+        // below the whole-file "without tool" baseline.
+        var header = output.Split('\n')[0];
+        var wholeFileTokens = ParseWithoutToolTokens(header);
+        var relevantTokens = ParseTargetedBaseline(output);
+        var ordered = relevantTokens > 0 && relevantTokens < wholeFileTokens;
+
+        var ok = hasTargetedLine && ordered;
+        return new TestOutcome(ok,
+            ok ? $"targeted baseline {relevantTokens} < whole file {wholeFileTokens}"
+               : $"hasLine={hasTargetedLine} relevant={relevantTokens} whole={wholeFileTokens}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome TelemetryBaseline_UsesConservativeValue()
+    {
+        // Focused tools (relevant baseline present): record the smaller relevant-code
+        // count, not the whole file — so the dashboard never overstates savings.
+        var focused = TokenSaver.Mcp.FocusedEmitterTools.TelemetryBaseline(7083, 4200);
+        // Whole-file tools (no relevant baseline): fall back to the whole file.
+        var wholeFile = TokenSaver.Mcp.FocusedEmitterTools.TelemetryBaseline(7083, null);
+        // A zero/empty relevant baseline must not be used.
+        var emptyRel = TokenSaver.Mcp.FocusedEmitterTools.TelemetryBaseline(7083, 0);
+
+        var ok = focused == 4200 && wholeFile == 7083 && emptyRel == 7083;
+        return new TestOutcome(ok,
+            ok ? "conservative: focused→4200, whole-file→7083, empty→7083"
+               : $"focused={focused} wholeFile={wholeFile} emptyRel={emptyRel}",
+            (0, 0, 0));
     }
 
     private static TestOutcome Focus_NotFound_ReturnsNotFoundResult()
@@ -2123,56 +2187,73 @@ internal static class Program
         Console.WriteLine($"  [{status}] {name}  —  {outcome.Notes}");
     }
 
-    private static TestOutcome InitialCall_HeaderLabelsAsInitial()
+    private static TestOutcome PerCallHeader_IsOverheadFree()
     {
-        EmissionCache.Clear();
-        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 1000; // also resets call count
-        var path = Fixture("Calculator.cs");
-        var output = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path);
-        var header = output.Split('\n')[0];
-        var ok = header.Contains("(Initial)") && header.Contains("MCP overhead tokens");
-        return new TestOutcome(ok,
-            ok ? $"header: {header}" : $"missing label or overhead note — header: {header}",
-            (0, 0, 0));
-    }
-
-    private static TestOutcome InitialCall_WithToolTokensIncludesOverhead()
-    {
+        // The per-call "with tool" figure must NOT fold in the MCP overhead — overhead
+        // is a session cost, reported on its own line, not charged to any single call.
         const int overhead = 1000;
         var path = Fixture("Calculator.cs");
 
         EmissionCache.Clear();
         TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
-        var baselineHeader = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
-        var baselineWith = ParseWithToolTokens(baselineHeader);
+        var baselineWith = ParseWithToolTokens(
+            TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0]);
 
         EmissionCache.Clear();
-        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = overhead;
-        var initialHeader = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
-        var initialWith = ParseWithToolTokens(initialHeader);
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = overhead; // also resets session totals
+        var firstHeader = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
+        var firstWith = ParseWithToolTokens(firstHeader);
 
-        var ok = initialWith == baselineWith + overhead;
+        var ok = firstWith == baselineWith && !firstHeader.Contains("overhead");
         return new TestOutcome(ok,
-            ok ? $"with tool = {initialWith} (baseline {baselineWith} + overhead {overhead})"
-               : $"expected {baselineWith + overhead} but got {initialWith}",
+            ok ? $"per-call with tool = {firstWith}, overhead-free"
+               : $"expected {baselineWith} overhead-free, header: {firstHeader}",
             (0, 0, 0));
     }
 
-    private static TestOutcome SubsequentCall_NoInitialLabel()
+    private static TestOutcome SessionLine_SubtractsOverheadOnce()
+    {
+        // Across N calls the session net must equal cumulative raw savings minus a
+        // SINGLE overhead — never N overheads.
+        const int overhead = 1000;
+        var path = Fixture("Calculator.cs");
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = overhead; // resets session totals
+
+        var sessionLine = "";
+        long saved = 0, net = 0;
+        for (var i = 0; i < 3; i++)
+        {
+            EmissionCache.Clear();
+            var lines = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n');
+            sessionLine = lines[1];
+            (saved, net) = ParseSession(sessionLine);
+        }
+
+        var ok = saved > 0 && net == saved - overhead && sessionLine.Contains("3 calls");
+        return new TestOutcome(ok,
+            ok ? $"after 3 calls: raw saved {saved}, net {net} (overhead {overhead} once)"
+               : $"overhead not subtracted exactly once — line: {sessionLine}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome PerCallHeader_NeverLabelsInitial()
     {
         var path = Fixture("Calculator.cs");
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 1000; // resets session totals
         EmissionCache.Clear();
-        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 1000;
-        TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path); // first (initial) call
+        var first = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
         EmissionCache.Clear();
-        var header = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
-        var ok = !header.Contains("(Initial)") && header.Contains("[Focused Emitter]");
+        var second = TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path).Split('\n')[0];
+
+        var ok = !first.Contains("(Initial)") && !second.Contains("(Initial)")
+              && first.Contains("[Focused Emitter]") && !first.Contains("overhead");
         return new TestOutcome(ok,
-            ok ? $"header: {header}" : $"unexpected initial label — header: {header}",
+            ok ? $"per-call header overhead-free, no (Initial) label — {first}"
+               : $"unexpected per-call header — first: {first}",
             (0, 0, 0));
     }
 
-    private static TestOutcome InitialCall_ToolSchemaOverheadCost()
+    private static TestOutcome ToolSchemaOverheadCost()
     {
         var schemaTokens = TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens("");
         var ok = schemaTokens > 0;
@@ -2188,6 +2269,37 @@ internal static class Program
         if (!m.Success) return -1;
         var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s, ]", "");
         return int.TryParse(raw, out var n) ? n : -1;
+    }
+
+    private static int ParseWithoutToolTokens(string header)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(header, @"without tool:\s*([\d\s,]+)");
+        if (!m.Success) return -1;
+        var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s,]", "");
+        return int.TryParse(raw, out var n) ? n : -1;
+    }
+
+    // Parses the token count from "...relevant code (X tokens): ..." line.
+    private static int ParseTargetedBaseline(string output)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(output, @"relevant code \(([\d\s,]+) tokens\)");
+        if (!m.Success) return -1;
+        var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s,]", "");
+        return int.TryParse(raw, out var n) ? n : -1;
+    }
+
+    // Parses the "session: N calls · raw saved X · net of O one-time MCP overhead = Y"
+    // line into (rawSaved, net).
+    private static (long saved, long net) ParseSession(string line)
+    {
+        long Grab(string pattern)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(line, pattern);
+            if (!m.Success) return long.MinValue;
+            var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s,]", "");
+            return long.TryParse(raw, out var n) ? n : long.MinValue;
+        }
+        return (Grab(@"raw saved\s*(-?[\d\s,]+)"), Grab(@"=\s*(-?[\d\s,]+)"));
     }
 
     private static void WriteReport()

@@ -104,9 +104,16 @@ When suggesting code or making edits, always:
   a basis for the edit text.
 
 REPORTING TO THE USER:
-Each tool result starts with a header like
-"// [Focused Emitter] Tokens without tool: 7,083  →  with tool: 3,133 (55% saved)".
-Mention the savings to the user in your reply — one short sentence is enough.
+Each tool result starts with a token-comparison header. For the focused tools it
+has up to three lines, e.g.:
+"// [Focused Emitter] Tokens without tool: 7,083  →  with tool: 3,133 (55% saved)"
+"// vs a targeted read of just the relevant code (4,200 tokens): 25% saved"
+"// session: 4 calls · raw saved 24,800 · net of 2,100 one-time MCP overhead = 22,700"
+The first line compares against reading the WHOLE file (a best case); the second,
+when present, compares against reading only the relevant code (a careful reader's
+real alternative). Mention the savings in one short sentence, and do NOT claim the
+whole-file figure as if it were guaranteed — if the second line is present, prefer
+it or give the range (e.g. "saved ~25-55% vs reading the file").
 
 NOTE: VS Copilot's #filename syntax AND the Active Document context button
 both inline the entire file into the prompt BEFORE this server is consulted —
@@ -135,8 +142,8 @@ if (args.Length > 0 && args[0] == "print-instructions")
 }
 
 // `tokensaver-mcp print-overhead` prints the token cost of the MCP overhead
-// (server instructions + all tool descriptions) so users can see the true
-// break-even point for the first tool call in a session.
+// (server instructions + all tool descriptions). This is the one-time per-session
+// cost the running session total subtracts once to show the net break-even point.
 if (args.Length > 0 && args[0] == "print-overhead")
 {
     var total = TokenSaver.Mcp.FocusedEmitterTools.ComputeOverheadTokens(ServerInstructions);

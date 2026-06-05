@@ -174,9 +174,10 @@ public sealed class FocusedEmitter
         // 4) Build the output. Order: usings, namespace, type with focus method
         //    full-bodied + expanded helpers full-bodied + everything else reduced to signatures.
         var sb = new StringBuilder();
+        var relevant = new StringBuilder();
         AppendUsings(sb, root);
         AppendNamespaceOpen(sb, containingType);
-        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods);
+        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods, relevant);
         AppendNamespaceClose(sb, containingType);
 
         var output = sb.ToString();
@@ -188,7 +189,10 @@ public sealed class FocusedEmitter
             OriginalChars: originalLength,
             FocusedChars: output.Length,
             FocusMethodName: focusMethodName,
-            Notes: BuildNotes(focusMethods.Count, referencedSymbols.Count, containingType, expandedMethods.Count, depth));
+            Notes: BuildNotes(focusMethods.Count, referencedSymbols.Count, containingType, expandedMethods.Count, depth))
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     /// <summary>
@@ -275,11 +279,12 @@ public sealed class FocusedEmitter
             .ToList();
 
         var sb = new StringBuilder();
+        var relevant = new StringBuilder();
         AppendUsings(sb, root);
         foreach (var (type, methods) in byType)
         {
             AppendNamespaceOpen(sb, type!);
-            AppendTypeWithFocus(sb, type!, methods, referencedSymbols, expandedMethods);
+            AppendTypeWithFocus(sb, type!, methods, referencedSymbols, expandedMethods, relevant);
             AppendNamespaceClose(sb, type!);
             sb.AppendLine();
         }
@@ -307,7 +312,10 @@ public sealed class FocusedEmitter
             OriginalChars: originalLength,
             FocusedChars: output.Length,
             FocusMethodName: string.Join(", ", methodNames),
-            Notes: notes.ToString());
+            Notes: notes.ToString())
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     /// <summary>
@@ -341,6 +349,7 @@ public sealed class FocusedEmitter
         sb.AppendLine($"{modifiers} {kind} {targetType.Identifier}{targetType.TypeParameterList} {baseList}".Trim());
         sb.AppendLine("{");
 
+        var relevant = new StringBuilder();
         int fullBodyCount = 0, sigOnlyCount = 0;
         foreach (var member in targetType.Members)
         {
@@ -363,6 +372,7 @@ public sealed class FocusedEmitter
             {
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevant.AppendLine(member.ToFullString().Trim());
                 fullBodyCount++;
             }
         }
@@ -382,7 +392,10 @@ public sealed class FocusedEmitter
             OriginalChars: originalLength,
             FocusedChars: output.Length,
             FocusMethodName: $"(type:{typeName})",
-            Notes: notes);
+            Notes: notes)
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     /// <summary>
@@ -835,7 +848,8 @@ public sealed class FocusedEmitter
         TypeDeclarationSyntax type,
         List<MemberDeclarationSyntax> focusMethods,
         HashSet<ISymbol> referenced,
-        HashSet<ISymbol> expandedMethods)
+        HashSet<ISymbol> expandedMethods,
+        StringBuilder? relevantSink = null)
     {
         var modifiers = string.Join(" ", type.Modifiers.Select(m => m.Text));
         var kind = type.Keyword.Text;
@@ -851,6 +865,7 @@ public sealed class FocusedEmitter
                 // Focus method: full body
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
             }
 
@@ -868,6 +883,7 @@ public sealed class FocusedEmitter
             {
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
             }
 
@@ -1010,6 +1026,16 @@ public sealed record FocusResult(
         OriginalChars == 0 ? 0 : (double)CharsSaved / OriginalChars * 100;
     public int OriginalTokensEstimate => Math.Max(1, OriginalChars / 4);
     public int FocusedTokensEstimate => Math.Max(1, FocusedChars / 4);
+
+    /// <summary>
+    /// The raw, on-disk text of exactly the members emitted with full bodies (the
+    /// focus method(s) plus any expanded helpers). This is the minimum a targeted
+    /// reader would have to read to see the same relevant code, and the mcp layer
+    /// uses it as a lower-bound "targeted-read" baseline alongside the whole-file
+    /// baseline. Null for emits where a targeted read does not apply (outline,
+    /// whole-file minify).
+    /// </summary>
+    public string? RelevantSourceText { get; init; }
 
     public static FocusResult NotFound(string name) =>
         new(false, $"// Method '{name}' not found in source", 0, 0, name, "");

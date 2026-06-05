@@ -4,6 +4,41 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Focused tools now report a second, "targeted-read" baseline.** The
+  whole-file "Tokens without tool" figure assumes the alternative was reading
+  the entire file, which is a best case for `FocusMethod` / `FocusMultipleMethods`
+  / `FocusType` / `FocusCallers` — a careful reader could instead read just the
+  relevant code. The emitter now exposes that relevant code (the focus members
+  plus expanded helpers) as `FocusResult.RelevantSourceText`, and the header adds
+  a line comparing the tool output against reading only that code. The real-world
+  saving therefore sits between the two baselines. The line honestly reports
+  "larger" when the focused view (which adds surrounding signatures) exceeds the
+  bare relevant code, and is omitted for whole-file tools where it doesn't apply.
+
+### Changed
+- **Telemetry/dashboard now records the conservative baseline, never the best
+  case.** The uploaded and locally-recorded `TokensWithoutTool` is the figure we
+  compare against to compute saved tokens. For the focused tools it is now the
+  relevant-code count (the focus member plus helpers), not the whole file, so the
+  public dashboard never overstates savings — it reports the saving we're certain
+  about rather than the best case. Whole-file tools (`Outline`, `Minify`) keep the
+  whole-file baseline, which is their true alternative. No payload/schema change:
+  the existing field simply carries the honest value (`FocusedEmitterTools.TelemetryBaseline`).
+- **Token-savings reporting is now honest about per-session MCP overhead.** The
+  previous scheme dumped the entire one-time overhead (server instructions + tool
+  schemas) onto the first call as an `[ToolName (Initial)]` header, leaving every
+  later call to ignore it. Overhead is a single per-session cost, so it no longer
+  distorts any individual call: the per-call header is now overhead-free, and a
+  second `// session:` line reports the cumulative `raw saved` and the `net` after
+  subtracting the overhead exactly once. The net can read negative early on,
+  which honestly signals the server hasn't yet paid for its context cost.
+- **Telemetry records the raw measured token counts.** `LogInvocation` previously
+  received the clamped and overhead-adjusted values, biasing the dashboard's
+  aggregates optimistically. It now logs the unmodified before/after counts the
+  tokenizer produced; the friendly clamping is applied only to the displayed
+  header string.
+
 ## [1.13.1] - 2026-06-04
 
 ### Changed
