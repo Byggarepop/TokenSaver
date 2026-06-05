@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Reflection;
 
 namespace TokenSaver;
 
@@ -20,6 +21,10 @@ public static class ReportUploader
     };
 
     private static readonly Lazy<string?> ClientId = new(LoadOrCreateClientId);
+
+    // Version of the running TokenSaver build that produced this report, sent
+    // so the dashboard can attribute savings to a release. Resolved once.
+    private static readonly Lazy<string?> McpVersion = new(ResolveMcpVersion);
 
     // In-flight uploads, tracked so a short-lived CLI process can flush them
     // before exiting (otherwise the background Task is killed on process exit).
@@ -47,6 +52,7 @@ public static class ReportUploader
             // identifiers (method, type, and file names) and is never surfaced
             // on the dashboard. The local report.json still records it in full.
             ClientId = ClientId.Value,
+            McpVersion = McpVersion.Value,
         };
 
         var task = Task.Run(async () =>
@@ -107,6 +113,21 @@ public static class ReportUploader
             var id = Guid.NewGuid().ToString("N");
             File.WriteAllText(path, id);
             return id;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? ResolveMcpVersion()
+    {
+        // The assembly this shared reporting code is compiled into is the
+        // running tool (the MCP server or the CLI), so its version is the
+        // version that produced the report. Mirrors mcp/Program.cs.
+        try
+        {
+            return Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
         }
         catch
         {

@@ -21,5 +21,12 @@ public sealed class ReportRow
     [MaxLength(64)]
     public string? ClientId { get; set; }
 
+    /// <summary>
+    /// Version of the TokenSaver MCP/CLI build that produced this report
+    /// (e.g. "1.13.2"). Null for reports ingested before this field existed.
+    /// </summary>
+    [MaxLength(32)]
+    public string? McpVersion { get; set; }
+
     public DateTime ReceivedUtc { get; set; }
 }
