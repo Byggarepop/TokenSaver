@@ -161,6 +161,7 @@ internal static class Program
         Run("AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated", AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated);
         Run("AutoUpdate_PinInVsCode_RepinsNestedEntry", AutoUpdate_PinInVsCode_RepinsNestedEntry);
         Run("AutoUpdate_PinInFlat_LeavesGlobalEntryUntouched", AutoUpdate_PinInFlat_LeavesGlobalEntryUntouched);
+        Run("AutoUpdate_PinInFlat_ReportsWhetherConfigChanged", AutoUpdate_PinInFlat_ReportsWhetherConfigChanged);
 
         WriteReport();
         var failed = Results.Count(r => !r.Passed);
@@ -2156,6 +2157,36 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "global-command entry not rewritten (no --version added)"
                : "global entry was incorrectly modified",
+            (0, 0, 0));
+    }
+
+    // Guards the issue-66 fix: the manual `self-update` path no longer gates re-pinning
+    // on the running process version (always "latest" under dnx execute) but on whether
+    // the configs actually changed. PinInFlat must report true when it rewrites a stale
+    // pin and false when the config is already at the target version (idempotent).
+    private static TestOutcome AutoUpdate_PinInFlat_ReportsWhetherConfigChanged()
+    {
+        var dir = TempDir();
+        var path = Path.Combine(dir, "mcp.json");
+        var root = new JsonObject
+        {
+            ["servers"] = new JsonObject
+            {
+                ["tokensaver"] = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--version", "1.99.0", "--yes"),
+            },
+        };
+        File.WriteAllText(path, root.ToJsonString());
+
+        // Stale config pinned to 1.99.0 -> re-pin to 1.99.1 reports a change.
+        var firstChanged = TokenSaver.Mcp.RegisterCommand.PinInFlat(path, "servers", "1.99.1");
+        // Already pinned to 1.99.1 -> re-pin is a no-op and reports no change.
+        var secondChanged = TokenSaver.Mcp.RegisterCommand.PinInFlat(path, "servers", "1.99.1");
+        CleanupDir(dir);
+
+        var ok = firstChanged && !secondChanged;
+        return new TestOutcome(ok,
+            ok ? "PinInFlat returned true on stale re-pin, false when already current"
+               : $"firstChanged={firstChanged} secondChanged={secondChanged}",
             (0, 0, 0));
     }
 

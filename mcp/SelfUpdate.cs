@@ -39,15 +39,18 @@ internal static class SelfUpdate
                 return;
             }
 
-            if (RegisterCommand.IsNewer(latest, current))
-            {
-                RegisterCommand.PinDnxEntriesToVersion(latest);
-                StartupLog.Write($"self-update: prefetched {latest} (was {current}); configs re-pinned");
-            }
+            // Re-pin based on what the host configs actually point at, not on the
+            // running process version. When this command is invoked via unpinned
+            // `dotnet tool execute`, dnx resolves and runs the *latest* package, so
+            // the running version always equals `latest` by construction — comparing
+            // them would skip the re-pin even when the configs still pin an older
+            // version. Pinning is idempotent (SetPinnedVersion no-ops when already at
+            // the target), so re-pinning unconditionally only rewrites stale configs.
+            bool repinned = RegisterCommand.PinDnxEntriesToVersion(latest);
+            if (repinned)
+                StartupLog.Write($"self-update: prefetched {latest} (running {current}); configs re-pinned");
             else
-            {
-                StartupLog.Write($"self-update: up to date (running {current}, latest {latest})");
-            }
+                StartupLog.Write($"self-update: up to date (configs already pinned to {latest}, running {current})");
         }
         catch (Exception ex)
         {
