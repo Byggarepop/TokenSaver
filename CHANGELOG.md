@@ -4,6 +4,35 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-06-05
+
+### Added
+- **Reports now record the TokenSaver version that produced them.** Each
+  uploaded report carries an `McpVersion` field resolved from the running
+  build, so the dashboard can attribute savings to a specific release and tell
+  old clients from new ones. The viewer stores it in a new nullable column and
+  surfaces it in the admin log. Existing databases are migrated in place by a
+  guarded `ALTER TABLE ... ADD COLUMN` on startup — additive and idempotent, so
+  rows ingested before this field keep a null version and no data is touched.
+
+### Changed
+- **Session savings are honest about repeat views of the same file.** The
+  session ledger added each call's whole-file baseline every time, so viewing
+  one file several ways (a different method, or outline-then-minify) credited the
+  whole-file saving once per view — inflating a real ~50% into an apparent ~90%.
+  The ledger now tracks which sources have already been counted and adds the
+  whole-file baseline only on first sighting; later distinct views add only their
+  own output. Repeat views drop the "% saved" headline and state the baseline was
+  already counted, so per-call lines can no longer be summed into an overstated
+  total. (Identical repeat calls were already served from cache without touching
+  the ledger.)
+
+### Fixed
+- **A comma-containing `focus_method` name now auto-routes to
+  `focus_multiple_methods`.** Passing `"A,B"` as `methodName` was treated as a
+  single missing method, dumping the whole outline as a "not found" reply; it is
+  now split and routed to the multi-method tool.
+
 ## [1.13.2] - 2026-06-05
 
 ### Added
