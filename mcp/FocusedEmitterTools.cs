@@ -84,7 +84,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -159,7 +159,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -357,7 +357,7 @@ public static class FocusedEmitterTools
                            $"Available types:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -418,7 +418,7 @@ public static class FocusedEmitterTools
                 if (!vbResult.Found)
                     return $"' No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 

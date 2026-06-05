@@ -129,6 +129,7 @@ internal static class Program
         Run("Vb_Focus_IncludesFocusMethodBody", Vb_Focus_IncludesFocusMethodBody);
         Run("Vb_Focus_Depth0_HelpersAreSignaturesOnly", Vb_Focus_Depth0_HelpersAreSignaturesOnly);
         Run("Vb_Focus_Depth1_IncludesPrivateHelperBodies", Vb_Focus_Depth1_IncludesPrivateHelperBodies);
+        Run("Vb_Focus_RelevantSourceText_IsFocusPlusHelpers", Vb_Focus_RelevantSourceText_IsFocusPlusHelpers);
         Run("Vb_FocusType_NonPrivateHasBody_PrivateHasSignature", Vb_FocusType_NonPrivateHasBody_PrivateHasSignature);
         Run("Vb_FocusCallers_FindsCallingMethods", Vb_FocusCallers_FindsCallingMethods);
 
@@ -1946,6 +1947,26 @@ internal static class Program
             ok ? "private helper body expanded at depth=1"
                : $"found={r.Found} helperBody={hasHelperBody}",
             TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Vb_Focus_RelevantSourceText_IsFocusPlusHelpers()
+    {
+        var path = Fixture("VbCalculator.vb");
+        var r = new VBFocusedEmitter(path).Emit("Run", depth: 1);
+
+        var rel = r.RelevantSourceText ?? "";
+        var wholeFile = System.IO.File.ReadAllText(path);
+
+        // Relevant text holds the focus body and the expanded helper body...
+        var hasHelper = rel.Contains("s += values(i) * weights(i)");
+        // ...but is a strict subset of the file.
+        var smaller = rel.Length > 0 && rel.Length < wholeFile.Length;
+
+        var ok = r.Found && hasHelper && smaller;
+        return new TestOutcome(ok,
+            ok ? $"relevant text {rel.Length} chars < file {wholeFile.Length}; helper present"
+               : $"helper={hasHelper} smaller={smaller}",
+            (0, 0, 0));
     }
 
     private static TestOutcome Vb_FocusType_NonPrivateHasBody_PrivateHasSignature()

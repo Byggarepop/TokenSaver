@@ -83,13 +83,17 @@ public sealed class VBFocusedEmitter
             CollectReferencedSymbols(m, referencedSymbols);
         var expandedMethods = ExpandHelpers(focusMethods, depth);
         var sb = new StringBuilder();
+        var relevant = new StringBuilder();
         AppendImports(sb);
         AppendNamespaceOpen(sb, containingType);
-        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods);
+        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods, relevant);
         AppendNamespaceClose(sb, containingType);
         var output = sb.ToString();
         var notes = BuildNotes(focusMethods.Count, referencedSymbols.Count, containingType, expandedMethods.Count, depth);
-        return new FocusResult(true, output, _originalChars, output.Length, focusMethodName, notes);
+        return new FocusResult(true, output, _originalChars, output.Length, focusMethodName, notes)
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     public FocusResult EmitMultiple(IReadOnlyList<string> methodNames, int depth = 0)
@@ -113,11 +117,12 @@ public sealed class VBFocusedEmitter
             .Where(g => g.Key is not null)
             .ToList();
         var sb = new StringBuilder();
+        var relevant = new StringBuilder();
         AppendImports(sb);
         foreach (var group in byType)
         {
             AppendNamespaceOpen(sb, group.Key!);
-            AppendTypeWithFocus(sb, group.Key!, group.ToList(), referencedSymbols, expandedMethods);
+            AppendTypeWithFocus(sb, group.Key!, group.ToList(), referencedSymbols, expandedMethods, relevant);
             AppendNamespaceClose(sb, group.Key!);
             sb.AppendLine();
         }
@@ -132,7 +137,10 @@ public sealed class VBFocusedEmitter
         if (notFound.Count > 0) notesBuilder.AppendLine($"' Not found: {string.Join(", ", notFound)}");
         if (depth >= 1) notesBuilder.AppendLine($"' Expanded helpers (depth {depth}): {expandedMethods.Count}");
         notesBuilder.AppendLine($"' Other members: {referencedSymbols.Count} symbols referenced, signatures only");
-        return new FocusResult(true, output, _originalChars, output.Length, string.Join(", ", methodNames), notesBuilder.ToString());
+        return new FocusResult(true, output, _originalChars, output.Length, string.Join(", ", methodNames), notesBuilder.ToString())
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     public FocusResult EmitType(string typeName)
@@ -145,6 +153,7 @@ public sealed class VBFocusedEmitter
         AppendImports(sb);
         AppendNamespaceOpen(sb, targetType);
         sb.AppendLine(targetType.BlockStatement.ToString().Trim());
+        var relevant = new StringBuilder();
         int fullBodyCount = 0, sigOnlyCount = 0;
         foreach (var member in targetType.Members)
         {
@@ -162,6 +171,7 @@ public sealed class VBFocusedEmitter
             {
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevant.AppendLine(member.ToFullString().Trim());
                 fullBodyCount++;
             }
         }
@@ -170,7 +180,10 @@ public sealed class VBFocusedEmitter
         var output = sb.ToString();
         var notes = $"' Type focus: {typeName} in {Path.GetFileName(_filePath)}\n" +
                     $"' {fullBodyCount} non-private member(s) with full body; {sigOnlyCount} private member(s) as signatures\n";
-        return new FocusResult(true, output, _originalChars, output.Length, $"(type:{typeName})", notes);
+        return new FocusResult(true, output, _originalChars, output.Length, $"(type:{typeName})", notes)
+        {
+            RelevantSourceText = relevant.ToString()
+        };
     }
 
     public FocusResult EmitCallers(string targetMethodName, int depth = 0)
@@ -275,7 +288,8 @@ public sealed class VBFocusedEmitter
         TypeBlockSyntax typeBlock,
         List<StatementSyntax> focusMethods,
         HashSet<ISymbol> referenced,
-        HashSet<ISymbol> expandedMethods)
+        HashSet<ISymbol> expandedMethods,
+        StringBuilder? relevantSink = null)
     {
         sb.AppendLine(typeBlock.BlockStatement.ToString().Trim());
         foreach (var member in typeBlock.Members)
@@ -284,6 +298,7 @@ public sealed class VBFocusedEmitter
             {
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
             }
             ISymbol? memberSymbol = member switch
@@ -304,6 +319,7 @@ public sealed class VBFocusedEmitter
             {
                 sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
                 sb.AppendLine();
+                relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
             }
             if (!referenced.Contains(memberSymbol)) continue;
