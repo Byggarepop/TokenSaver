@@ -78,6 +78,19 @@ using (var scope = app.Services.CreateScope())
         )
         """;
     createSnapshot.ExecuteNonQuery();
+
+    // Add McpVersion column for existing DBs (EnsureCreated won't alter an
+    // existing schema). SQLite has no ADD COLUMN IF NOT EXISTS, so guard on
+    // pragma_table_info. The column is nullable, so existing rows are untouched.
+    using var versionCheck = conn.CreateCommand();
+    versionCheck.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Reports') WHERE name='McpVersion'";
+    var versionColumnExists = (long)versionCheck.ExecuteScalar()! > 0;
+    if (!versionColumnExists)
+    {
+        using var addVersion = conn.CreateCommand();
+        addVersion.CommandText = "ALTER TABLE Reports ADD COLUMN McpVersion TEXT";
+        addVersion.ExecuteNonQuery();
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -112,6 +125,7 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
 
     var notes = dto.Notes?.Length > 200 ? dto.Notes[..200] : dto.Notes;
     var clientId = dto.ClientId?.Length > 64 ? dto.ClientId[..64] : dto.ClientId;
+    var mcpVersion = dto.McpVersion?.Length > 32 ? dto.McpVersion[..32] : dto.McpVersion;
 
     var isNewClient = clientId is not null && !await db.Reports.AnyAsync(r => r.ClientId == clientId);
 
@@ -123,6 +137,7 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
         TokensWithTool = dto.TokensWithTool,
         Notes = notes,
         ClientId = clientId,
+        McpVersion = mcpVersion,
         ReceivedUtc = DateTime.UtcNow,
     };
 
@@ -222,7 +237,8 @@ public sealed record ReportPostDto(
     int TokensWithoutTool,
     int TokensWithTool,
     string? Notes,
-    string? ClientId);
+    string? ClientId,
+    string? McpVersion);
 
 public sealed record StatsSummary(
     int RunCount,

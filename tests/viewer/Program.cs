@@ -11,6 +11,7 @@ await RunAsync("Retention_TotalTokensSaved_PreservedAfterPrune",               R
 await RunAsync("Retention_PerToolLanguage_BreakdownPreservedAfterPrune",       Retention_PerToolLanguage_BreakdownPreservedAfterPrune);
 await RunAsync("Retention_ZeroMaxRows_Disabled",                               Retention_ZeroMaxRows_Disabled);
 await RunAsync("Retention_ExistingDb_NoSnapshotTable_MigrationThenPrune",      Retention_ExistingDb_NoSnapshotTable_MigrationThenPrune);
+await RunAsync("Migration_ExistingDb_NoMcpVersionColumn_AddedAndDataPreserved", Migration_ExistingDb_NoMcpVersionColumn_AddedAndDataPreserved);
 
 Console.WriteLine();
 Console.WriteLine("== Viewer test results ==");
@@ -278,6 +279,13 @@ static async Task Retention_ExistingDb_NoSnapshotTable_MigrationThenPrune()
         cmd.ExecuteNonQuery();
     }
 
+    // Program.cs also adds the McpVersion column to legacy Reports tables on startup.
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = "ALTER TABLE Reports ADD COLUMN McpVersion TEXT";
+        cmd.ExecuteNonQuery();
+    }
+
     // Now build the EF context — EnsureCreated sees both tables already exist and does nothing
     var options = new DbContextOptionsBuilder<ReportsDb>().UseSqlite(conn).Options;
     using var db = new ReportsDb(options);
@@ -300,4 +308,89 @@ static async Task Retention_ExistingDb_NoSnapshotTable_MigrationThenPrune()
 
     Assert(totalAfter == totalBefore,
         $"Total tokens saved must equal pre-migration total: expected={totalBefore}, got={totalAfter}");
+}
+
+static async Task Migration_ExistingDb_NoMcpVersionColumn_AddedAndDataPreserved()
+{
+    // Simulates the Pi DB: a Reports table that predates the McpVersion column.
+    // Replicates the pragma-guarded ALTER TABLE that Program.cs runs on startup
+    // and verifies existing rows survive and new rows can store a version.
+    using var conn = new SqliteConnection("Data Source=:memory:");
+    conn.Open();
+
+    using (var cmd = conn.CreateCommand())
+    {
+        cmd.CommandText = """
+            CREATE TABLE Reports (
+                Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                ToolName TEXT NOT NULL,
+                Language TEXT NOT NULL,
+                TokensWithoutTool INTEGER NOT NULL,
+                TokensWithTool INTEGER NOT NULL,
+                Notes TEXT,
+                ClientId TEXT,
+                ReceivedUtc TEXT NOT NULL
+            );
+            CREATE INDEX IX_Reports_ToolName_Language ON Reports (ToolName, Language);
+            CREATE INDEX IX_Reports_ReceivedUtc ON Reports (ReceivedUtc);
+            """;
+        cmd.ExecuteNonQuery();
+    }
+
+    var now = DateTime.UtcNow;
+    using (var cmd = conn.CreateCommand())
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            cmd.CommandText = $"""
+                INSERT INTO Reports (ToolName, Language, TokensWithoutTool, TokensWithTool, Notes, ClientId, ReceivedUtc)
+                VALUES ('T', 'C#', 1000, 300, 'note{i}', 'client{i}', '{now.AddDays(-i):O}')
+                """;
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // Replicate the startup migration: only add the column when it's missing.
+    static long McpVersionColumnCount(SqliteConnection c)
+    {
+        using var check = c.CreateCommand();
+        check.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Reports') WHERE name='McpVersion'";
+        return (long)check.ExecuteScalar()!;
+    }
+
+    Assert(McpVersionColumnCount(conn) == 0, "Legacy DB must not have McpVersion before migration");
+
+    using (var add = conn.CreateCommand())
+    {
+        add.CommandText = "ALTER TABLE Reports ADD COLUMN McpVersion TEXT";
+        add.ExecuteNonQuery();
+    }
+
+    Assert(McpVersionColumnCount(conn) == 1, "McpVersion column must exist after migration");
+
+    var options = new DbContextOptionsBuilder<ReportsDb>().UseSqlite(conn).Options;
+    using var db = new ReportsDb(options);
+    db.Database.EnsureCreated(); // must be a no-op against the already-present schema
+
+    Assert(await db.Reports.CountAsync() == 5, "All pre-existing rows must survive migration");
+    Assert(await db.Reports.AllAsync(r => r.McpVersion == null), "Legacy rows must have null McpVersion");
+
+    var legacy = await db.Reports.OrderByDescending(r => r.ReceivedUtc).FirstAsync();
+    Assert(legacy.Notes == "note0" && legacy.ClientId == "client0",
+        "Existing column data must be intact after migration");
+
+    // A new row carrying a version round-trips through EF.
+    db.Reports.Add(new ReportRow
+    {
+        ToolName = "FocusMethod",
+        Language = "C#",
+        TokensWithoutTool = 900,
+        TokensWithTool = 200,
+        McpVersion = "1.13.2",
+        ReceivedUtc = now,
+    });
+    await db.SaveChangesAsync();
+
+    var saved = await db.Reports.SingleAsync(r => r.McpVersion == "1.13.2");
+    Assert(saved.ToolName == "FocusMethod", "New row with McpVersion must round-trip");
 }
