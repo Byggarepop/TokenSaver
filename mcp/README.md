@@ -75,10 +75,55 @@ to look in first. Both accept a directory path or `.csproj` file; `obj/` and
   a focused type view for each. Answers "what implements IFoo?" or "what extends
   BaseBar?" in a single call.
 
-Each tool result starts with a token-comparison header:
+Each tool result starts with a token-comparison header. For the focused tools
+(`FocusMethod`, `FocusMultipleMethods`, `FocusType`, `FocusCallers`) it has
+three lines:
 ```
 // [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)
+// vs a targeted read of just the relevant code (4,200 tokens): 25% saved
+// session: 4 calls · raw saved 24,800 · net of 2,100 one-time MCP overhead = 22,700
 ```
+
+The **first line** is just this one call: how big the file was versus how big
+the tool's answer was. The "without tool" number here is the size of the
+**whole file** — that is, it assumes the AI would otherwise have read the entire
+file. That's a fair comparison when the question genuinely needs the whole file
+("what's in here?", "audit this file"), because reading all of it is exactly
+what would have happened.
+
+But for a question about a single method, a careful AI might not read the whole
+file — it could search for the method and read just the part it needs. So the
+**second line** gives you the other end of the scale: it measures against
+reading *only the relevant code* (the method you asked about plus the small
+helpers it depends on). The true saving lives somewhere between these two lines.
+You might also see "larger" instead of "saved" here — that's honest too: for a
+tiny method, the tool's answer can be bigger than the bare code because it also
+includes the surrounding signatures the AI needs to make sense of it. (This line
+appears only for the focused tools; for whole-file tools like `Outline` and
+`Minify`, reading the whole file *is* the real alternative, so there's nothing
+to compare against.)
+
+The **third line** is the running total for your whole session, and it
+accounts for one thing the first line ignores. When the server is connected,
+it adds a fixed block of text to the AI's context — its instructions and the
+list of tools. That block costs some tokens (here, about 2,100).
+
+Strictly speaking that block sits in the AI's context on *every* turn, so it's
+an ongoing cost, not a one-time one. But here's the saving grace: most AI
+clients **cache** it. They store the block after the first turn and reuse it
+almost for free instead of re-reading it every turn. So in practice it behaves
+like a single startup cost — you mostly pay for it once and barely again after
+that.
+
+That's why the session line subtracts it **once**: it adds up everything you've
+saved so far, then takes off that startup cost a single time. If the number is
+negative, it just means you haven't saved enough yet to cover the startup cost —
+keep using the tools and it turns positive.
+
+The 2,100 shown is the *full* price of the block, before any caching. We show
+the full figure because the server can't see whether or how your client caches.
+So treat it as a worst case: caching only makes your real savings **better**
+than the number on screen.
 
 Every invocation also appends a JSON entry to
 `%USERPROFILE%\.tokensaver\report.json` and emits a one-line summary to
@@ -288,9 +333,17 @@ dashboard. Here is exactly what is included:
 |---|---|---|
 | `ToolName` | `Focused Emitter` | The tool that was called |
 | `Language` | `C#` | Language detected from the file extension |
-| `TokensWithoutTool` | `9202` | Estimated token count of the original file |
-| `TokensWithTool` | `1039` | Estimated token count of the tool output |
+| `TokensWithoutTool` | `9202` | The conservative baseline we compare against (see note below) |
+| `TokensWithTool` | `1039` | Token count of the tool output |
 | `ClientId` | `9202828d...` | Random UUID generated once and stored in `%USERPROFILE%\.tokensaver\token-saver-client-id`. Never tied to a name or email. |
+
+The dashboard's saved-token figure is `TokensWithoutTool − TokensWithTool`, and we
+deliberately pick the **conservative** baseline so it never overstates savings. For
+whole-file tools (`Outline`, `Minify`) that baseline is the whole file, because
+reading all of it is the real alternative. For the focused tools it is the *relevant
+code only* (the method you asked about plus its helpers) — not the whole file — since
+a careful reader might have read just that. In other words, the public number is the
+saving we're certain about, not the best case.
 
 **What is never sent:** method, type, or file names, file paths, file
 contents, your source code, or any other information from your local

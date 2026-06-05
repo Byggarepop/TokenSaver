@@ -163,9 +163,16 @@ real content.
 
 ### Reporting
 
-Each tool returns a header like
-`// [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)`.
-**Mention the savings to the user in your reply.** It's part of the value —
-the user wants visibility into how much context was reduced. One short
-sentence is enough, e.g. "Used the focused emitter — saved ~55% tokens vs.
-reading the whole file."
+Each tool returns a token-comparison header. For the focused tools it has up to
+three lines:
+```
+// [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)
+// vs a targeted read of just the relevant code (4,200 tokens): 25% saved
+// session: 4 calls · raw saved 24,800 · net of 2,100 one-time MCP overhead = 22,700
+```
+The first line compares against reading the **whole file** (a best case); the
+second, when present, compares against reading **only the relevant code** (a
+careful reader's real alternative). **Mention the savings to the user** — it's
+part of the value — but be honest: don't present the whole-file figure as if it
+were guaranteed. If the second line is present, prefer it or give the range, e.g.
+"Used the focused emitter — saved ~25-55% tokens vs. reading the file."

@@ -16,10 +16,19 @@ public static class FocusedEmitterTools
     public static int OverheadTokens
     {
         get => _overheadTokens;
-        set { _overheadTokens = value; Interlocked.Exchange(ref _callCount, 0); }
+        set
+        {
+            _overheadTokens = value;
+            // A new overhead value marks a fresh server session — reset running totals.
+            Interlocked.Exchange(ref _callCount, 0);
+            Interlocked.Exchange(ref _sessionBefore, 0);
+            Interlocked.Exchange(ref _sessionAfter, 0);
+        }
     }
     private static int _overheadTokens;
     private static int _callCount;
+    private static long _sessionBefore;
+    private static long _sessionAfter;
 
     public static int ComputeOverheadTokens(string serverInstructions)
     {
@@ -75,7 +84,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -99,7 +108,7 @@ public static class FocusedEmitterTools
 
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(result))
                  + result.Notes
                  + "\n"
                  + output;
@@ -150,7 +159,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -172,7 +181,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(result))
                  + result.Notes
                  + "\n"
                  + output;
@@ -348,7 +357,7 @@ public static class FocusedEmitterTools
                            $"Available types:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -369,7 +378,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}")
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}", RelevantBaseline(result))
                  + result.Notes
                  + "\n"
                  + output;
@@ -409,7 +418,7 @@ public static class FocusedEmitterTools
                 if (!vbResult.Found)
                     return $"' No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -428,7 +437,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}")
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(result))
                  + result.Notes
                  + "\n"
                  + output;
@@ -558,24 +567,61 @@ public static class FocusedEmitterTools
     private static bool IsVbFile(string filePath) =>
         Path.GetExtension(filePath).Equals(".vb", StringComparison.OrdinalIgnoreCase);
 
-    private static string BuildHeader(int before, int after, string toolName, string language, string mode)
-    {
-        after = Math.Min(after, before); // never log that the tool increased token count
+    // Token count of the raw "relevant code" a targeted reader would need (the focus
+    // method plus expanded helpers), or null when the emit has no such subset.
+    private static int? RelevantBaseline(RoslynLean.FocusResult result) =>
+        result.RelevantSourceText is { Length: > 0 } rel ? TokenCounter.Count(rel) : null;
 
-        bool isInitial = OverheadTokens > 0 && Interlocked.Increment(ref _callCount) == 1;
-        if (isInitial)
+    // The baseline we record locally and upload to the dashboard. We deliberately use
+    // the conservative (lower-bound) figure so the public numbers never overstate
+    // savings: the relevant-code count when the tool has one (the focused tools), else
+    // the whole file (whole-file tools, where reading all of it is the real alternative).
+    public static int TelemetryBaseline(int wholeFileTokens, int? relevantBaseline) =>
+        relevantBaseline is { } r && r > 0 ? r : wholeFileTokens;
+
+    private static string BuildHeader(int before, int after, string toolName, string language, string mode, int? relevantBaseline = null)
+    {
+        // Telemetry/dashboard records the conservative baseline (see TelemetryBaseline)
+        // so we never exaggerate savings. Counts are raw — unclamped and with no
+        // overhead folded in — so the stored data reflects what the tokenizer saw.
+        LogInvocation(toolName, language, mode, TelemetryBaseline(before, relevantBaseline), after);
+
+        // Per-call display: clamp so we never present the tool as increasing token
+        // count, and keep it overhead-free. The overhead is a per-session cost, not
+        // this call's cost, so attributing it here would be misleading.
+        var displayAfter = Math.Min(after, before);
+        var saved = before - displayAfter;
+        var pct = before == 0 ? 0 : saved * 100 / before;
+
+        // Session running total: the MCP overhead (server instructions + tool schemas)
+        // is a single per-session cost, so it is subtracted exactly once against the
+        // cumulative savings — never once per call. Early on, net may be negative,
+        // which honestly signals the server hasn't paid for its context cost yet.
+        var calls = Interlocked.Increment(ref _callCount);
+        var sessionBefore = Interlocked.Add(ref _sessionBefore, before);
+        var sessionAfter = Interlocked.Add(ref _sessionAfter, displayAfter);
+        var sessionSaved = sessionBefore - sessionAfter;
+        var sessionNet = sessionSaved - OverheadTokens;
+
+        var callLine = $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {displayAfter:N0}  ({pct}% saved) — mode: {mode}\n";
+
+        // Lower-bound baseline for the focused tools: the whole-file "without tool"
+        // figure assumes the alternative was reading the entire file, which is a best
+        // case. A careful reader could instead read just the relevant code. This line
+        // compares against exactly that — so the true saving sits between this and the
+        // whole-file number. The tool output can be smaller than the relevant code
+        // (minified) or larger (it adds related signatures); both are reported plainly.
+        var targetedLine = "";
+        if (relevantBaseline is { } relevant && relevant > 0)
         {
-            var afterWithOverhead = after + OverheadTokens;
-            var saved = Math.Max(0, before - afterWithOverhead);
-            var pct = before == 0 ? 0 : saved * 100 / before;
-            LogInvocation(toolName + " (Initial)", language, mode, before, afterWithOverhead);
-            return $"// [{toolName} (Initial)] Tokens without tool: {before:N0}  →  with tool: {afterWithOverhead:N0}  ({pct}% saved, incl. {OverheadTokens:N0} MCP overhead tokens) — mode: {mode}\n";
+            var diff = relevant - displayAfter;
+            var relevantPct = Math.Abs(diff) * 100 / relevant;
+            var verb = diff >= 0 ? "saved" : "larger";
+            targetedLine = $"// vs a targeted read of just the relevant code ({relevant:N0} tokens): {relevantPct}% {verb}\n";
         }
 
-        var savedNormal = Math.Max(0, before - after);
-        var pctNormal = before == 0 ? 0 : savedNormal * 100 / before;
-        LogInvocation(toolName, language, mode, before, after);
-        return $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {after:N0}  ({pctNormal}% saved) — mode: {mode}\n";
+        var sessionLine = $"// session: {calls} call{(calls == 1 ? "" : "s")} · raw saved {sessionSaved:N0} · net of {OverheadTokens:N0} one-time MCP overhead = {sessionNet:N0}\n";
+        return callLine + targetedLine + sessionLine;
     }
 
     // Every invocation is appended to the shared report JSON at
