@@ -120,6 +120,16 @@ saved so far, then takes off that startup cost a single time. If the number is
 negative, it just means you haven't saved enough yet to cover the startup cost —
 keep using the tools and it turns positive.
 
+One more honesty detail. If the AI looks at the **same file more than once** in a
+session — say it focuses one method, then another, or outlines a file and later
+minifies it — reading that file is only worth its whole-file cost *once*. So on
+the second and later views the first line changes to `repeat view of this file
+this session — whole-file baseline already counted`, and the session total does
+**not** credit the whole-file saving again. Without this, viewing one file five
+different ways would look like five separate big savings, which would overstate
+the real benefit. The running total counts each file's baseline a single time and
+only adds the extra output each later view brings into context.
+
 The 2,100 shown is the *full* price of the block, before any caching. We show
 the full figure because the server can't see whether or how your client caches.
 So treat it as a worst case: caching only makes your real savings **better**

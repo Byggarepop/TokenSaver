@@ -27,6 +27,8 @@ internal static class Program
         Run("Focus_RelevantSourceText_IsFocusPlusHelpers", Focus_RelevantSourceText_IsFocusPlusHelpers);
         Run("TargetedReadBaseline_AppearsInHeader", TargetedReadBaseline_AppearsInHeader);
         Run("TelemetryBaseline_UsesConservativeValue", TelemetryBaseline_UsesConservativeValue);
+        Run("SessionDedupe_RepeatFileViewNotDoubleCounted", SessionDedupe_RepeatFileViewNotDoubleCounted);
+        Run("FocusMethod_CommaName_RoutesToMultiple", FocusMethod_CommaName_RoutesToMultiple);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Alias_RenamesPrivateOnly", Alias_RenamesPrivateOnly);
         Run("Alias_PreservesNameofArgument", Alias_PreservesNameofArgument);
@@ -351,6 +353,59 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "conservative: focused→4200, whole-file→7083, empty→7083"
                : $"focused={focused} wholeFile={wholeFile} emptyRel={emptyRel}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome SessionDedupe_RepeatFileViewNotDoubleCounted()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0; // resets session ledger
+
+        // First view of the file: counts the whole-file baseline once.
+        var first = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 1, minify: true);
+        var wholeFile = ParseWithoutToolTokens(first.Split('\n')[0]);
+        var (savedOne, _) = ParseSession(first);
+
+        // A distinct view of the SAME file (different method → cache miss). The
+        // whole-file baseline must NOT be credited a second time.
+        var second = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "WeightedSum", depth: 1, minify: true);
+        var secondFirstLine = second.Split('\n')[0];
+        var (savedTwo, _) = ParseSession(second);
+
+        // The repeat view drops the "% saved" headline (no "Tokens without tool")
+        // and says so plainly — that headline repetition is what inflated summed savings.
+        var marksRepeat = secondFirstLine.Contains("repeat view of this file")
+                       && !secondFirstLine.Contains("Tokens without tool");
+        // Had we double-counted, cumulative saved would exceed one whole file. Honest
+        // dedupe keeps it below the whole-file baseline, and below the first view's total.
+        var notDoubleCounted = savedTwo <= wholeFile && savedTwo < savedOne;
+
+        var ok = marksRepeat && notDoubleCounted;
+        return new TestOutcome(ok,
+            ok ? $"repeat view de-headlined; cumulative saved {savedTwo} ≤ whole file {wholeFile} (was {savedOne})"
+               : $"marksRepeat={marksRepeat} savedOne={savedOne} savedTwo={savedTwo} wholeFile={wholeFile}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome FocusMethod_CommaName_RoutesToMultiple()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+
+        // A comma means the caller wanted several methods. focus_method must route to
+        // the multi tool instead of dumping the whole outline as a "not found" reply.
+        var output = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "WeightedSum,Sum", depth: 1);
+
+        var routedToMulti = output.Contains("focus=[WeightedSum,Sum]");
+        var noOutlineDump = !output.Contains("not found") && !output.Contains("Available members");
+        var bothPresent = output.Contains("WeightedSum(") && output.Contains("double Sum(");
+
+        var ok = routedToMulti && noOutlineDump && bothPresent;
+        return new TestOutcome(ok,
+            ok ? "comma name auto-routed to multi; both methods returned, no outline dump"
+               : $"routedToMulti={routedToMulti} noOutlineDump={noOutlineDump} bothPresent={bothPresent}",
             (0, 0, 0));
     }
 
