@@ -103,8 +103,11 @@ appears only for the focused tools; for whole-file tools like `Outline` and
 `Minify`, reading the whole file *is* the real alternative, so there's nothing
 to compare against.)
 
-The **third line** is the running total for your whole session, and it
-accounts for one thing the first line ignores. When the server is connected,
+The **third line** is the running total for your whole session. (The `6 calls`
+and `38,400` here are illustrative — they stand for several different calls on
+different files across a session, not a figure derived from the single call in
+the first two lines above.) It also accounts for one thing the first line
+ignores: when the server is connected,
 it adds a fixed block of text to the AI's context — its instructions and the
 list of tools. That block costs some tokens (here, about 2,100).
 
