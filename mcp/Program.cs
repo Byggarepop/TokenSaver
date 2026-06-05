@@ -115,6 +115,13 @@ real alternative). Mention the savings in one short sentence, and do NOT claim t
 whole-file figure as if it were guaranteed — if the second line is present, prefer
 it or give the range (e.g. "saved ~25-55% vs reading the file").
 
+If you view the SAME file more than once in a session (a different method, or
+outline-then-minify), the first line is replaced by "repeat view of this file
+this session — whole-file baseline already counted ...". A file only costs its
+whole-file tokens once, so later views are not credited that saving again; the
+session total counts each file's baseline a single time. Do not re-report the
+whole-file "% saved" for a repeat view — it was already counted on the first.
+
 NOTE: VS Copilot's #filename syntax AND the Active Document context button
 both inline the entire file into the prompt BEFORE this server is consulted —
 our tools cannot intercept that content. For token reduction, the user should

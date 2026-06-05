@@ -3,6 +3,7 @@
 // Each result starts with a one-line token-comparison header so the AI can
 // surface "I used the focused emitter, saved ~X tokens" to the user.
 
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
 using ModelContextProtocol.Server;
@@ -23,12 +24,20 @@ public static class FocusedEmitterTools
             Interlocked.Exchange(ref _callCount, 0);
             Interlocked.Exchange(ref _sessionBefore, 0);
             Interlocked.Exchange(ref _sessionAfter, 0);
+            _sessionSourcesCounted.Clear();
         }
     }
     private static int _overheadTokens;
     private static int _callCount;
     private static long _sessionBefore;
     private static long _sessionAfter;
+    // Sources (files, or a synthetic key for project-wide traces) whose whole-file
+    // baseline has already been added to _sessionBefore this session. Reading a
+    // source costs its tokens once; a second distinct view of it does not save the
+    // whole file again, so we count `before` only on first sighting. OrdinalIgnoreCase
+    // because Windows paths are case-insensitive.
+    private static readonly ConcurrentDictionary<string, byte> _sessionSourcesCounted =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public static int ComputeOverheadTokens(string serverInstructions)
     {
@@ -64,6 +73,9 @@ public static class FocusedEmitterTools
         "(recommended for refactor/translate tasks where the AI needs to see real " +
         "helper logic, not just signatures). " +
         "Set minify=true for an additional ~15-25% token reduction (lossless). " +
+        "If methodName contains a comma (e.g. 'Foo,Bar'), the call is routed to " +
+        "focus_multiple_methods automatically — but prefer calling that tool " +
+        "directly when you already know you want several methods. " +
         "Supports .cs, .razor.cs, .razor, and .vb files.")]
     public static string FocusMethod(
         [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
@@ -73,6 +85,12 @@ public static class FocusedEmitterTools
     {
         try
         {
+            // A comma in methodName means the caller wanted several methods. Route to
+            // the multi-method tool instead of treating "A,B" as one (missing) name
+            // and dumping the entire outline as an expensive "not found" response.
+            if (methodName.Contains(','))
+                return FocusMultipleMethods(filePath, methodName, depth, minify);
+
             if (IsVbFile(filePath))
             {
                 var vb = new VBFocusedEmitter(filePath);
@@ -84,7 +102,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter", "VB.NET", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult), sessionKey: filePath)
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -108,7 +126,7 @@ public static class FocusedEmitterTools
 
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(result))
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
@@ -159,7 +177,7 @@ public static class FocusedEmitterTools
                            $"Available members:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(vbResult))
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "Focused Emitter (multi)", "VB.NET", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(vbResult), sessionKey: filePath)
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -181,7 +199,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(result))
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
@@ -215,7 +233,7 @@ public static class FocusedEmitterTools
                 ? originalText
                 : result.Output;
 
-            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(bodyCs), "MinifyCSharpFile", "C#", "whole-file lossless minify")
+            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(bodyCs), "MinifyCSharpFile", "C#", "whole-file lossless minify", sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + bodyCs;
@@ -258,7 +276,7 @@ public static class FocusedEmitterTools
                 ? originalText
                 : result.Output;
 
-            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(body), "MinifyFile", emitter.Language, $"{emitter.Language} minify")
+            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(body), "MinifyFile", emitter.Language, $"{emitter.Language} minify", sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + body;
@@ -286,13 +304,13 @@ public static class FocusedEmitterTools
             {
                 var vb = new VBFocusedEmitter(filePath);
                 var vbResult = vb.EmitOutline();
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbResult.Output), "OutlineCSharpFile", "VB.NET", "outline (signatures only)")
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbResult.Output), "OutlineCSharpFile", "VB.NET", "outline (signatures only)", sessionKey: filePath)
                      + vbResult.Notes + "\n" + vbResult.Output;
             }
 
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitOutline();
-            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "OutlineCSharpFile", "C#", "outline (signatures only)")
+            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "OutlineCSharpFile", "C#", "outline (signatures only)", sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -319,7 +337,7 @@ public static class FocusedEmitterTools
             var emitter = new FocusedEmitter(filePath);
             var result = emitter.EmitAliased();
 
-            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "AliasCSharpFile", "C#", "aliased + minified")
+            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "AliasCSharpFile", "C#", "aliased + minified", sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + result.Output;
@@ -357,7 +375,7 @@ public static class FocusedEmitterTools
                            $"Available types:\n{outline.Output}";
                 }
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}", RelevantBaseline(vbResult))
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusType", "VB.NET", $"type={typeName} minify={minify}", RelevantBaseline(vbResult), sessionKey: filePath)
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -378,7 +396,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}", RelevantBaseline(result))
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
@@ -418,7 +436,7 @@ public static class FocusedEmitterTools
                 if (!vbResult.Found)
                     return $"' No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
                 var vbOutput = minify ? VBFocusedEmitter.MinifyText(vbResult.Output) : vbResult.Output;
-                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult))
+                return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(vbOutput), "FocusCallers", "VB.NET", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(vbResult), sessionKey: filePath)
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
@@ -437,7 +455,7 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(result))
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
@@ -494,7 +512,8 @@ public static class FocusedEmitterTools
             }
 
             var header = BuildHeader(totalBefore, totalAfter, "TraceCallers", "C#",
-                $"callers={methodName} files={callerFiles.Count}/{traversal.FileCount} depth={depth} minify={minify}");
+                $"callers={methodName} files={callerFiles.Count}/{traversal.FileCount} depth={depth} minify={minify}",
+                sessionKey: $"TraceCallers:{methodName}");
 
             return header + $"// {callerFiles.Count} file(s) with callers of '{methodName}' (scanned {traversal.FileCount} files)\n\n" + sb;
         }
@@ -544,7 +563,8 @@ public static class FocusedEmitterTools
             }
 
             var header = BuildHeader(totalBefore, totalAfter, "TraceImplementors", "C#",
-                $"implementors={interfaceName} found={implementors.Count} files={traversal.FileCount} minify={minify}");
+                $"implementors={interfaceName} found={implementors.Count} files={traversal.FileCount} minify={minify}",
+                sessionKey: $"TraceImplementors:{interfaceName}");
 
             return header + $"// {implementors.Count} implementor(s) of '{interfaceName}' found (scanned {traversal.FileCount} files)\n\n" + sb;
         }
@@ -579,7 +599,7 @@ public static class FocusedEmitterTools
     public static int TelemetryBaseline(int wholeFileTokens, int? relevantBaseline) =>
         relevantBaseline is { } r && r > 0 ? r : wholeFileTokens;
 
-    private static string BuildHeader(int before, int after, string toolName, string language, string mode, int? relevantBaseline = null)
+    private static string BuildHeader(int before, int after, string toolName, string language, string mode, int? relevantBaseline = null, string? sessionKey = null)
     {
         // Telemetry/dashboard records the conservative baseline (see TelemetryBaseline)
         // so we never exaggerate savings. Counts are raw — unclamped and with no
@@ -593,17 +613,32 @@ public static class FocusedEmitterTools
         var saved = before - displayAfter;
         var pct = before == 0 ? 0 : saved * 100 / before;
 
+        // Per-session dedupe of the whole-file baseline. Reading a file costs its
+        // whole-file token count ONCE; a second, distinct view of the same source (a
+        // different method, or outline-then-minify) does not save the whole file
+        // again — only its own output adds to context. So `before` is added to the
+        // session total the first time we see a source and never again. Identical
+        // repeat calls never reach here — they are served from EmissionCache without
+        // touching the ledger. A null key (shouldn't happen) is treated as first-view.
+        var firstView = sessionKey is null || _sessionSourcesCounted.TryAdd(sessionKey, 0);
+
         // Session running total: the MCP overhead (server instructions + tool schemas)
         // is a single per-session cost, so it is subtracted exactly once against the
         // cumulative savings — never once per call. Early on, net may be negative,
         // which honestly signals the server hasn't paid for its context cost yet.
         var calls = Interlocked.Increment(ref _callCount);
-        var sessionBefore = Interlocked.Add(ref _sessionBefore, before);
+        var sessionBefore = Interlocked.Add(ref _sessionBefore, firstView ? before : 0);
         var sessionAfter = Interlocked.Add(ref _sessionAfter, displayAfter);
         var sessionSaved = sessionBefore - sessionAfter;
         var sessionNet = sessionSaved - OverheadTokens;
 
-        var callLine = $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {displayAfter:N0}  ({pct}% saved) — mode: {mode}\n";
+        // On a repeat view we deliberately do NOT print the "% saved" headline: the
+        // whole-file saving was already credited on the first view, and repeating the
+        // headline is exactly what inflates a summed ~50% into an apparent ~90%. We
+        // state plainly that this view only adds its own output to the context.
+        var callLine = firstView
+            ? $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {displayAfter:N0}  ({pct}% saved) — mode: {mode}\n"
+            : $"// [Focused Emitter] repeat view of this file this session — whole-file baseline already counted; this view adds {displayAfter:N0} tokens, no new whole-file saving — mode: {mode}\n";
 
         // Lower-bound baseline for the focused tools: the whole-file "without tool"
         // figure assumes the alternative was reading the entire file, which is a best
