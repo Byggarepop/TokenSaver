@@ -53,6 +53,13 @@
 
 <section class="tools">
     <h2>The tools</h2>
+    <p style="opacity:.75;font-size:.9rem;margin:.25rem 0 1.25rem;">
+        Percentages are conservative: the focus tools are measured against reading just
+        the relevant code (the method plus its helpers), while whole-file tools like
+        outline and minify compare against the whole file. Measured against reading the
+        entire file the focus figures are far higher — but a careful reader wouldn't load
+        the whole file to answer a single-method question.
+    </p>
     <div class="tool-grid">
         <div class="tool-card">
             <div class="tool-name">Outline</div>
@@ -64,25 +71,25 @@
             <div class="tool-name">Focus method</div>
             <div class="tool-desc">One method's full body plus the private helpers it calls (depth=1), including private properties. Exits the class once the target is found — no wasted tokens on the rest of the file.</div>
             <div class="tool-example">&ldquo;Look at BuildInvoice in InvoiceService.cs&rdquo;</div>
-            <div class="tool-savings">50 – 80 %</div>
+            <div class="tool-savings">15 – 40 %</div>
         </div>
         <div class="tool-card">
             <div class="tool-name">Focus multiple methods</div>
             <div class="tool-desc">Two or more methods in one call. The file is parsed once and shared signatures are deduplicated — cheaper than N separate focus calls.</div>
             <div class="tool-example">&ldquo;Look at ExecSql and ClearGrid in DataPage.cs&rdquo;</div>
-            <div class="tool-savings">50 – 80 %</div>
+            <div class="tool-savings">15 – 40 %</div>
         </div>
         <div class="tool-card">
             <div class="tool-name">Focus type</div>
             <div class="tool-desc">Non-private members with full bodies; private members as signatures only. Sits between Outline and Minify — right when you need the full contract but can skip private noise.</div>
             <div class="tool-example">&ldquo;What does FooService do? Show me its public API.&rdquo;</div>
-            <div class="tool-savings">40 – 75 %</div>
+            <div class="tool-savings">15 – 40 %</div>
         </div>
         <div class="tool-card">
             <div class="tool-name">Focus callers</div>
             <div class="tool-desc">Finds every method that calls a given target and returns a focused view of all of them. Great for impact analysis before changing a signature.</div>
             <div class="tool-example">&ldquo;What calls BuildHeader? I'm about to change its return type.&rdquo;</div>
-            <div class="tool-savings">50 – 80 %</div>
+            <div class="tool-savings">15 – 40 %</div>
         </div>
         <div class="tool-card">
             <div class="tool-name">Trace callers</div>
@@ -112,13 +119,18 @@
             <div class="tool-name">Alias</div>
             <div class="tool-desc">C# only. Renames long private symbols to short codes (M1, P1, F1…) with a lookup ledger. Stacks with minify for extra savings on verbose repositories and mappers.</div>
             <div class="tool-example">&ldquo;Refactor CustomerRepository — it has 40 private helpers.&rdquo;</div>
-            <div class="tool-savings">+15 – 25 %</div>
+            <div class="tool-savings">30 – 60 %</div>
         </div>
     </div>
 </section>
 
 <section class="examples">
     <h2>Try saying things like…</h2>
+    <p style="opacity:.75;font-size:.9rem;margin:.25rem 0 1.25rem;">
+        Focus-tool percentages are conservative — measured against reading just the
+        relevant code (the method plus the helpers it needs), not the whole file.
+        Outline and minify compare against the whole file, since that is the real alternative.
+    </p>
 
     @{bool shownAdditionalHeader = false;}
     @foreach (var ex in Examples)
@@ -392,25 +404,25 @@
             ".cs",
             "Look at the Run method in Calculator.cs and tell me what happens if total weight is zero.",
             "Focus method sends Run's body plus the helpers it calls. depth=1 includes private method and property bodies — so the AI sees the full picture without reading the whole file.",
-            50, 80),
+            15, 40),
 
         new("C# focus multiple",
             ".cs",
             "Look at ExecSql and ClearGrid in DataPage.cs together.",
             "Focus multiple methods parses the file once, deduplicates shared signatures, and returns both targets in one shot — one round-trip instead of two.",
-            50, 80),
+            15, 40),
 
         new("C# focus type",
             ".cs",
             "What does OrderService do? Show me its public API.",
             "Focus type returns public and protected members with full bodies, private members as signatures only. Ideal when a class has many private helpers but you only need its contract.",
-            40, 75),
+            15, 40),
 
         new("C# focus callers",
             ".cs",
             "What calls BuildHeader? I'm changing its return type.",
             "Focus callers auto-discovers every caller in the file and returns a focused view of each one — no manual method-name lookup needed.",
-            50, 80),
+            15, 40),
 
         new("C# trace callers",
             ".cs",
@@ -440,7 +452,7 @@
             ".cs",
             "Refactor this repository class — it has lots of long private helper names.",
             "Alias renames private members to M1/P1/F1 with a ledger. Stacks with minify.",
-            35, 70),
+            30, 60),
 
         new("Razor",
             ".razor",

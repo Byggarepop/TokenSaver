@@ -79,9 +79,9 @@ Each tool result starts with a token-comparison header. For the focused tools
 (`FocusMethod`, `FocusMultipleMethods`, `FocusType`, `FocusCallers`) it has
 three lines:
 ```
-// [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)
-// vs a targeted read of just the relevant code (4,200 tokens): 25% saved
-// session: 4 calls · raw saved 24,800 · net of 2,100 one-time MCP overhead = 22,700
+// [Focused Emitter] Tokens without tool: 16,800 → with tool: 5,200 (69% saved)
+// vs a targeted read of just the relevant code (7,400 tokens): 29% saved
+// session: 6 calls · raw saved 38,400 · net of 2,100 one-time MCP overhead = 36,300
 ```
 
 The **first line** is just this one call: how big the file was versus how big
@@ -103,8 +103,11 @@ appears only for the focused tools; for whole-file tools like `Outline` and
 `Minify`, reading the whole file *is* the real alternative, so there's nothing
 to compare against.)
 
-The **third line** is the running total for your whole session, and it
-accounts for one thing the first line ignores. When the server is connected,
+The **third line** is the running total for your whole session. (The `6 calls`
+and `38,400` here are illustrative — they stand for several different calls on
+different files across a session, not a figure derived from the single call in
+the first two lines above.) It also accounts for one thing the first line
+ignores: when the server is connected,
 it adds a fixed block of text to the AI's context — its instructions and the
 list of tools. That block costs some tokens (here, about 2,100).
 
