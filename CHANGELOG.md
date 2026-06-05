@@ -4,6 +4,8 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-06-05
+
 ### Added
 - **Focused tools now report a second, "targeted-read" baseline.** The
   whole-file "Tokens without tool" figure assumes the alternative was reading
@@ -38,6 +40,18 @@ All notable changes to TokenSaver.Mcp are documented here.
   aggregates optimistically. It now logs the unmodified before/after counts the
   tokenizer produced; the friendly clamping is applied only to the displayed
   header string.
+
+### Fixed
+- **Manual `self-update` now re-pins host configs regardless of the running
+  version.** The command decided whether to re-pin by comparing the running
+  process version against the latest feed version, acting only when latest was
+  newer. Invoked via unpinned `dotnet tool execute TokenSaver.Mcp self-update`,
+  dnx resolves and runs the *latest* package, so the running version always
+  equalled latest by construction — the comparison was never "newer", the
+  command logged "up to date", and the re-pin was skipped, leaving configs on
+  the old version. The re-pin is now decoupled from the running version and
+  applied unconditionally; pinning stays idempotent, so only stale configs are
+  rewritten.
 
 ## [1.13.1] - 2026-06-04
 
