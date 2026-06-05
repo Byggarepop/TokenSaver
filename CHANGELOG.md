@@ -4,6 +4,17 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-06-05
+
+### Added
+- **Reports now record the TokenSaver version that produced them.** Each
+  uploaded report carries an `McpVersion` field resolved from the running
+  build, so the dashboard can attribute savings to a specific release and tell
+  old clients from new ones. The viewer stores it in a new nullable column and
+  surfaces it in the admin log. Existing databases are migrated in place by a
+  guarded `ALTER TABLE ... ADD COLUMN` on startup — additive and idempotent, so
+  rows ingested before this field keep a null version and no data is touched.
+
 ## [1.13.2] - 2026-06-05
 
 ### Added
