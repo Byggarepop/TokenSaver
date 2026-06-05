@@ -119,6 +119,11 @@
 
 <section class="examples">
     <h2>Try saying things like…</h2>
+    <p style="opacity:.75;font-size:.9rem;margin:.25rem 0 1.25rem;">
+        Focus-tool percentages are conservative — measured against reading just the
+        relevant code (the method plus the helpers it needs), not the whole file.
+        Outline and minify compare against the whole file, since that is the real alternative.
+    </p>
 
     @{bool shownAdditionalHeader = false;}
     @foreach (var ex in Examples)
@@ -392,25 +397,25 @@
             ".cs",
             "Look at the Run method in Calculator.cs and tell me what happens if total weight is zero.",
             "Focus method sends Run's body plus the helpers it calls. depth=1 includes private method and property bodies — so the AI sees the full picture without reading the whole file.",
-            50, 80),
+            15, 40),
 
         new("C# focus multiple",
             ".cs",
             "Look at ExecSql and ClearGrid in DataPage.cs together.",
             "Focus multiple methods parses the file once, deduplicates shared signatures, and returns both targets in one shot — one round-trip instead of two.",
-            50, 80),
+            15, 40),
 
         new("C# focus type",
             ".cs",
             "What does OrderService do? Show me its public API.",
             "Focus type returns public and protected members with full bodies, private members as signatures only. Ideal when a class has many private helpers but you only need its contract.",
-            40, 75),
+            15, 40),
 
         new("C# focus callers",
             ".cs",
             "What calls BuildHeader? I'm changing its return type.",
             "Focus callers auto-discovers every caller in the file and returns a focused view of each one — no manual method-name lookup needed.",
-            50, 80),
+            15, 40),
 
         new("C# trace callers",
             ".cs",
