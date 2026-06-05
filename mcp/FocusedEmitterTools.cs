@@ -126,11 +126,15 @@ public static class FocusedEmitterTools
 
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
+            var relevantBaseline = RelevantBaseline(result);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", relevantBaseline, sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, methodName, depth, minify, fullOutput, beforeTokens, afterTokens);
+            // Cache the conservative telemetry baseline, not the raw whole-file count, so a
+            // cache-hit re-serve logs the same "without" figure as this first call instead of
+            // re-crediting the whole-file saving the session ledger never re-credits.
+            SetCached(filePath, methodName, depth, minify, fullOutput, TelemetryBaseline(beforeTokens, relevantBaseline), afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -199,11 +203,15 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
+            var relevantBaseline = RelevantBaseline(result);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", relevantBaseline, sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, multiKey, depth, minify, fullOutput, beforeTokens, afterTokens);
+            // Cache the conservative telemetry baseline, not the raw whole-file count, so a
+            // cache-hit re-serve logs the same "without" figure as this first call instead of
+            // re-crediting the whole-file saving the session ledger never re-credits.
+            SetCached(filePath, multiKey, depth, minify, fullOutput, TelemetryBaseline(beforeTokens, relevantBaseline), afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -396,11 +404,15 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
+            var relevantBaseline = RelevantBaseline(result);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusType", "C#", $"type={typeName} minify={minify}", relevantBaseline, sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, $"type:{typeName}", depth: 0, minify, fullOutput, beforeTokens, afterTokens);
+            // Cache the conservative telemetry baseline, not the raw whole-file count, so a
+            // cache-hit re-serve logs the same "without" figure as this first call instead of
+            // re-crediting the whole-file saving the session ledger never re-credits.
+            SetCached(filePath, $"type:{typeName}", depth: 0, minify, fullOutput, TelemetryBaseline(beforeTokens, relevantBaseline), afterTokens);
             return fullOutput;
         }
         catch (Exception ex)
@@ -455,11 +467,15 @@ public static class FocusedEmitterTools
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
             var beforeTokens = TokenCounter.Count(File.ReadAllText(filePath));
             var afterTokens = TokenCounter.Count(output);
-            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}", RelevantBaseline(result), sessionKey: filePath)
+            var relevantBaseline = RelevantBaseline(result);
+            var fullOutput = BuildHeader(beforeTokens, afterTokens, "FocusCallers", "C#", $"callers={methodName} depth={depth} minify={minify}", relevantBaseline, sessionKey: filePath)
                  + result.Notes
                  + "\n"
                  + output;
-            SetCached(filePath, $"callers:{methodName}", depth, minify, fullOutput, beforeTokens, afterTokens);
+            // Cache the conservative telemetry baseline, not the raw whole-file count, so a
+            // cache-hit re-serve logs the same "without" figure as this first call instead of
+            // re-crediting the whole-file saving the session ledger never re-credits.
+            SetCached(filePath, $"callers:{methodName}", depth, minify, fullOutput, TelemetryBaseline(beforeTokens, relevantBaseline), afterTokens);
             return fullOutput;
         }
         catch (Exception ex)

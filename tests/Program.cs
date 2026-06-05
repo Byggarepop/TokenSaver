@@ -29,6 +29,7 @@ internal static class Program
         Run("TelemetryBaseline_UsesConservativeValue", TelemetryBaseline_UsesConservativeValue);
         Run("SessionDedupe_RepeatFileViewNotDoubleCounted", SessionDedupe_RepeatFileViewNotDoubleCounted);
         Run("FocusMethod_CommaName_RoutesToMultiple", FocusMethod_CommaName_RoutesToMultiple);
+        Run("CacheHit_StoresConservativeBaseline_NotWholeFile", CacheHit_StoresConservativeBaseline_NotWholeFile);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Alias_RenamesPrivateOnly", Alias_RenamesPrivateOnly);
         Run("Alias_PreservesNameofArgument", Alias_PreservesNameofArgument);
@@ -406,6 +407,30 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "comma name auto-routed to multi; both methods returned, no outline dump"
                : $"routedToMulti={routedToMulti} noOutlineDump={noOutlineDump} bothPresent={bothPresent}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome CacheHit_StoresConservativeBaseline_NotWholeFile()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+
+        // Prime the cache with a focused view (cache miss → SetCached). The header
+        // reports both the whole-file baseline and the smaller relevant-code baseline.
+        var output = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 1, minify: true);
+        var wholeFile = ParseWithoutToolTokens(output.Split('\n')[0]);
+        var relevant = ParseTargetedBaseline(output);
+
+        // The cache must store the conservative (relevant-code) baseline, not the raw
+        // whole-file count. Otherwise a cache-hit re-serve logs an inflated "without
+        // tool" figure and re-credits the whole-file saving the ledger never re-credits.
+        var hit = EmissionCache.TryGet(path, "Run", 1, true, out _, out var cachedBefore, out _);
+
+        var ok = hit && cachedBefore == relevant && cachedBefore < wholeFile;
+        return new TestOutcome(ok,
+            ok ? $"cache stores conservative baseline {cachedBefore} (relevant) < whole file {wholeFile}"
+               : $"hit={hit} cachedBefore={cachedBefore} relevant={relevant} whole={wholeFile}",
             (0, 0, 0));
     }
 
