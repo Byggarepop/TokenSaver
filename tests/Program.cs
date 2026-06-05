@@ -30,6 +30,7 @@ internal static class Program
         Run("SessionDedupe_RepeatFileViewNotDoubleCounted", SessionDedupe_RepeatFileViewNotDoubleCounted);
         Run("FocusMethod_CommaName_RoutesToMultiple", FocusMethod_CommaName_RoutesToMultiple);
         Run("CacheHit_StoresConservativeBaseline_NotWholeFile", CacheHit_StoresConservativeBaseline_NotWholeFile);
+        Run("CacheHit_LogsOriginatingToolName", CacheHit_LogsOriginatingToolName);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Alias_RenamesPrivateOnly", Alias_RenamesPrivateOnly);
         Run("Alias_PreservesNameofArgument", Alias_PreservesNameofArgument);
@@ -431,6 +432,31 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? $"cache stores conservative baseline {cachedBefore} (relevant) < whole file {wholeFile}"
                : $"hit={hit} cachedBefore={cachedBefore} relevant={relevant} whole={wholeFile}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome CacheHit_LogsOriginatingToolName()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+
+        // Prime the cache, then re-serve. The cache-hit telemetry row must be tagged
+        // with the originating tool's name plus " Cache" (e.g. "Focused Emitter Cache"),
+        // not a bare "Cache", so the dashboard shows which tool was re-served.
+        TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 1, minify: true);
+        TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 1, minify: true);
+
+        var reportPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".tokensaver", "report.json");
+        using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(reportPath));
+        var lastTool = doc.RootElement.EnumerateArray().Last().GetProperty("ToolName").GetString();
+
+        var ok = lastTool == "Focused Emitter Cache";
+        return new TestOutcome(ok,
+            ok ? "cache hit logged as 'Focused Emitter Cache'"
+               : $"last logged tool name was '{lastTool}'",
             (0, 0, 0));
     }
 

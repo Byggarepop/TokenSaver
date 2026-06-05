@@ -106,7 +106,7 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
-            if (TryGetCached(filePath, methodName, depth, minify, out var cached))
+            if (TryGetCached(filePath, methodName, depth, minify, "Focused Emitter", out var cached))
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
@@ -186,7 +186,7 @@ public static class FocusedEmitterTools
             }
 
             var multiKey = string.Join("|", names.OrderBy(n => n));
-            if (TryGetCached(filePath, multiKey, depth, minify, out var cached))
+            if (TryGetCached(filePath, multiKey, depth, minify, "Focused Emitter (multi)", out var cached))
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
@@ -387,7 +387,7 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
-            if (TryGetCached(filePath, $"type:{typeName}", depth: 0, minify, out var cached))
+            if (TryGetCached(filePath, $"type:{typeName}", depth: 0, minify, "FocusType", out var cached))
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
@@ -452,7 +452,7 @@ public static class FocusedEmitterTools
                      + vbResult.Notes + "\n" + vbOutput;
             }
 
-            if (TryGetCached(filePath, $"callers:{methodName}", depth, minify, out var cached))
+            if (TryGetCached(filePath, $"callers:{methodName}", depth, minify, "FocusCallers", out var cached))
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
@@ -590,11 +590,13 @@ public static class FocusedEmitterTools
         }
     }
 
-    private static bool TryGetCached(string filePath, string key, int depth, bool minify, out string output)
+    private static bool TryGetCached(string filePath, string key, int depth, bool minify, string toolName, out string output)
     {
         if (!EmissionCache.TryGet(filePath, key, depth, minify, out output, out var before, out var after))
             return false;
-        LogInvocation("Cache", "C#", $"{key} depth={depth} minify={minify} [re-parse skipped]", before, after);
+        // Tag the cache hit with the tool that produced the cached entry (e.g.
+        // "Focused Emitter (multi) Cache") so the dashboard shows what was re-served.
+        LogInvocation($"{toolName} Cache", "C#", $"{key} depth={depth} minify={minify} [re-parse skipped]", before, after);
         return true;
     }
 
