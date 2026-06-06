@@ -104,7 +104,7 @@ public sealed class FocusedEmitter
             .ToList();
 
         if (focusMethods.Count == 0)
-            return FocusResult.NotFound(focusMethodName);
+            return FocusResult.NotFound(focusMethodName, BuildNotFoundHint(root, focusMethodName));
 
         // 2) Find which type contains them.
         // Multiple matches across types isn't supported in v1; take the first.
@@ -218,7 +218,7 @@ public sealed class FocusedEmitter
             .ToList();
 
         if (allFocusMethods.Count == 0)
-            return FocusResult.NotFound(string.Join(", ", methodNames));
+            return FocusResult.NotFound(string.Join(", ", methodNames), BuildNotFoundHint(root, string.Join(", ", methodNames)));
 
         // Collect referenced symbols across ALL focus methods (union).
         var referencedSymbols = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
@@ -983,6 +983,53 @@ public sealed class FocusedEmitter
 
     // -------------------------- helpers ---------------------------
 
+    /// <summary>
+    /// When a focus member is not found in this file, produce hint line(s) explaining a
+    /// likely reason it is not here, based purely on the in-file type declarations:
+    /// <list type="bullet">
+    /// <item>the containing type is <c>partial</c>, so the member may live in another part
+    /// of the same type (a sibling <c>.cs</c> or a <c>.razor</c> code-behind);</item>
+    /// <item>the type has a base list, so the member may be inherited from a base type or
+    /// interface declared elsewhere.</item>
+    /// </list>
+    /// Returns null when neither applies, so ordinary typos get no spurious hint. This is a
+    /// syntactic heuristic only — it names base-list entries but does not resolve or chase
+    /// them (a base type may live in a referenced assembly with no source).
+    /// </summary>
+    private static string? BuildNotFoundHint(CompilationUnitSyntax root, string focusName)
+    {
+        var types = root.DescendantNodes().OfType<TypeDeclarationSyntax>().ToList();
+        var lines = new List<string>();
+
+        var partialTypeNames = types
+            .Where(t => t.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+            .Select(t => t.Identifier.Text)
+            .Distinct()
+            .ToList();
+        if (partialTypeNames.Count > 0)
+        {
+            var names = string.Join("', '", partialTypeNames);
+            lines.Add($"// Note: type '{names}' is declared 'partial' — '{focusName}' may be defined "
+                    + "in a sibling file (another part of the same type, e.g. a sibling .cs or a "
+                    + ".razor code-behind). Focus that file instead.");
+        }
+
+        var baseTypeNames = types
+            .Where(t => t.BaseList is not null)
+            .SelectMany(t => t.BaseList!.Types.Select(bt => bt.Type.ToString()))
+            .Distinct()
+            .ToList();
+        if (baseTypeNames.Count > 0)
+        {
+            var names = string.Join("', '", baseTypeNames);
+            lines.Add($"// Note: '{focusName}' was not declared here, but the type derives from "
+                    + $"'{names}' — it may be inherited from a base type or interface. Focus the "
+                    + "file that declares the relevant base type.");
+        }
+
+        return lines.Count == 0 ? null : string.Join("\n", lines);
+    }
+
     private string BuildNotes(int focusCount, int refCount, TypeDeclarationSyntax type, int expandedCount, int depth)
     {
         var sb = new StringBuilder();
@@ -1037,6 +1084,19 @@ public sealed record FocusResult(
     /// </summary>
     public string? RelevantSourceText { get; init; }
 
-    public static FocusResult NotFound(string name) =>
-        new(false, $"// Method '{name}' not found in source", 0, 0, name, "");
+    /// <summary>
+    /// On a NOT FOUND result, an optional one-line hint explaining a likely reason the
+    /// member was not in this file — e.g. the containing type is <c>partial</c> and the
+    /// member may live in a sibling file. Null when no such hint applies. The mcp layer
+    /// surfaces this to the model so it can retry against the right file.
+    /// </summary>
+    public string? NotFoundHint { get; init; }
+
+    public static FocusResult NotFound(string name, string? hint = null)
+    {
+        var output = hint is null
+            ? $"// Method '{name}' not found in source"
+            : $"// Method '{name}' not found in source\n{hint}";
+        return new FocusResult(false, output, 0, 0, name, "") { NotFoundHint = hint };
+    }
 }
