@@ -4,6 +4,15 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **NOT FOUND rows no longer log a bogus 0% saving.** A focus miss returns a
+  small members outline (plus the partial/inherited hint), not the whole file,
+  yet telemetry logged `whole-file → whole-file` (0% saved). It now logs
+  `whole-file → actual response`, crediting the real saving versus the model
+  reading the whole file to discover the member isn't there. Applies to the
+  NOT FOUND paths of `focus_method`, `focus_multiple_methods`, `focus_type`,
+  and `focus_callers`.
+
 ## [1.13.5] - 2026-06-06
 
 ### Added
