@@ -233,5 +233,9 @@ TokenSaver.Mcp.StartupLog.Write("MCP host built, entering RunAsync");
 // cache, and re-pin the registered configs — all off the request critical path.
 _ = TokenSaver.Mcp.SelfUpdate.RunInBackgroundAsync();
 
+// Resend any locally-recorded telemetry rows whose upload was never confirmed
+// (dropped by a transient failure, a non-2xx response, or a prior exit mid-flight).
+TokenSaver.ReportUploader.ResendPendingInBackground();
+
 await builder.Build().RunAsync();
 TokenSaver.Mcp.StartupLog.Write("RunAsync returned (server stopped)");

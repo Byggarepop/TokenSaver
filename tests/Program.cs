@@ -35,6 +35,11 @@ internal static class Program
         Run("NotFoundMulti_LogsWholeFileToResponseSaving", NotFoundMulti_LogsWholeFileToResponseSaving);
         Run("NotFoundType_LogsWholeFileToResponseSaving", NotFoundType_LogsWholeFileToResponseSaving);
         Run("NotFoundCallers_LogsWholeFileToResponseSaving", NotFoundCallers_LogsWholeFileToResponseSaving);
+        Run("ResendPending_OnlyUploadsPendingEntries", ResendPending_OnlyUploadsPendingEntries);
+        Run("ResendPending_TransientFailureStaysPending", ResendPending_TransientFailureStaysPending);
+        Run("ResendPending_RejectedIsSettledNotRetried", ResendPending_RejectedIsSettledNotRetried);
+        Run("Append_AndMarkUploaded_RoundTrip", Append_AndMarkUploaded_RoundTrip);
+        Run("WouldBeRejected_FlagsServerRejectedRows", WouldBeRejected_FlagsServerRejectedRows);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
         Run("Focus_NotFound_NonPartialType_NoPartialHint", Focus_NotFound_NonPartialType_NoPartialHint);
@@ -542,6 +547,114 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? $"focus_callers NOT FOUND logged {without} -> {with} (real saving)"
                : $"notes='{notes}' without={without} with={with}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_OnlyUploadsPendingEntries()
+    {
+        var legacy   = new TokenSaver.ReportEntry("L", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: null);
+        var pendingA = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+        var done     = new TokenSaver.ReportEntry("D", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: true);
+        var pendingB = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var uploaded = new List<string>();
+        var settled  = new List<string>();
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { legacy, pendingA, done, pendingB },
+            e => { uploaded.Add(e.ToolName); return System.Threading.Tasks.Task.FromResult((bool?)true); },
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        // Only the two Uploaded==false rows are (re)sent; null (legacy) and true (done) skipped.
+        var ok = count == 2
+              && uploaded.SequenceEqual(new[] { "A", "B" })
+              && settled.SequenceEqual(new[] { "A", "B" });
+        return new TestOutcome(ok,
+            ok ? "resend hit only the two pending rows (skipped legacy + done)"
+               : $"count={count} uploaded=[{string.Join(",", uploaded)}] settled=[{string.Join(",", settled)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_TransientFailureStaysPending()
+    {
+        var a = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+        var b = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var settled = new List<string>();
+        // null = transient (5xx/429/network): A confirmed, B transient -> B stays pending for a later pass.
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { a, b },
+            e => System.Threading.Tasks.Task.FromResult(e.ToolName == "A" ? (bool?)true : null),
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        var ok = count == 1 && settled.SequenceEqual(new[] { "A" });
+        return new TestOutcome(ok,
+            ok ? "transient failure left unsettled (will retry); only the confirmed row settled"
+               : $"count={count} settled=[{string.Join(",", settled)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_RejectedIsSettledNotRetried()
+    {
+        var a = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var settled = new List<string>();
+        // false = permanent 4xx rejection (e.g. server validation): must settle so the row is
+        // NOT resent forever (the poison-pill case).
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { a },
+            e => System.Threading.Tasks.Task.FromResult((bool?)false),
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        var ok = count == 1 && settled.SequenceEqual(new[] { "A" });
+        return new TestOutcome(ok,
+            ok ? "permanently rejected row settled (won't poison-loop on retry)"
+               : $"count={count} settled=[{string.Join(",", settled)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Append_AndMarkUploaded_RoundTrip()
+    {
+        var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ts_report_{Guid.NewGuid():N}.json");
+        var prevNoTelem = Environment.GetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY");
+        Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", "1"); // keep Append's FireAndForget a no-op
+        try
+        {
+            TokenSaver.ReportWriter.Append("Tool", "C#", 100, 30, "n", "cli", tmp);
+            var afterAppend = TokenSaver.ReportWriter.LoadAll(tmp);
+            var pendingOk = afterAppend.Count == 1 && afterAppend[0].Uploaded == false;
+
+            TokenSaver.ReportWriter.MarkUploaded(afterAppend[0], tmp);
+            var afterMark = TokenSaver.ReportWriter.LoadAll(tmp);
+            var markedOk = afterMark.Count == 1 && afterMark[0].Uploaded == true;
+
+            var ok = pendingOk && markedOk;
+            return new TestOutcome(ok,
+                ok ? "Append writes Uploaded=false; MarkUploaded flips it to true"
+                   : $"pendingOk={pendingOk} markedOk={markedOk}",
+                (0, 0, 0));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", prevNoTelem);
+            if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
+        }
+    }
+
+    private static TestOutcome WouldBeRejected_FlagsServerRejectedRows()
+    {
+        var normal    = new TokenSaver.ReportEntry("T", "C#", 100, 30, null, "mcp", DateTime.UtcNow);
+        var negative  = new TokenSaver.ReportEntry("T", "C#", 15, 38, null, "mcp", DateTime.UtcNow);          // with > without
+        var emptyTool = new TokenSaver.ReportEntry("", "C#", 100, 30, null, "mcp", DateTime.UtcNow);
+        var overCap   = new TokenSaver.ReportEntry("T", "C#", 20_000_000, 10, null, "mcp", DateTime.UtcNow);
+
+        var ok = !TokenSaver.ReportUploader.WouldBeRejected(normal)
+              && TokenSaver.ReportUploader.WouldBeRejected(negative)
+              && TokenSaver.ReportUploader.WouldBeRejected(emptyTool)
+              && TokenSaver.ReportUploader.WouldBeRejected(overCap);
+        return new TestOutcome(ok,
+            ok ? "negative-saving / empty / over-cap rows flagged; a normal positive row is not"
+               : $"normal={TokenSaver.ReportUploader.WouldBeRejected(normal)} neg={TokenSaver.ReportUploader.WouldBeRejected(negative)} "
+                 + $"empty={TokenSaver.ReportUploader.WouldBeRejected(emptyTool)} cap={TokenSaver.ReportUploader.WouldBeRejected(overCap)}",
             (0, 0, 0));
     }
 
