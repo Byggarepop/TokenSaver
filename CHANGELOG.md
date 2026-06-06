@@ -6,11 +6,12 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ### Added
 - **Telemetry uploads are now durable.** The dashboard upload was fire-and-forget
-  with no retry and an ignored HTTP status, so a transient failure, a non-2xx
-  response, or a process exit mid-flight silently dropped a row that was recorded
-  locally. Each `report.json` row now carries an upload-tracking flag; a confirmed
-  (2xx) upload marks it, and on startup the server resends any row whose upload was
-  never confirmed. Rows written before this change are left untouched (never
+  with no retry and an ignored HTTP status, so a transient failure or a process exit
+  mid-flight silently dropped a row that was recorded locally. Each `report.json` row
+  now carries an upload-tracking flag: a confirmed `2xx` — or a permanent `4xx`
+  rejection that retrying can't fix — settles the row, while a transient failure
+  (`5xx` / `429` / network) leaves it pending. On startup the server resends any
+  still-pending row. Rows written before this change are left untouched (never
   resent), so there is no mass re-upload of history.
 
 ### Fixed

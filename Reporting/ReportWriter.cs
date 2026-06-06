@@ -13,7 +13,8 @@ public sealed record ReportEntry(
     // Local-only upload-tracking flag (never sent in the upload payload).
     //   null  = legacy row written before durable resend existed — never resent.
     //   false = written by a current build, upload not yet confirmed — a resend candidate.
-    //   true  = upload confirmed (2xx) — done.
+    //   true  = settled: upload confirmed (2xx), or permanently rejected by a 4xx that
+    //           retrying can't fix — never resent either way.
     bool? Uploaded = null);
 
 /// <summary>

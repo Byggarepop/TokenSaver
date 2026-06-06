@@ -41,11 +41,12 @@ public static class ReportUploader
 
         EnsureProcessExitHook();
 
-        // On a confirmed (2xx) upload, mark the local row so it is never resent. On any
-        // failure the row stays Uploaded == false and the startup resend pass retries it.
+        // Settle the local row when the upload is confirmed (2xx) OR permanently rejected
+        // (a 4xx that retrying can't fix), so it is not resent forever. A transient failure
+        // (5xx / 429 / network) leaves it pending for the startup resend pass.
         Track(Task.Run(async () =>
         {
-            if (await TryUploadAsync(entry, baseUrl).ConfigureAwait(false))
+            if (await TryUploadAsync(entry, baseUrl).ConfigureAwait(false) is not null)
                 ReportWriter.MarkUploaded(entry);
         }));
     }
@@ -80,33 +81,36 @@ public static class ReportUploader
     }
 
     /// <summary>
-    /// Pure resend loop, isolated from disk and network so it can be unit-tested: uploads
-    /// each entry whose <c>Uploaded</c> flag is false, calling <paramref name="onUploaded"/>
-    /// on each success. Legacy (null) and already-confirmed (true) rows are skipped. Returns
-    /// the number successfully resent.
+    /// Pure resend loop, isolated from disk and network so it can be unit-tested. For each
+    /// entry whose <c>Uploaded</c> flag is false, calls <paramref name="upload"/>:
+    /// <c>true</c> = confirmed, <c>false</c> = permanently rejected, <c>null</c> = transient
+    /// failure. Confirmed and rejected both <see cref="onSettled"/> the row (it is never
+    /// resent again); a transient failure leaves it pending. Legacy (null flag) and already
+    /// settled (true flag) rows are skipped. Returns the number of rows settled.
     /// </summary>
     public static async Task<int> ResendPendingAsync(
         IEnumerable<ReportEntry> entries,
-        Func<ReportEntry, Task<bool>> upload,
-        Action<ReportEntry> onUploaded)
+        Func<ReportEntry, Task<bool?>> upload,
+        Action<ReportEntry> onSettled)
     {
-        int sent = 0;
+        int settled = 0;
         foreach (var entry in entries)
         {
             if (entry.Uploaded != false) continue;
-            if (await upload(entry).ConfigureAwait(false))
+            if (await upload(entry).ConfigureAwait(false) is not null)
             {
-                onUploaded(entry);
-                sent++;
+                onSettled(entry);
+                settled++;
             }
         }
-        return sent;
+        return settled;
     }
 
-    // POSTs one entry; returns true only on a 2xx response. Network/timeout/non-2xx all
-    // return false so the caller leaves the row pending for a later resend. Notes is never
-    // uploaded — it can carry user code identifiers and is local-only.
-    private static async Task<bool> TryUploadAsync(ReportEntry entry, string baseUrl)
+    // POSTs one entry. Returns true on a confirmed 2xx; false on a 4xx the server will reject
+    // every time (e.g. validation — retrying is pointless, so settle the row); null on a 5xx,
+    // 429 (rate-limited), or network/timeout failure (transient — leave the row pending for a
+    // later resend). Notes is never uploaded — it can carry user code identifiers, local-only.
+    private static async Task<bool?> TryUploadAsync(ReportEntry entry, string baseUrl)
     {
         try
         {
@@ -121,11 +125,14 @@ public static class ReportUploader
             };
             var endpoint = baseUrl.TrimEnd('/') + "/api/reports";
             using var resp = await Http.PostAsJsonAsync(endpoint, payload).ConfigureAwait(false);
-            return resp.IsSuccessStatusCode;
+            if (resp.IsSuccessStatusCode) return true;
+            var code = (int)resp.StatusCode;
+            if (code == 429) return null;                  // rate-limited — retry later
+            return code is >= 400 and < 500 ? false : null; // other 4xx terminal; 5xx transient
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 

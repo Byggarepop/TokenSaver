@@ -36,7 +36,8 @@ internal static class Program
         Run("NotFoundType_LogsWholeFileToResponseSaving", NotFoundType_LogsWholeFileToResponseSaving);
         Run("NotFoundCallers_LogsWholeFileToResponseSaving", NotFoundCallers_LogsWholeFileToResponseSaving);
         Run("ResendPending_OnlyUploadsPendingEntries", ResendPending_OnlyUploadsPendingEntries);
-        Run("ResendPending_FailedUploadNotMarked", ResendPending_FailedUploadNotMarked);
+        Run("ResendPending_TransientFailureStaysPending", ResendPending_TransientFailureStaysPending);
+        Run("ResendPending_RejectedIsSettledNotRetried", ResendPending_RejectedIsSettledNotRetried);
         Run("Append_AndMarkUploaded_RoundTrip", Append_AndMarkUploaded_RoundTrip);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
@@ -556,38 +557,57 @@ internal static class Program
         var pendingB = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
 
         var uploaded = new List<string>();
-        var marked   = new List<string>();
-        var sent = TokenSaver.ReportUploader.ResendPendingAsync(
+        var settled  = new List<string>();
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
             new[] { legacy, pendingA, done, pendingB },
-            e => { uploaded.Add(e.ToolName); return System.Threading.Tasks.Task.FromResult(true); },
-            e => marked.Add(e.ToolName)).GetAwaiter().GetResult();
+            e => { uploaded.Add(e.ToolName); return System.Threading.Tasks.Task.FromResult((bool?)true); },
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
 
-        // Only the two Uploaded==false rows should be (re)sent; null (legacy) and true (done) skipped.
-        var ok = sent == 2
+        // Only the two Uploaded==false rows are (re)sent; null (legacy) and true (done) skipped.
+        var ok = count == 2
               && uploaded.SequenceEqual(new[] { "A", "B" })
-              && marked.SequenceEqual(new[] { "A", "B" });
+              && settled.SequenceEqual(new[] { "A", "B" });
         return new TestOutcome(ok,
-            ok ? "resend uploaded only the two pending rows (skipped legacy + done)"
-               : $"sent={sent} uploaded=[{string.Join(",", uploaded)}] marked=[{string.Join(",", marked)}]",
+            ok ? "resend hit only the two pending rows (skipped legacy + done)"
+               : $"count={count} uploaded=[{string.Join(",", uploaded)}] settled=[{string.Join(",", settled)}]",
             (0, 0, 0));
     }
 
-    private static TestOutcome ResendPending_FailedUploadNotMarked()
+    private static TestOutcome ResendPending_TransientFailureStaysPending()
     {
         var a = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
         var b = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
 
-        var marked = new List<string>();
-        var sent = TokenSaver.ReportUploader.ResendPendingAsync(
+        var settled = new List<string>();
+        // null = transient (5xx/429/network): A confirmed, B transient -> B stays pending for a later pass.
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
             new[] { a, b },
-            e => System.Threading.Tasks.Task.FromResult(e.ToolName == "A"),   // A succeeds, B fails
-            e => marked.Add(e.ToolName)).GetAwaiter().GetResult();
+            e => System.Threading.Tasks.Task.FromResult(e.ToolName == "A" ? (bool?)true : null),
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
 
-        // A failed upload must stay pending (not marked) so a later pass retries it.
-        var ok = sent == 1 && marked.SequenceEqual(new[] { "A" });
+        var ok = count == 1 && settled.SequenceEqual(new[] { "A" });
         return new TestOutcome(ok,
-            ok ? "failed upload left unmarked; only the succeeded row counted"
-               : $"sent={sent} marked=[{string.Join(",", marked)}]",
+            ok ? "transient failure left unsettled (will retry); only the confirmed row settled"
+               : $"count={count} settled=[{string.Join(",", settled)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_RejectedIsSettledNotRetried()
+    {
+        var a = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var settled = new List<string>();
+        // false = permanent 4xx rejection (e.g. server validation): must settle so the row is
+        // NOT resent forever (the poison-pill case).
+        var count = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { a },
+            e => System.Threading.Tasks.Task.FromResult((bool?)false),
+            e => settled.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        var ok = count == 1 && settled.SequenceEqual(new[] { "A" });
+        return new TestOutcome(ok,
+            ok ? "permanently rejected row settled (won't poison-loop on retry)"
+               : $"count={count} settled=[{string.Join(",", settled)}]",
             (0, 0, 0));
     }
 
