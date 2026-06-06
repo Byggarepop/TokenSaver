@@ -36,7 +36,9 @@ basic-tier minifiers for other extensions.
   also includes bodies of private helper methods and properties accessed by
   the focus method. `minify=true` strips comments, `#region`/`#endregion`
   directives, and collapses whitespace. Pass the **class name** as `methodName`
-  to target a constructor. **C# / Razor only.**
+  to target a constructor. On a `NOT FOUND`, the response hints where to look
+  when the type is `partial` (a sibling file in the same namespace/folder) or
+  has a base list (an inherited member). **C# / Razor only.**
 - `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same
   as `FocusMethod` but focuses on multiple methods in one parse pass. Class
   names (constructors) can be mixed with method names. **C# / Razor only.**

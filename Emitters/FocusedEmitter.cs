@@ -1010,8 +1010,8 @@ public sealed class FocusedEmitter
         {
             var names = string.Join("', '", partialTypeNames);
             lines.Add($"// Note: type '{names}' is declared 'partial' — '{focusName}' may be defined "
-                    + "in a sibling file (another part of the same type, e.g. a sibling .cs or a "
-                    + ".razor code-behind). Focus that file instead.");
+                    + "in a sibling file in the same namespace/folder (another part of the same type, "
+                    + "e.g. a sibling .cs or a .razor code-behind). Focus that file instead.");
         }
 
         var baseTypeNames = types

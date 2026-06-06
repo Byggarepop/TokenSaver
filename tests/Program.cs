@@ -485,13 +485,14 @@ internal static class Program
         var path = Fixture("PartialWidget.Main.cs");
         var r = new FocusedEmitter(path).Emit("Render");
 
-        var missed       = !r.Found;
-        var hintsPartial = r.Output.Contains("partial");
-        var namesType    = r.Output.Contains("PartialWidget");
-        var ok = missed && hintsPartial && namesType;
+        var missed          = !r.Found;
+        var hintsPartial    = r.Output.Contains("partial");
+        var namesType       = r.Output.Contains("PartialWidget");
+        var scopesNamespace = r.Output.Contains("namespace");
+        var ok = missed && hintsPartial && namesType && scopesNamespace;
         return new TestOutcome(ok,
-            ok ? "NOT FOUND on a partial type hints the method may be in a sibling file"
-               : $"missed={missed} hintsPartial={hintsPartial} namesType={namesType} :: {r.Output}",
+            ok ? "NOT FOUND on a partial type hints a same-namespace sibling file"
+               : $"missed={missed} hintsPartial={hintsPartial} namesType={namesType} scopesNamespace={scopesNamespace} :: {r.Output}",
             (0, 0, 0));
     }
 
