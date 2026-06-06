@@ -4,6 +4,8 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.6] - 2026-06-06
+
 ### Added
 - **Telemetry uploads are now durable.** The dashboard upload was fire-and-forget
   with no retry and an ignored HTTP status, so a transient failure or a process exit
