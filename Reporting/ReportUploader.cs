@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Net.Http.Json;
 using System.Reflection;
 
@@ -36,39 +37,106 @@ public static class ReportUploader
     {
         var baseUrl = Environment.GetEnvironmentVariable(ApiUrlEnv);
         if (string.IsNullOrWhiteSpace(baseUrl)) return;
-
-        var noTelemetry = Environment.GetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY");
-        if (!string.IsNullOrWhiteSpace(noTelemetry) && noTelemetry.Trim() != "0") return;
+        if (TelemetryDisabled()) return;
 
         EnsureProcessExitHook();
 
-        var payload = new
+        // On a confirmed (2xx) upload, mark the local row so it is never resent. On any
+        // failure the row stays Uploaded == false and the startup resend pass retries it.
+        Track(Task.Run(async () =>
         {
-            entry.ToolName,
-            entry.Language,
-            entry.TokensWithoutTool,
-            entry.TokensWithTool,
-            // Notes is intentionally NOT uploaded: it can contain user code
-            // identifiers (method, type, and file names) and is never surfaced
-            // on the dashboard. The local report.json still records it in full.
-            ClientId = ClientId.Value,
-            McpVersion = McpVersion.Value,
-        };
+            if (await TryUploadAsync(entry, baseUrl).ConfigureAwait(false))
+                ReportWriter.MarkUploaded(entry);
+        }));
+    }
 
-        var task = Task.Run(async () =>
+    /// <summary>
+    /// Resends rows whose upload was never confirmed (Uploaded == false) — dropped by a
+    /// transient failure, a non-2xx response, or a process exit mid-flight. Safe to call on
+    /// startup; a no-op when telemetry is disabled or nothing is pending. Runs in the
+    /// background so it never delays startup.
+    /// </summary>
+    public static void ResendPendingInBackground()
+    {
+        var baseUrl = Environment.GetEnvironmentVariable(ApiUrlEnv);
+        if (string.IsNullOrWhiteSpace(baseUrl)) return;
+        if (TelemetryDisabled()) return;
+
+        EnsureProcessExitHook();
+
+        Track(Task.Run(async () =>
         {
             try
             {
-                var endpoint = baseUrl.TrimEnd('/') + "/api/reports";
-                using var resp = await Http.PostAsJsonAsync(endpoint, payload).ConfigureAwait(false);
-                // Status is ignored on purpose — best-effort telemetry.
+                var pending = ReportWriter.LoadAll().Where(e => e.Uploaded == false).ToList();
+                await ResendPendingAsync(pending, e => TryUploadAsync(e, baseUrl), e => ReportWriter.MarkUploaded(e))
+                    .ConfigureAwait(false);
             }
             catch
             {
-                // Swallow: a slow/dead/firewalled server must not break the tool.
+                // Telemetry must never break startup.
             }
-        });
+        }));
+    }
 
+    /// <summary>
+    /// Pure resend loop, isolated from disk and network so it can be unit-tested: uploads
+    /// each entry whose <c>Uploaded</c> flag is false, calling <paramref name="onUploaded"/>
+    /// on each success. Legacy (null) and already-confirmed (true) rows are skipped. Returns
+    /// the number successfully resent.
+    /// </summary>
+    public static async Task<int> ResendPendingAsync(
+        IEnumerable<ReportEntry> entries,
+        Func<ReportEntry, Task<bool>> upload,
+        Action<ReportEntry> onUploaded)
+    {
+        int sent = 0;
+        foreach (var entry in entries)
+        {
+            if (entry.Uploaded != false) continue;
+            if (await upload(entry).ConfigureAwait(false))
+            {
+                onUploaded(entry);
+                sent++;
+            }
+        }
+        return sent;
+    }
+
+    // POSTs one entry; returns true only on a 2xx response. Network/timeout/non-2xx all
+    // return false so the caller leaves the row pending for a later resend. Notes is never
+    // uploaded — it can carry user code identifiers and is local-only.
+    private static async Task<bool> TryUploadAsync(ReportEntry entry, string baseUrl)
+    {
+        try
+        {
+            var payload = new
+            {
+                entry.ToolName,
+                entry.Language,
+                entry.TokensWithoutTool,
+                entry.TokensWithTool,
+                ClientId = ClientId.Value,
+                McpVersion = McpVersion.Value,
+            };
+            var endpoint = baseUrl.TrimEnd('/') + "/api/reports";
+            using var resp = await Http.PostAsJsonAsync(endpoint, payload).ConfigureAwait(false);
+            return resp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TelemetryDisabled()
+    {
+        var v = Environment.GetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY");
+        return !string.IsNullOrWhiteSpace(v) && v.Trim() != "0";
+    }
+
+    private static void Track(Task task)
+    {
         lock (PendingLock) Pending.Add(task);
         task.ContinueWith(_ => { lock (PendingLock) Pending.Remove(task); },
             TaskScheduler.Default);

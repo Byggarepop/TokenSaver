@@ -4,6 +4,15 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Telemetry uploads are now durable.** The dashboard upload was fire-and-forget
+  with no retry and an ignored HTTP status, so a transient failure, a non-2xx
+  response, or a process exit mid-flight silently dropped a row that was recorded
+  locally. Each `report.json` row now carries an upload-tracking flag; a confirmed
+  (2xx) upload marks it, and on startup the server resends any row whose upload was
+  never confirmed. Rows written before this change are left untouched (never
+  resent), so there is no mass re-upload of history.
+
 ### Fixed
 - **NOT FOUND rows no longer log a bogus 0% saving.** A focus miss returns a
   small members outline (plus the partial/inherited hint), not the whole file,

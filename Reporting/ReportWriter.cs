@@ -9,7 +9,12 @@ public sealed record ReportEntry(
     int TokensWithTool,
     string? Notes,
     string Source,                // "cli" | "mcp"
-    DateTime TimestampUtc);
+    DateTime TimestampUtc,
+    // Local-only upload-tracking flag (never sent in the upload payload).
+    //   null  = legacy row written before durable resend existed — never resent.
+    //   false = written by a current build, upload not yet confirmed — a resend candidate.
+    //   true  = upload confirmed (2xx) — done.
+    bool? Uploaded = null);
 
 /// <summary>
 /// Single sink for every "I just saved tokens" event across the toolkit.
@@ -53,7 +58,8 @@ public static class ReportWriter
             tokensWithTool,
             notes,
             source,
-            DateTime.UtcNow);
+            DateTime.UtcNow,
+            Uploaded: false);
 
         lock (FileLock)
         {
@@ -83,6 +89,44 @@ public static class ReportWriter
             if (removed > 0)
                 File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
             return removed;
+        }
+    }
+
+    /// <summary>
+    /// Returns every recorded entry (used by the uploader's startup resend pass).
+    /// </summary>
+    public static List<ReportEntry> LoadAll(string? path = null)
+    {
+        lock (FileLock) return LoadOrRecover(path ?? DefaultPath);
+    }
+
+    /// <summary>
+    /// Marks the row matching <paramref name="entry"/> as uploaded (Uploaded = true) so it
+    /// is never resent. Matches on the immutable fields of the row; a no-op if no pending
+    /// row matches. Re-reads under the file lock so concurrent appends are preserved.
+    /// </summary>
+    public static void MarkUploaded(ReportEntry entry, string? path = null)
+    {
+        var target = path ?? DefaultPath;
+        lock (FileLock)
+        {
+            if (!File.Exists(target)) return;
+            var entries = LoadOrRecover(target);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var e = entries[i];
+                if (e.Uploaded == false
+                    && e.TimestampUtc == entry.TimestampUtc
+                    && e.ToolName == entry.ToolName
+                    && e.TokensWithoutTool == entry.TokensWithoutTool
+                    && e.TokensWithTool == entry.TokensWithTool
+                    && e.Source == entry.Source)
+                {
+                    entries[i] = e with { Uploaded = true };
+                    File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
+                    return;
+                }
+            }
         }
     }
 

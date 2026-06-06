@@ -35,6 +35,9 @@ internal static class Program
         Run("NotFoundMulti_LogsWholeFileToResponseSaving", NotFoundMulti_LogsWholeFileToResponseSaving);
         Run("NotFoundType_LogsWholeFileToResponseSaving", NotFoundType_LogsWholeFileToResponseSaving);
         Run("NotFoundCallers_LogsWholeFileToResponseSaving", NotFoundCallers_LogsWholeFileToResponseSaving);
+        Run("ResendPending_OnlyUploadsPendingEntries", ResendPending_OnlyUploadsPendingEntries);
+        Run("ResendPending_FailedUploadNotMarked", ResendPending_FailedUploadNotMarked);
+        Run("Append_AndMarkUploaded_RoundTrip", Append_AndMarkUploaded_RoundTrip);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
         Run("Focus_NotFound_NonPartialType_NoPartialHint", Focus_NotFound_NonPartialType_NoPartialHint);
@@ -543,6 +546,77 @@ internal static class Program
             ok ? $"focus_callers NOT FOUND logged {without} -> {with} (real saving)"
                : $"notes='{notes}' without={without} with={with}",
             (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_OnlyUploadsPendingEntries()
+    {
+        var legacy   = new TokenSaver.ReportEntry("L", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: null);
+        var pendingA = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+        var done     = new TokenSaver.ReportEntry("D", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: true);
+        var pendingB = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var uploaded = new List<string>();
+        var marked   = new List<string>();
+        var sent = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { legacy, pendingA, done, pendingB },
+            e => { uploaded.Add(e.ToolName); return System.Threading.Tasks.Task.FromResult(true); },
+            e => marked.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        // Only the two Uploaded==false rows should be (re)sent; null (legacy) and true (done) skipped.
+        var ok = sent == 2
+              && uploaded.SequenceEqual(new[] { "A", "B" })
+              && marked.SequenceEqual(new[] { "A", "B" });
+        return new TestOutcome(ok,
+            ok ? "resend uploaded only the two pending rows (skipped legacy + done)"
+               : $"sent={sent} uploaded=[{string.Join(",", uploaded)}] marked=[{string.Join(",", marked)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ResendPending_FailedUploadNotMarked()
+    {
+        var a = new TokenSaver.ReportEntry("A", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+        var b = new TokenSaver.ReportEntry("B", "C#", 100, 30, null, "mcp", DateTime.UtcNow, Uploaded: false);
+
+        var marked = new List<string>();
+        var sent = TokenSaver.ReportUploader.ResendPendingAsync(
+            new[] { a, b },
+            e => System.Threading.Tasks.Task.FromResult(e.ToolName == "A"),   // A succeeds, B fails
+            e => marked.Add(e.ToolName)).GetAwaiter().GetResult();
+
+        // A failed upload must stay pending (not marked) so a later pass retries it.
+        var ok = sent == 1 && marked.SequenceEqual(new[] { "A" });
+        return new TestOutcome(ok,
+            ok ? "failed upload left unmarked; only the succeeded row counted"
+               : $"sent={sent} marked=[{string.Join(",", marked)}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Append_AndMarkUploaded_RoundTrip()
+    {
+        var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ts_report_{Guid.NewGuid():N}.json");
+        var prevNoTelem = Environment.GetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY");
+        Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", "1"); // keep Append's FireAndForget a no-op
+        try
+        {
+            TokenSaver.ReportWriter.Append("Tool", "C#", 100, 30, "n", "cli", tmp);
+            var afterAppend = TokenSaver.ReportWriter.LoadAll(tmp);
+            var pendingOk = afterAppend.Count == 1 && afterAppend[0].Uploaded == false;
+
+            TokenSaver.ReportWriter.MarkUploaded(afterAppend[0], tmp);
+            var afterMark = TokenSaver.ReportWriter.LoadAll(tmp);
+            var markedOk = afterMark.Count == 1 && afterMark[0].Uploaded == true;
+
+            var ok = pendingOk && markedOk;
+            return new TestOutcome(ok,
+                ok ? "Append writes Uploaded=false; MarkUploaded flips it to true"
+                   : $"pendingOk={pendingOk} markedOk={markedOk}",
+                (0, 0, 0));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", prevNoTelem);
+            if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
+        }
     }
 
     private static TestOutcome Focus_NotFound_ReturnsNotFoundResult()
