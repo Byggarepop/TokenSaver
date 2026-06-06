@@ -4,6 +4,8 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.5] - 2026-06-06
+
 ### Added
 - **Focus misses now hint where to look.** When `focus_method` or
   `focus_multiple_methods` returns NOT FOUND and the file's type is `partial`,
