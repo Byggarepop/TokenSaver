@@ -12,7 +12,10 @@ All notable changes to TokenSaver.Mcp are documented here.
   rejection that retrying can't fix — settles the row, while a transient failure
   (`5xx` / `429` / network) leaves it pending. On startup the server resends any
   still-pending row. Rows written before this change are left untouched (never
-  resent), so there is no mass re-upload of history.
+  resent), so there is no mass re-upload of history. Rows the dashboard would
+  reject — chiefly an honest negative saving where a focused view costs more than
+  the bare relevant-code baseline (`TokensWithTool > TokensWithoutTool`) — are
+  skipped client-side and settled locally rather than sent for a guaranteed 400.
 
 ### Fixed
 - **NOT FOUND rows no longer log a bogus 0% saving.** A focus miss returns a

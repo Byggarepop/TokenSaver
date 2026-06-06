@@ -39,6 +39,7 @@ internal static class Program
         Run("ResendPending_TransientFailureStaysPending", ResendPending_TransientFailureStaysPending);
         Run("ResendPending_RejectedIsSettledNotRetried", ResendPending_RejectedIsSettledNotRetried);
         Run("Append_AndMarkUploaded_RoundTrip", Append_AndMarkUploaded_RoundTrip);
+        Run("WouldBeRejected_FlagsServerRejectedRows", WouldBeRejected_FlagsServerRejectedRows);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
         Run("Focus_NotFound_NonPartialType_NoPartialHint", Focus_NotFound_NonPartialType_NoPartialHint);
@@ -637,6 +638,24 @@ internal static class Program
             Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", prevNoTelem);
             if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
         }
+    }
+
+    private static TestOutcome WouldBeRejected_FlagsServerRejectedRows()
+    {
+        var normal    = new TokenSaver.ReportEntry("T", "C#", 100, 30, null, "mcp", DateTime.UtcNow);
+        var negative  = new TokenSaver.ReportEntry("T", "C#", 15, 38, null, "mcp", DateTime.UtcNow);          // with > without
+        var emptyTool = new TokenSaver.ReportEntry("", "C#", 100, 30, null, "mcp", DateTime.UtcNow);
+        var overCap   = new TokenSaver.ReportEntry("T", "C#", 20_000_000, 10, null, "mcp", DateTime.UtcNow);
+
+        var ok = !TokenSaver.ReportUploader.WouldBeRejected(normal)
+              && TokenSaver.ReportUploader.WouldBeRejected(negative)
+              && TokenSaver.ReportUploader.WouldBeRejected(emptyTool)
+              && TokenSaver.ReportUploader.WouldBeRejected(overCap);
+        return new TestOutcome(ok,
+            ok ? "negative-saving / empty / over-cap rows flagged; a normal positive row is not"
+               : $"normal={TokenSaver.ReportUploader.WouldBeRejected(normal)} neg={TokenSaver.ReportUploader.WouldBeRejected(negative)} "
+                 + $"empty={TokenSaver.ReportUploader.WouldBeRejected(emptyTool)} cap={TokenSaver.ReportUploader.WouldBeRejected(overCap)}",
+            (0, 0, 0));
     }
 
     private static TestOutcome Focus_NotFound_ReturnsNotFoundResult()

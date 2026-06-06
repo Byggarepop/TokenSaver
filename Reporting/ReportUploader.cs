@@ -112,6 +112,12 @@ public static class ReportUploader
     // later resend). Notes is never uploaded — it can carry user code identifiers, local-only.
     private static async Task<bool?> TryUploadAsync(ReportEntry entry, string baseUrl)
     {
+        // Don't waste a round-trip on a row the dashboard would reject anyway — settle it
+        // locally (treated as a permanent rejection). The common case is a focused tool whose
+        // conservative relevant-code baseline is smaller than its output, an honest negative
+        // saving (TokensWithTool > TokensWithoutTool) the server refuses.
+        if (WouldBeRejected(entry)) return false;
+
         try
         {
             var payload = new
@@ -135,6 +141,19 @@ public static class ReportUploader
             return null;
         }
     }
+
+    /// <summary>
+    /// True when the central dashboard would reject this row, so the client skips sending it
+    /// and settles it locally instead of paying a round-trip for a guaranteed 400. Mirrors the
+    /// server's <c>/api/reports</c> validation (token counts non-negative, with ≤ without, a
+    /// 10M cap, and required tool/language fields within length limits) — keep the two in sync.
+    /// </summary>
+    public static bool WouldBeRejected(ReportEntry entry) =>
+        string.IsNullOrWhiteSpace(entry.ToolName) || entry.ToolName.Length > 64
+        || string.IsNullOrWhiteSpace(entry.Language) || entry.Language.Length > 32
+        || entry.TokensWithoutTool < 0 || entry.TokensWithTool < 0
+        || entry.TokensWithTool > entry.TokensWithoutTool
+        || entry.TokensWithoutTool > 10_000_000;
 
     private static bool TelemetryDisabled()
     {
