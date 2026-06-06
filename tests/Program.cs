@@ -31,6 +31,10 @@ internal static class Program
         Run("FocusMethod_CommaName_RoutesToMultiple", FocusMethod_CommaName_RoutesToMultiple);
         Run("CacheHit_StoresConservativeBaseline_NotWholeFile", CacheHit_StoresConservativeBaseline_NotWholeFile);
         Run("CacheHit_LogsOriginatingToolName", CacheHit_LogsOriginatingToolName);
+        Run("NotFound_LogsWholeFileToResponseSaving", NotFound_LogsWholeFileToResponseSaving);
+        Run("NotFoundMulti_LogsWholeFileToResponseSaving", NotFoundMulti_LogsWholeFileToResponseSaving);
+        Run("NotFoundType_LogsWholeFileToResponseSaving", NotFoundType_LogsWholeFileToResponseSaving);
+        Run("NotFoundCallers_LogsWholeFileToResponseSaving", NotFoundCallers_LogsWholeFileToResponseSaving);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
         Run("Focus_NotFound_NonPartialType_NoPartialHint", Focus_NotFound_NonPartialType_NoPartialHint);
@@ -462,6 +466,82 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "cache hit logged as 'Focused Emitter Cache'"
                : $"last logged tool name was '{lastTool}'",
+            (0, 0, 0));
+    }
+
+    // Reads the most recently appended row from the shared report.json so a test can
+    // assert what a tool actually logged for its last invocation.
+    private static (int without, int with, string notes) LastReportRow()
+    {
+        var reportPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".tokensaver", "report.json");
+        using var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(reportPath));
+        var last = doc.RootElement.EnumerateArray().Last();
+        return (last.GetProperty("TokensWithoutTool").GetInt32(),
+                last.GetProperty("TokensWithTool").GetInt32(),
+                last.GetProperty("Notes").GetString() ?? "");
+    }
+
+    // A miss returns a small outline (+ hint), not the whole file — every NOT FOUND path
+    // must log whole-file -> response (a real saving), not whole -> whole (a bogus 0%).
+    private static TestOutcome NotFound_LogsWholeFileToResponseSaving()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "NoSuchMethodExists", depth: 1, minify: true);
+
+        var (without, with, notes) = LastReportRow();
+        var ok = notes.Contains("NOT FOUND") && with > 0 && without > with;
+        return new TestOutcome(ok,
+            ok ? $"focus_method NOT FOUND logged whole-file {without} -> response {with} (real saving, not 0%)"
+               : $"notes='{notes}' without={without} with={with}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome NotFoundMulti_LogsWholeFileToResponseSaving()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        TokenSaver.Mcp.FocusedEmitterTools.FocusMultipleMethods(path, "NoSuchA,NoSuchB", depth: 1, minify: true);
+
+        var (without, with, notes) = LastReportRow();
+        var ok = notes.Contains("NOT FOUND") && with > 0 && without > with;
+        return new TestOutcome(ok,
+            ok ? $"focus_multiple_methods NOT FOUND logged {without} -> {with} (real saving)"
+               : $"notes='{notes}' without={without} with={with}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome NotFoundType_LogsWholeFileToResponseSaving()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        TokenSaver.Mcp.FocusedEmitterTools.FocusType(path, "NoSuchType", minify: true);
+
+        var (without, with, notes) = LastReportRow();
+        var ok = notes.Contains("NOT FOUND") && with > 0 && without > with;
+        return new TestOutcome(ok,
+            ok ? $"focus_type NOT FOUND logged {without} -> {with} (real saving)"
+               : $"notes='{notes}' without={without} with={with}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome NotFoundCallers_LogsWholeFileToResponseSaving()
+    {
+        var path = Fixture("Calculator.cs");
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        TokenSaver.Mcp.FocusedEmitterTools.FocusCallers(path, "NoSuchMethodAnywhere", depth: 1, minify: true);
+
+        var (without, with, notes) = LastReportRow();
+        var ok = notes.Contains("NOT FOUND") && with > 0 && without > with;
+        return new TestOutcome(ok,
+            ok ? $"focus_callers NOT FOUND logged {without} -> {with} (real saving)"
+               : $"notes='{notes}' without={without} with={with}",
             (0, 0, 0));
     }
 

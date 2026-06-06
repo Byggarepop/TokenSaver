@@ -115,11 +115,16 @@ public static class FocusedEmitterTools
             if (!result.Found)
             {
                 var outline = emitter.EmitOutline();
-                LogInvocation("Focused Emitter", "C#", $"focus={methodName} depth={depth} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
                 var hint = result.NotFoundHint is { } h ? h + "\n" : "";
-                return $"ERROR: Method '{methodName}' not found in {Path.GetFileName(filePath)}.\n" +
+                var response = $"ERROR: Method '{methodName}' not found in {Path.GetFileName(filePath)}.\n" +
                        hint +
                        $"Available members:\n{outline.Output}";
+                // A miss returns a small outline + hint, not the whole file — so log it as
+                // whole-file -> response, the real saving versus the model reading the file
+                // to discover the member isn't here, not whole -> whole (a bogus 0%).
+                LogInvocation("Focused Emitter", "C#", $"focus={methodName} depth={depth} NOT FOUND",
+                    TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(response));
+                return response;
             }
 
             var output = result.Output;
@@ -197,11 +202,13 @@ public static class FocusedEmitterTools
             if (!result.Found)
             {
                 var outline = emitter.EmitOutline();
-                LogInvocation("Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
                 var hint = result.NotFoundHint is { } h ? h + "\n" : "";
-                return $"ERROR: None of the requested methods found in {Path.GetFileName(filePath)}.\n" +
+                var response = $"ERROR: None of the requested methods found in {Path.GetFileName(filePath)}.\n" +
                        hint +
                        $"Available members:\n{outline.Output}";
+                LogInvocation("Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} NOT FOUND",
+                    TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(response));
+                return response;
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
@@ -400,9 +407,11 @@ public static class FocusedEmitterTools
             if (!result.Found)
             {
                 var outline = emitter.EmitOutline();
-                LogInvocation("FocusType", "C#", $"type={typeName} NOT FOUND", outline.OriginalTokensEstimate, outline.OriginalTokensEstimate);
-                return $"ERROR: Type '{typeName}' not found in {Path.GetFileName(filePath)}.\n" +
+                var response = $"ERROR: Type '{typeName}' not found in {Path.GetFileName(filePath)}.\n" +
                        $"Available types:\n{outline.Output}";
+                LogInvocation("FocusType", "C#", $"type={typeName} NOT FOUND",
+                    TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(response));
+                return response;
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
@@ -464,8 +473,10 @@ public static class FocusedEmitterTools
 
             if (!result.Found)
             {
-                LogInvocation("FocusCallers", "C#", $"callers={methodName} NOT FOUND", result.OriginalTokensEstimate, result.OriginalTokensEstimate);
-                return $"// No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
+                var response = $"// No callers of '{methodName}' found in {Path.GetFileName(filePath)}.";
+                LogInvocation("FocusCallers", "C#", $"callers={methodName} NOT FOUND",
+                    TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(response));
+                return response;
             }
 
             var output = minify ? FocusedEmitter.MinifyText(result.Output) : result.Output;
