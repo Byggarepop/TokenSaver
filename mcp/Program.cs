@@ -52,6 +52,12 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    than N separate FocusMethod calls and one round-trip instead of N. C# only.
    Class names are accepted here too (mixed with method names is fine).
 
+   On a NOT FOUND, act on any hint in the response: when the file's type is
+   partial, the member may be in a sibling file in the same namespace/folder —
+   glob that folder for the type's other parts and focus the right one; when the
+   type has a base list, the member may be inherited — focus the file that
+   declares the base type. Don't give up or guess the body.
+
 3. User wants to read or analyze a whole file of any supported type → call
    MinifyFile. Auto-dispatches by extension. For C#, MinifyCSharpFile is
    equivalent (back-compat).

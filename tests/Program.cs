@@ -32,6 +32,11 @@ internal static class Program
         Run("CacheHit_StoresConservativeBaseline_NotWholeFile", CacheHit_StoresConservativeBaseline_NotWholeFile);
         Run("CacheHit_LogsOriginatingToolName", CacheHit_LogsOriginatingToolName);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
+        Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
+        Run("Focus_NotFound_NonPartialType_NoPartialHint", Focus_NotFound_NonPartialType_NoPartialHint);
+        Run("FocusMultiple_NotFound_PartialType_HintsSiblingFile", FocusMultiple_NotFound_PartialType_HintsSiblingFile);
+        Run("Focus_NotFound_DerivedType_HintsBaseType", Focus_NotFound_DerivedType_HintsBaseType);
+        Run("Focus_NotFound_NoBaseType_NoBaseHint", Focus_NotFound_NoBaseType_NoBaseHint);
         Run("Alias_RenamesPrivateOnly", Alias_RenamesPrivateOnly);
         Run("Alias_PreservesNameofArgument", Alias_PreservesNameofArgument);
         Run("Alias_LedgerDisambiguatesDuplicateNames", Alias_LedgerDisambiguatesDuplicateNames);
@@ -468,6 +473,92 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "returned NotFound with diagnostic comment"
                : "expected NotFound result, got Found",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Focus_NotFound_PartialType_HintsSiblingFile()
+    {
+        // PartialWidget is declared 'partial'; Render lives in the sibling file
+        // PartialWidget.Render.cs. Focusing the Main file must miss — but the NOT FOUND
+        // diagnostic should hint that the type is partial so the model looks in a sibling
+        // file instead of giving up or hallucinating.
+        var path = Fixture("PartialWidget.Main.cs");
+        var r = new FocusedEmitter(path).Emit("Render");
+
+        var missed          = !r.Found;
+        var hintsPartial    = r.Output.Contains("partial");
+        var namesType       = r.Output.Contains("PartialWidget");
+        var scopesNamespace = r.Output.Contains("namespace");
+        var ok = missed && hintsPartial && namesType && scopesNamespace;
+        return new TestOutcome(ok,
+            ok ? "NOT FOUND on a partial type hints a same-namespace sibling file"
+               : $"missed={missed} hintsPartial={hintsPartial} namesType={namesType} scopesNamespace={scopesNamespace} :: {r.Output}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Focus_NotFound_NonPartialType_NoPartialHint()
+    {
+        // Calculator is NOT partial — a miss here must NOT emit the partial hint,
+        // otherwise the hint becomes noise on every ordinary typo.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("NoSuchMethodExists");
+
+        var missed        = !r.Found;
+        var noPartialHint = !r.Output.Contains("partial");
+        var ok = missed && noPartialHint;
+        return new TestOutcome(ok,
+            ok ? "NOT FOUND on a non-partial type emits no partial hint"
+               : $"missed={missed} noPartialHint={noPartialHint} :: {r.Output}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome FocusMultiple_NotFound_PartialType_HintsSiblingFile()
+    {
+        // A full miss across ALL requested names on a partial type should also hint the
+        // sibling file — same gap as the single-method route, via EmitMultiple.
+        var path = Fixture("PartialWidget.Main.cs");
+        var r = new FocusedEmitter(path).EmitMultiple(["Render", "AlsoMissing"], depth: 0);
+
+        var missed       = !r.Found;
+        var hintsPartial = r.Output.Contains("partial");
+        var ok = missed && hintsPartial;
+        return new TestOutcome(ok,
+            ok ? "multi NOT FOUND on a partial type hints the sibling file"
+               : $"missed={missed} hintsPartial={hintsPartial} :: {r.Output}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Focus_NotFound_DerivedType_HintsBaseType()
+    {
+        // DerivedGadget : GadgetBase, IGadget — Configure is inherited from GadgetBase,
+        // declared in the sibling file GadgetBase.cs. Focusing this file must miss, and the
+        // NOT FOUND diagnostic should hint that the member may live on a base type and name it.
+        var path = Fixture("DerivedGadget.cs");
+        var r = new FocusedEmitter(path).Emit("Configure");
+
+        var missed      = !r.Found;
+        var hintsInherit = r.Output.Contains("inherit");
+        var namesBase    = r.Output.Contains("GadgetBase");
+        var ok = missed && hintsInherit && namesBase;
+        return new TestOutcome(ok,
+            ok ? "NOT FOUND on a derived type hints the member may be inherited from a base"
+               : $"missed={missed} hintsInherit={hintsInherit} namesBase={namesBase} :: {r.Output}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Focus_NotFound_NoBaseType_NoBaseHint()
+    {
+        // Calculator has no base list — a miss here must NOT emit the inheritance hint,
+        // otherwise the hint becomes noise on every ordinary typo.
+        var path = Fixture("Calculator.cs");
+        var r = new FocusedEmitter(path).Emit("NoSuchMethodExists");
+
+        var missed       = !r.Found;
+        var noInheritHint = !r.Output.Contains("inherit");
+        var ok = missed && noInheritHint;
+        return new TestOutcome(ok,
+            ok ? "NOT FOUND on a type with no base list emits no inheritance hint"
+               : $"missed={missed} noInheritHint={noInheritHint} :: {r.Output}",
             (0, 0, 0));
     }
 

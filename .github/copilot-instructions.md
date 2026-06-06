@@ -55,6 +55,12 @@ with no loss of logic.
    calls and one round-trip instead of N. Class names (constructors) are
    accepted alongside method names.
 
+   **On a `NOT FOUND`, act on any hint in the response.** When the file's type
+   is `partial`, the member may be in a sibling file in the same namespace/folder
+   — glob that folder for the type's other parts and focus the right one. When
+   the type has a base list, the member may be inherited — focus the file that
+   declares the base type. Don't give up or guess the body.
+
 3. **The user wants you to read or analyze a whole file of any supported type**
    → call `MinifyFile`. It auto-dispatches by extension and works for every
    format in the table above. For C# specifically, `MinifyCSharpFile` is

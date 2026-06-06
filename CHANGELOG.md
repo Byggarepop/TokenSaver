@@ -4,6 +4,14 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Added
+- **Focus misses now hint where to look.** When `focus_method` or
+  `focus_multiple_methods` returns NOT FOUND and the file's type is `partial`,
+  the response notes the member may be in a sibling file in the same
+  namespace/folder; when the type has a base list, it notes the member may be
+  inherited and points at the base type's file. Turns a bare NOT FOUND into an
+  actionable next step instead of a dead end.
+
 ## [1.13.4] - 2026-06-05
 
 ### Fixed
