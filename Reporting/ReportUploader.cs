@@ -128,6 +128,10 @@ public static class ReportUploader
                 entry.TokensWithTool,
                 ClientId = ClientId.Value,
                 McpVersion = McpVersion.Value,
+                // Idempotency key: lets the server reject a re-send (durable resend
+                // and concurrent server processes can POST the same row). Null on a
+                // legacy row that predates the field — those are never resent anyway.
+                EventId = entry.EventId == Guid.Empty ? (Guid?)null : entry.EventId,
             };
             var endpoint = baseUrl.TrimEnd('/') + "/api/reports";
             using var resp = await Http.PostAsJsonAsync(endpoint, payload).ConfigureAwait(false);

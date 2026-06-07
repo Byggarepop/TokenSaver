@@ -39,6 +39,7 @@ internal static class Program
         Run("ResendPending_TransientFailureStaysPending", ResendPending_TransientFailureStaysPending);
         Run("ResendPending_RejectedIsSettledNotRetried", ResendPending_RejectedIsSettledNotRetried);
         Run("Append_AndMarkUploaded_RoundTrip", Append_AndMarkUploaded_RoundTrip);
+        Run("MarkUploaded_MatchesByEventId_NotContentTuple", MarkUploaded_MatchesByEventId_NotContentTuple);
         Run("WouldBeRejected_FlagsServerRejectedRows", WouldBeRejected_FlagsServerRejectedRows);
         Run("Focus_NotFound_ReturnsNotFoundResult", Focus_NotFound_ReturnsNotFoundResult);
         Run("Focus_NotFound_PartialType_HintsSiblingFile", Focus_NotFound_PartialType_HintsSiblingFile);
@@ -636,6 +637,36 @@ internal static class Program
         finally
         {
             Environment.SetEnvironmentVariable("TOKENSAVER_NO_TELEMETRY", prevNoTelem);
+            if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
+        }
+    }
+
+    private static TestOutcome MarkUploaded_MatchesByEventId_NotContentTuple()
+    {
+        // Two pending rows with an identical content tuple (same tool/lang/tokens/
+        // source/timestamp) but distinct EventIds. MarkUploaded(b) must settle
+        // only b's row. The old tuple match would have flipped the first match (a).
+        var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"ts_report_{Guid.NewGuid():N}.json");
+        var ts = DateTime.UtcNow;
+        var a = new TokenSaver.ReportEntry("Tool", "C#", 100, 30, null, "mcp", ts, Uploaded: false, EventId: Guid.NewGuid());
+        var b = new TokenSaver.ReportEntry("Tool", "C#", 100, 30, null, "mcp", ts, Uploaded: false, EventId: Guid.NewGuid());
+        try
+        {
+            System.IO.File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(new[] { a, b }));
+
+            TokenSaver.ReportWriter.MarkUploaded(b, tmp);
+
+            var rows = TokenSaver.ReportWriter.LoadAll(tmp);
+            var aRow = rows.Single(r => r.EventId == a.EventId);
+            var bRow = rows.Single(r => r.EventId == b.EventId);
+            var ok = aRow.Uploaded == false && bRow.Uploaded == true;
+            return new TestOutcome(ok,
+                ok ? "MarkUploaded settled the row matching EventId, leaving the content-identical sibling pending"
+                   : $"a.Uploaded={aRow.Uploaded} b.Uploaded={bRow.Uploaded} (expected false/true)",
+                (0, 0, 0));
+        }
+        finally
+        {
             if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
         }
     }
