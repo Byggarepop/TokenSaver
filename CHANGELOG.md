@@ -4,6 +4,19 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.13.7] - 2026-06-07
+
+### Fixed
+- **Telemetry uploads are now idempotent, ending duplicate dashboard rows.**
+  The durable startup resend re-POSTs every pending row, and a client can spawn
+  several MCP server processes at once, so the same logical event could be
+  POSTed more than once — the payload carried no identifier and the dashboard
+  inserted every POST as a new row. Each recorded event now carries a stable
+  `EventId` (GUID) that is sent with the upload; the dashboard dedupes on it via
+  a unique index plus an idempotent insert, so a re-send collapses to a no-op.
+  Older clients that send no `EventId`, and older dashboards that ignore the
+  field, keep working unchanged.
+
 ## [1.13.6] - 2026-06-06
 
 ### Added
