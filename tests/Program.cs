@@ -168,6 +168,7 @@ internal static class Program
         Run("Traversal_FindDiRegistrations_IgnoresNonDiAddCalls", Traversal_FindDiRegistrations_IgnoresNonDiAddCalls);
         Run("Traversal_FindDiRegistrations_SingleArgFallsBackToServiceAsImpl", Traversal_FindDiRegistrations_SingleArgFallsBackToServiceAsImpl);
         Run("Traversal_FindDiRegistrations_HandlesGenericTypeArgNames", Traversal_FindDiRegistrations_HandlesGenericTypeArgNames);
+        Run("Traversal_FindDiRegistrations_HandlesQualifiedTypeNames", Traversal_FindDiRegistrations_HandlesQualifiedTypeNames);
         Run("Traversal_FindDiRegistrations_NonStringKey", Traversal_FindDiRegistrations_NonStringKey);
         Run("Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType", Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
@@ -2944,6 +2945,18 @@ internal static class Program
         var ok = regs.Count == 1 && regs[0] is { Method: "AddScoped", ServiceType: "IRepo", ImplType: "Repo" };
         return new TestOutcome(ok,
             ok ? "generic type arguments resolved to simple names IRepo -> Repo"
+               : $"count={regs.Count} rows=[{string.Join(";", regs.Select(r => $"{r.ServiceType}->{r.ImplType}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_HandlesQualifiedTypeNames()
+    {
+        // AddScoped<App.IQual, App.Qual>() — qualified names reduce to their right-most simple name.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("IQual");
+        var ok = regs.Count == 1 && regs[0] is { Method: "AddScoped", ServiceType: "IQual", ImplType: "Qual" };
+        return new TestOutcome(ok,
+            ok ? "qualified type names resolved to simple names IQual -> Qual"
                : $"count={regs.Count} rows=[{string.Join(";", regs.Select(r => $"{r.ServiceType}->{r.ImplType}"))}]",
             (0, 0, 0));
     }

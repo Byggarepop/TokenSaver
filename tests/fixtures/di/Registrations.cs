@@ -50,6 +50,9 @@ public static class Wiring
         // Keyed registration with a non-string (member-access) key — IBar -> Bar, key "Cache".
         services.AddKeyedSingleton<IBar, Bar>(ServiceKeys.Cache);
 
+        // Fully-qualified type args — only the simple names survive (IQual -> Qual).
+        services.AddScoped<App.IQual, App.Qual>();
+
         // Decoy: NOT a DI registration even though the method name starts with "Add".
         var names = new List<string>();
         names.AddRange(new[] { "IFoo", "Foo" });
