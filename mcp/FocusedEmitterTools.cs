@@ -664,6 +664,68 @@ public static class FocusedEmitterTools
         }
     }
 
+    [McpServerTool, Description(
+        "Maps every type (class, struct, record, interface, enum) declared across a project to " +
+        "its file:line, kind, and base list — a compact index for navigation. CALL THIS FIRST " +
+        "when you don't yet know which file a type lives in: one call replaces a flurry of Grep/" +
+        "Glob calls to locate types, and gives an agent the lay of the land before drilling in " +
+        "with focus_method / focus_type. Pass the project root or .csproj path; obj/ and bin/ are " +
+        "excluded. Optionally pass nameFilter to return only types whose name contains it " +
+        "(case-insensitive). Output is one line per type, sorted by name. Types only (not their " +
+        "members) to stay token-cheap. C# only (.cs files).")]
+    public static string MapProject(
+        [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
+        [Description("Optional case-insensitive substring; only types whose name contains it are returned. Omit to list all types.")] string? nameFilter = null)
+    {
+        try
+        {
+            var traversal = new ProjectTraversal(projectPath);
+            var types = traversal.MapTypes(nameFilter);
+
+            var filterNote = string.IsNullOrWhiteSpace(nameFilter) ? "none" : $"\"{nameFilter}\"";
+            if (types.Count == 0)
+                return $"// MapProject: no types{(string.IsNullOrWhiteSpace(nameFilter) ? "" : $" matching {filterNote}")} found in {traversal.FileCount} file(s) under {Path.GetFileName(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}.";
+
+            var ordered = types
+                .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(t => t.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // Render columns: Name | (modifiers + kind) | relpath:line | : bases.
+            var rows = ordered.Select(t =>
+            {
+                var kind = string.IsNullOrEmpty(t.Modifiers) ? t.Kind : $"{t.Modifiers} {t.Kind}";
+                var loc = $"{Path.GetRelativePath(traversal.Root, t.FilePath).Replace('\\', '/')}:{t.Line}";
+                return (t.Name, Kind: kind, Loc: loc, Bases: t.Bases);
+            }).ToList();
+
+            int nameWidth = rows.Max(r => r.Name.Length);
+            int kindWidth = rows.Max(r => r.Kind.Length);
+            int locWidth = rows.Max(r => r.Loc.Length);
+
+            var sb = new System.Text.StringBuilder();
+            int before = 0;
+            foreach (var r in rows)
+            {
+                var basePart = r.Bases is null ? "" : $"   : {r.Bases}";
+                sb.AppendLine($"{r.Name.PadRight(nameWidth)}  {r.Kind.PadRight(kindWidth)}  {r.Loc.PadRight(locWidth)}{basePart}".TrimEnd());
+                // Baseline = the bare declaration a reader would otherwise scan to find each type.
+                before += TokenCounter.Count($"{r.Kind} {r.Name}{(r.Bases is null ? "" : " : " + r.Bases)}");
+            }
+
+            var table = sb.ToString();
+            var header = BuildHeader(before, TokenCounter.Count(table), "MapProject", "C#",
+                $"types={types.Count} files={traversal.FileCount} filter={filterNote}",
+                sessionKey: $"MapProject:{traversal.Root}:{nameFilter}");
+
+            return header + $"// {types.Count} type(s) across {traversal.FileCount} file(s)  (filter: {filterNote})\n\n" + table;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
     private static bool TryGetCached(string filePath, string key, int depth, bool minify, string toolName, out string output)
     {
         if (!EmissionCache.TryGet(filePath, key, depth, minify, out output, out var before, out var after))

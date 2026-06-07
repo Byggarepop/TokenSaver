@@ -35,6 +35,7 @@
     <Compile Include="..\Emitters\MarkdownEmitter.cs" Link="Emitters\MarkdownEmitter.cs" />
     <Compile Include="..\Emitters\VBFocusedEmitter.cs" Link="Emitters\VBFocusedEmitter.cs" />
     <Compile Include="..\Emitters\EmissionCache.cs" Link="Emitters\EmissionCache.cs" />
+    <Compile Include="..\Emitters\ParsedTreeCache.cs" Link="Emitters\ParsedTreeCache.cs" />
     <Compile Include="..\mcp\FocusedEmitterTools.cs" Link="mcp\FocusedEmitterTools.cs" />
     <Compile Include="..\mcp\TokenCounter.cs" Link="mcp\TokenCounter.cs" />
     <Compile Include="..\mcp\RegisterCommand.cs" Link="mcp\RegisterCommand.cs" />

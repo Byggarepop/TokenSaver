@@ -52,6 +52,7 @@
     <Compile Include="..\Emitters\MarkdownEmitter.cs" Link="Emitters\MarkdownEmitter.cs" />
     <Compile Include="..\Emitters\VBFocusedEmitter.cs" Link="Emitters\VBFocusedEmitter.cs" />
     <Compile Include="..\Emitters\EmissionCache.cs" Link="Emitters\EmissionCache.cs" />
+    <Compile Include="..\Emitters\ParsedTreeCache.cs" Link="Emitters\ParsedTreeCache.cs" />
     <Compile Include="..\Reporting\TokenReport.cs" Link="Reporting\TokenReport.cs" />
     <Compile Include="..\Reporting\ReportWriter.cs" Link="Reporting\ReportWriter.cs" />
     <Compile Include="..\Reporting\ReportUploader.cs" Link="Reporting\ReportUploader.cs" />
