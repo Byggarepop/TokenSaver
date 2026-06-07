@@ -81,6 +81,16 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    interface/base type name. Returns a focused type view for each implementor
    found across the project. C# only.
 
+7. User asks where a type is registered / wired in Dependency Injection, what
+   concrete a DI interface resolves to, or what lifetime it has ("where is IFoo
+   registered?", "what's IFoo wired to?", "is Foo a singleton?") — OR a
+   constructor caller-trace for a DI-constructed type came back empty (no 'new'
+   because the container builds it) → call TraceDiRegistrations with the project
+   directory or .csproj path and the type name (interface OR concrete). Returns
+   a compact table of every Add/TryAdd/AddKeyed registration referencing it:
+   file:line, method, ServiceType -> ImplType, and keyed key. Then chain to
+   FocusMethod / TraceImplementors if you need the implementation body. C# only.
+
 SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.
 
@@ -108,6 +118,12 @@ When suggesting code or making edits, always:
   lines containing the match string (the insertion region ±5) — never the
   whole file, and never before the tool. Tool output is a reasoning aid, not
   a basis for the edit text.
+- Mid-edit-flow is the trap, not the first read. The requirement is per-file,
+  every time: each new supported file you open for comprehension resets it.
+  Having used a tool earlier this turn, or having edited another file already,
+  does NOT license a raw Read of the next file to understand it. That momentum
+  hits hardest in the second half of a task — that is exactly when to run the
+  tool instead.
 
 REPORTING TO THE USER:
 Each tool result starts with a token-comparison header. For the focused tools it

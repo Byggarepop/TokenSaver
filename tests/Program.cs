@@ -163,6 +163,10 @@ internal static class Program
         Run("Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod", Traversal_FindCallerFiles_ReturnsEmptyForUnknownMethod);
         Run("Traversal_FindImplementors_FindsImplementingTypes", Traversal_FindImplementors_FindsImplementingTypes);
         Run("Traversal_FindImplementors_ReturnsEmptyForUnknownInterface", Traversal_FindImplementors_ReturnsEmptyForUnknownInterface);
+        Run("Traversal_FindDiRegistrations_MatchesByServiceType", Traversal_FindDiRegistrations_MatchesByServiceType);
+        Run("Traversal_FindDiRegistrations_MatchesByImplType", Traversal_FindDiRegistrations_MatchesByImplType);
+        Run("Traversal_FindDiRegistrations_IgnoresNonDiAddCalls", Traversal_FindDiRegistrations_IgnoresNonDiAddCalls);
+        Run("Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType", Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
         Run("McpTool_SecondCallReturnsReparseSkipped", McpTool_SecondCallReturnsReparseSkipped);
         Run("Cache_MissOnFirstCall", Cache_MissOnFirstCall);
@@ -2808,6 +2812,7 @@ internal static class Program
     // ---------- ProjectTraversal ----------
 
     private static readonly string TraversalDir = Path.Combine(FixturesDir, "traversal");
+    private static readonly string DiDir = Path.Combine(FixturesDir, "di");
 
     private static TestOutcome Traversal_FindCallerFiles_FindsFileWithCaller()
     {
@@ -2856,6 +2861,67 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "empty list for unknown interface name"
                : $"unexpectedly returned {impls.Count} result(s)",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_MatchesByServiceType()
+    {
+        // Registrations.cs wires IFoo five ways; query by the service interface.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("IFoo");
+
+        var scoped = regs.FirstOrDefault(r => r.Method == "AddScoped");
+        var typeOf = regs.FirstOrDefault(r => r.Method == "AddTransient");
+        var keyed = regs.FirstOrDefault(r => r.Method == "AddKeyedScoped");
+        var tryAdd = regs.FirstOrDefault(r => r.Method == "TryAddSingleton");
+        var lambda = regs.FirstOrDefault(r => r.Method == "AddSingleton");
+
+        var ok =
+            regs.Count == 5 &&
+            scoped is { ServiceType: "IFoo", ImplType: "Foo" } &&
+            typeOf is { ServiceType: "IFoo", ImplType: "DefaultFoo" } &&
+            keyed is { ServiceType: "IFoo", ImplType: "CachedFoo", Key: "cache" } &&
+            tryAdd is { ServiceType: "IFoo", ImplType: "Foo" } &&
+            lambda is { ServiceType: "IFoo", ImplType: "LambdaFoo" };
+
+        return new TestOutcome(ok,
+            ok ? "all five IFoo registrations parsed with correct impl/lifetime/key"
+               : $"count={regs.Count} rows=[{string.Join("; ", regs.Select(r => $"{r.Method}:{r.ServiceType}->{r.ImplType}{(r.Key is null ? "" : $"@{r.Key}")}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_MatchesByImplType()
+    {
+        // Querying by the concrete impl name finds the same registration as the service query.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("CachedFoo");
+        var ok = regs.Count == 1 && regs[0] is { Method: "AddKeyedScoped", ServiceType: "IFoo", ImplType: "CachedFoo", Key: "cache" };
+        return new TestOutcome(ok,
+            ok ? "impl-type query resolved the keyed registration"
+               : $"count={regs.Count} rows=[{string.Join("; ", regs.Select(r => $"{r.Method}:{r.ServiceType}->{r.ImplType}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_IgnoresNonDiAddCalls()
+    {
+        // names.AddRange(...) mentions "Foo" textually but is not a DI registration.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("Foo");
+        var ok = regs.All(r => r.Method != "AddRange") && regs.Count == 2; // AddScoped + TryAddSingleton
+        return new TestOutcome(ok,
+            ok ? "non-DI AddRange ignored; only the two Foo registrations returned"
+               : $"count={regs.Count} methods=[{string.Join(",", regs.Select(r => r.Method))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType()
+    {
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("INotRegistered");
+        var ok = regs.Count == 0;
+        return new TestOutcome(ok,
+            ok ? "empty list for unregistered type name"
+               : $"unexpectedly returned {regs.Count} result(s)",
             (0, 0, 0));
     }
 
