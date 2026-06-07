@@ -285,6 +285,91 @@ grows slowly (one line per match) while a full `Read` is always the entire file.
 
 ---
 
+## Case Study 5: Build a brand-new MCP tool end-to-end (implementation + tests)
+
+**Task:** Design and add a brand-new tool to the TokenSaver MCP server itself —
+`FocusRegion`, which returns the members declared inside a named `#region … #endregion`
+block of a C# file — including the emitter logic, the MCP tool wrapper, and a suite of
+tests. This is a far larger task than a single edit: it requires comprehending how
+existing tools are wired (`FocusType`), how the emitter constructs a `FocusResult`
+(`EmitType`), and how the test harness registers and runs cases.
+
+This exercise was performed live on **version 1.13.6** (the latest release at the time).
+The same end-to-end task was completed twice — once using TokenSaver to comprehend the
+source, once using only the built-in file reader — and only the *comprehension* reads
+were measured, since the implementation and test code written is identical either way.
+
+Files that had to be understood to implement the tool:
+
+| File | Size |
+|---|---|
+| `mcp/FocusedEmitterTools.cs` | 655 lines |
+| `Emitters/FocusedEmitter.cs` | 980 lines |
+| `Reporting/TokenReport.cs` | 116 lines |
+| `tests/Program.cs` | 2,520 lines / 42,427 tokens |
+| `tests/fixtures/RegionHeavy.cs` | 25 lines |
+
+---
+
+### Agentic flow — With TokenSaver
+
+Eight targeted MCP calls — outlines for navigation, focused views for the exact methods
+and types to mimic — instead of reading any whole file.
+
+| Step | Tool | Tokens |
+|---|---|---|
+| Navigate tool registrations | `outline_c_sharp_file` (FocusedEmitterTools.cs) | **1,160** |
+| Navigate emitter | `outline_c_sharp_file` (FocusedEmitter.cs) | **889** |
+| Understand emission analog | `focus_method` `EmitType` (depth=1, minify) | **1,046** |
+| Understand tool wiring | `focus_method` `FocusType` (depth=1, minify) | **1,534** |
+| Read fixture | `minify_file` (RegionHeavy.cs) | **78** |
+| Navigate test harness | `outline_c_sharp_file` (Program.cs) | **2,528** |
+| Understand test patterns | `focus_multiple_methods` (6 test methods, depth=1) | **732** |
+| Understand `TestOutcome` shape | `focus_type` (TestOutcome) | **46** |
+| **Total** | | **~8,013 tokens** |
+
+The 2,520-line / 42,427-token test file was navigated with one outline (2,528) plus a
+single focused view of the six relevant test methods (732) — never read in full.
+
+---
+
+### Agentic flow — Without TokenSaver
+
+| Step | Tool | Tokens |
+|---|---|---|
+| Read FocusedEmitterTools.cs | `Read` | **~11,855** |
+| Read FocusedEmitter.cs | `Read` | **~14,903** |
+| Read RegionHeavy.cs | `Read` | **~227** |
+| Read Program.cs | `Read` (chunked — exceeds the 25K single-read cap) | **42,427** |
+| **Total** | | **~69,412 tokens** |
+
+The test file alone is 42,427 tokens and exceeds the built-in reader's 25,000-token
+single-read limit, forcing it to be read in multiple chunks just to comprehend the
+harness and find the insertion points.
+
+---
+
+### Comparison
+
+```
+With TokenSaver:    █████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   8,013 tokens
+Without TokenSaver: █████████████████████████████████████████████  69,412 tokens
+```
+
+| Metric | Value |
+|---|---|
+| Tokens saved | **~61,399** |
+| Reduction | **~88%** |
+| Result quality | Identical — the same working tool, all 156 tests passing |
+
+**Whole-feature tasks across many files compound the saving.** A new tool touches
+several large files at once, and comprehension dominates the cost. TokenSaver brought
+each file into context at the size the task actually needed — outlines for layout, one
+focused view per relevant method — keeping the test file's 42K tokens out of context
+entirely. The naive approach pays the full price of every file just to understand them.
+
+---
+
 ## Test file
 
 `Emitters/FocusedEmitter.cs` — 1,004 lines, part of the open-source
