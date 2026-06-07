@@ -91,6 +91,25 @@ using (var scope = app.Services.CreateScope())
         addVersion.CommandText = "ALTER TABLE Reports ADD COLUMN McpVersion TEXT";
         addVersion.ExecuteNonQuery();
     }
+
+    // Add the EventId idempotency column + its unique index for existing DBs.
+    // Same guard pattern: SQLite has no ADD COLUMN IF NOT EXISTS. The unique
+    // index is filtered to non-null so legacy rows (EventId IS NULL) don't
+    // collide with each other. CREATE UNIQUE INDEX IF NOT EXISTS is idempotent.
+    using var eventIdCheck = conn.CreateCommand();
+    eventIdCheck.CommandText = "SELECT COUNT(*) FROM pragma_table_info('Reports') WHERE name='EventId'";
+    var eventIdColumnExists = (long)eventIdCheck.ExecuteScalar()! > 0;
+    if (!eventIdColumnExists)
+    {
+        using var addEventId = conn.CreateCommand();
+        addEventId.CommandText = "ALTER TABLE Reports ADD COLUMN EventId TEXT";
+        addEventId.ExecuteNonQuery();
+    }
+
+    using var addEventIdIndex = conn.CreateCommand();
+    addEventIdIndex.CommandText =
+        "CREATE UNIQUE INDEX IF NOT EXISTS IX_Reports_EventId ON Reports(EventId) WHERE EventId IS NOT NULL";
+    addEventIdIndex.ExecuteNonQuery();
 }
 
 if (!app.Environment.IsDevelopment())
@@ -127,6 +146,18 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
     var clientId = dto.ClientId?.Length > 64 ? dto.ClientId[..64] : dto.ClientId;
     var mcpVersion = dto.McpVersion?.Length > 32 ? dto.McpVersion[..32] : dto.McpVersion;
 
+    // Idempotency: the client durable resend (and concurrently spawned MCP
+    // server processes) can POST the same logical row more than once. If we've
+    // already stored this EventId, return the existing row instead of inserting
+    // a duplicate. Guid.Empty is treated as absent.
+    var eventId = dto.EventId is { } eid && eid != Guid.Empty ? eid : (Guid?)null;
+    if (eventId is { } key)
+    {
+        var dup = await db.Reports.FirstOrDefaultAsync(r => r.EventId == key);
+        if (dup is not null)
+            return Results.Created($"/api/reports/{dup.Id}", new { id = dup.Id, duplicate = true });
+    }
+
     var isNewClient = clientId is not null && !await db.Reports.AnyAsync(r => r.ClientId == clientId);
 
     var row = new ReportRow
@@ -139,10 +170,24 @@ app.MapPost("/api/reports", async (ReportPostDto dto, HttpContext http, ReportsD
         ClientId = clientId,
         McpVersion = mcpVersion,
         ReceivedUtc = DateTime.UtcNow,
+        EventId = eventId,
     };
 
     db.Reports.Add(row);
-    await db.SaveChangesAsync();
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateException) when (eventId is not null)
+    {
+        // A concurrent POST with the same EventId won the unique-index race.
+        // Settle idempotently: drop our insert and return the row that landed.
+        db.Entry(row).State = EntityState.Detached;
+        var dup = await db.Reports.FirstOrDefaultAsync(r => r.EventId == eventId);
+        if (dup is not null)
+            return Results.Created($"/api/reports/{dup.Id}", new { id = dup.Id, duplicate = true });
+        throw;
+    }
 
     if (isNewClient)
         _ = email.SendNewClientNotificationAsync(clientId!);
@@ -238,7 +283,8 @@ public sealed record ReportPostDto(
     int TokensWithTool,
     string? Notes,
     string? ClientId,
-    string? McpVersion);
+    string? McpVersion,
+    Guid? EventId = null);
 
 public sealed record StatsSummary(
     int RunCount,

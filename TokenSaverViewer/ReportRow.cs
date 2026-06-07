@@ -29,4 +29,13 @@ public sealed class ReportRow
     public string? McpVersion { get; set; }
 
     public DateTime ReceivedUtc { get; set; }
+
+    /// <summary>
+    /// Client-generated idempotency key. The durable resend (and concurrently
+    /// spawned MCP server processes) can POST the same logical row more than
+    /// once; a unique index on this column lets the ingest endpoint dedupe so a
+    /// re-send never creates a duplicate. Null for rows ingested before this
+    /// field existed, or from clients that don't send one.
+    /// </summary>
+    public Guid? EventId { get; set; }
 }

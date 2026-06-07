@@ -15,7 +15,13 @@ public sealed record ReportEntry(
     //   false = written by a current build, upload not yet confirmed — a resend candidate.
     //   true  = settled: upload confirmed (2xx), or permanently rejected by a 4xx that
     //           retrying can't fix — never resent either way.
-    bool? Uploaded = null);
+    bool? Uploaded = null,
+    // Stable, client-generated idempotency key, sent with the upload payload.
+    // Durable resend plus concurrently-spawned server processes can POST the
+    // same logical row more than once; the server dedupes on this key so a
+    // re-send never creates a duplicate. Guid.Empty on legacy rows written
+    // before this field existed (those are Uploaded == null and never resent).
+    Guid EventId = default);
 
 /// <summary>
 /// Single sink for every "I just saved tokens" event across the toolkit.
@@ -60,7 +66,8 @@ public static class ReportWriter
             notes,
             source,
             DateTime.UtcNow,
-            Uploaded: false);
+            Uploaded: false,
+            EventId: Guid.NewGuid());
 
         lock (FileLock)
         {
@@ -116,12 +123,16 @@ public static class ReportWriter
             for (int i = 0; i < entries.Count; i++)
             {
                 var e = entries[i];
-                if (e.Uploaded == false
-                    && e.TimestampUtc == entry.TimestampUtc
-                    && e.ToolName == entry.ToolName
-                    && e.TokensWithoutTool == entry.TokensWithoutTool
-                    && e.TokensWithTool == entry.TokensWithTool
-                    && e.Source == entry.Source)
+                // Prefer the stable EventId; fall back to the immutable-field
+                // tuple for legacy rows written before EventId existed.
+                var matches = entry.EventId != Guid.Empty
+                    ? e.EventId == entry.EventId
+                    : e.TimestampUtc == entry.TimestampUtc
+                        && e.ToolName == entry.ToolName
+                        && e.TokensWithoutTool == entry.TokensWithoutTool
+                        && e.TokensWithTool == entry.TokensWithTool
+                        && e.Source == entry.Source;
+                if (e.Uploaded == false && matches)
                 {
                     entries[i] = e with { Uploaded = true };
                     File.WriteAllText(target, JsonSerializer.Serialize(entries, WriteOpts));
