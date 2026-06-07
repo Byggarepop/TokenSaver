@@ -25,7 +25,7 @@ public sealed class ProjectTraversal
     private static readonly HashSet<string> DiMethodNames = new(StringComparer.Ordinal)
     {
         "AddScoped", "AddSingleton", "AddTransient",
-        "TryAddScoped", "TryAddSingleton", "TryAddTransient", "TryAddEnumerable",
+        "TryAddScoped", "TryAddSingleton", "TryAddTransient",
         "AddKeyedScoped", "AddKeyedSingleton", "AddKeyedTransient",
     };
 

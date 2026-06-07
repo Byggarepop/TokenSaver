@@ -166,6 +166,9 @@ internal static class Program
         Run("Traversal_FindDiRegistrations_MatchesByServiceType", Traversal_FindDiRegistrations_MatchesByServiceType);
         Run("Traversal_FindDiRegistrations_MatchesByImplType", Traversal_FindDiRegistrations_MatchesByImplType);
         Run("Traversal_FindDiRegistrations_IgnoresNonDiAddCalls", Traversal_FindDiRegistrations_IgnoresNonDiAddCalls);
+        Run("Traversal_FindDiRegistrations_SingleArgFallsBackToServiceAsImpl", Traversal_FindDiRegistrations_SingleArgFallsBackToServiceAsImpl);
+        Run("Traversal_FindDiRegistrations_HandlesGenericTypeArgNames", Traversal_FindDiRegistrations_HandlesGenericTypeArgNames);
+        Run("Traversal_FindDiRegistrations_NonStringKey", Traversal_FindDiRegistrations_NonStringKey);
         Run("Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType", Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
         Run("McpTool_SecondCallReturnsReparseSkipped", McpTool_SecondCallReturnsReparseSkipped);
@@ -2905,12 +2908,55 @@ internal static class Program
     private static TestOutcome Traversal_FindDiRegistrations_IgnoresNonDiAddCalls()
     {
         // names.AddRange(...) mentions "Foo" textually but is not a DI registration.
+        // NOTE: this only proves method-NAME filtering. Matching is purely syntactic, so a
+        // method literally named AddScoped on a non-ServiceCollection receiver would still
+        // match — receiver-type discrimination is an intentional non-goal of this tool.
         var t = new ProjectTraversal(DiDir);
         var regs = t.FindDiRegistrations("Foo");
         var ok = regs.All(r => r.Method != "AddRange") && regs.Count == 2; // AddScoped + TryAddSingleton
         return new TestOutcome(ok,
             ok ? "non-DI AddRange ignored; only the two Foo registrations returned"
                : $"count={regs.Count} methods=[{string.Join(",", regs.Select(r => r.Method))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_SingleArgFallsBackToServiceAsImpl()
+    {
+        // AddSingleton<BareFoo>() and AddTransient(typeof(SoloFoo)) carry no impl — it must
+        // fall back to the service type so the table reads BareFoo -> BareFoo, SoloFoo -> SoloFoo.
+        var t = new ProjectTraversal(DiDir);
+        var bare = t.FindDiRegistrations("BareFoo");
+        var solo = t.FindDiRegistrations("SoloFoo");
+        var ok =
+            bare.Count == 1 && bare[0] is { Method: "AddSingleton", ServiceType: "BareFoo", ImplType: "BareFoo", Key: null } &&
+            solo.Count == 1 && solo[0] is { Method: "AddTransient", ServiceType: "SoloFoo", ImplType: "SoloFoo", Key: null };
+        return new TestOutcome(ok,
+            ok ? "single-generic and single-typeof impl fall back to the service type"
+               : $"bare=[{string.Join(";", bare.Select(r => $"{r.ServiceType}->{r.ImplType}"))}] solo=[{string.Join(";", solo.Select(r => $"{r.ServiceType}->{r.ImplType}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_HandlesGenericTypeArgNames()
+    {
+        // AddScoped<IRepo<User>, Repo<User>>() — generic type args reduce to simple names.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("IRepo");
+        var ok = regs.Count == 1 && regs[0] is { Method: "AddScoped", ServiceType: "IRepo", ImplType: "Repo" };
+        return new TestOutcome(ok,
+            ok ? "generic type arguments resolved to simple names IRepo -> Repo"
+               : $"count={regs.Count} rows=[{string.Join(";", regs.Select(r => $"{r.ServiceType}->{r.ImplType}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_NonStringKey()
+    {
+        // AddKeyedSingleton<IBar, Bar>(ServiceKeys.Cache) — key comes from a member access.
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("IBar");
+        var ok = regs.Count == 1 && regs[0] is { Method: "AddKeyedSingleton", ServiceType: "IBar", ImplType: "Bar", Key: "Cache" };
+        return new TestOutcome(ok,
+            ok ? "member-access key resolved to 'Cache'"
+               : $"count={regs.Count} rows=[{string.Join(";", regs.Select(r => $"{r.Method}:{r.ServiceType}->{r.ImplType}@{r.Key}"))}]",
             (0, 0, 0));
     }
 
