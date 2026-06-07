@@ -1,0 +1,40 @@
+# TokenSaver
+
+> An MCP server for .NET developers that gives AI coding assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform. Typical reduction: 50–95% on C# files with no loss of logic. tokensavermcp.com is the live dashboard tracking tokens saved across all installs.
+
+## About
+- **Website**: https://tokensavermcp.com/
+- **Source**: https://github.com/Byggarepop/TokenSaver
+- **Primary language**: English
+- **Type**: Open-source MCP (Model Context Protocol) server, distributed as a .NET tool
+
+## Key pages
+- [Home / live dashboard](https://tokensavermcp.com/): total tokens saved, tool runs, average reduction, and estimated energy/CO₂ avoided across all installs.
+- [Capabilities](https://tokensavermcp.com/capabilities): the full list of tools and what each one does.
+- [Install](https://tokensavermcp.com/install): one-click install buttons, per-client config, upgrade/uninstall, and troubleshooting.
+
+## What it does
+TokenSaver produces token-reduced views of source files so AI assistants spend fewer tokens reading code, with no loss of logic. Tools include:
+- `OutlineCSharpFile` — signatures of every type and member, no bodies (70–95% reduction)
+- `FocusMethod` / `FocusMultipleMethods` — a named method with its body plus signatures of referenced members
+- `FocusType` — non-private members with bodies, private members as signatures
+- `FocusCallers` / `TraceCallers` — find what calls a method, in one file or across a project
+- `TraceImplementors` — find every type implementing an interface or extending a base type
+- `MinifyCSharpFile` / `MinifyFile` — lossless minify, auto-dispatched by file extension
+- `AliasCSharpFile` — minify plus short aliases for long private symbol names
+
+## Supported file types
+- **Primary (Roslyn, full support)**: C# (.cs), Razor (.razor), VB.NET (.vb), .NET project files (.csproj, .props, .config, .xml)
+- **Basic (comment strip + whitespace collapse)**: JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, X++, Markdown
+- Cross-file traversal (`TraceCallers`, `TraceImplementors`) is C# only.
+
+## Works with
+Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and any MCP client that speaks stdio.
+
+## Target audience
+- .NET and C# developers
+- AI engineers and teams using AI coding assistants
+- Anyone reducing token cost, latency, or the carbon footprint of AI-assisted development
+
+## How to cite
+"TokenSaver MCP (2026). Live token-savings dashboard. Retrieved from https://tokensavermcp.com/"
