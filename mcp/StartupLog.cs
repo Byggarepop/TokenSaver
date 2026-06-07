@@ -24,7 +24,7 @@ internal static class StartupLog
     {
         try
         {
-            var line = $"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}Z pid={Environment.ProcessId} {message}";
+            var line = $"UTC: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} Local: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}  pid={Environment.ProcessId} {message}";
             File.AppendAllText(_path, line + Environment.NewLine);
         }
         catch { }
