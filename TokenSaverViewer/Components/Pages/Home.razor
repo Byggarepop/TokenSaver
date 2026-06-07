@@ -126,6 +126,120 @@
     }
 </section>
 
+<section class="faq-section">
+    <h2>Frequently asked questions</h2>
+
+    <div class="faq-item">
+        <h3>What is TokenSaver?</h3>
+        <p>
+            TokenSaver is an MCP (Model Context Protocol) server for .NET developers. It gives AI coding
+            assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler
+            platform, so the assistant reads the same code using far fewer tokens — with no loss of logic.
+        </p>
+    </div>
+
+    <div class="faq-item">
+        <h3>How much can TokenSaver reduce token usage?</h3>
+        <p>
+            It depends on the tool and the file. A signatures-only outline of a C# file saves 70–95%, a
+            lossless full-file minify saves 20–50%, and the focused tools save 15–40% measured against reading
+            only the relevant code. On C# files the typical reduction is 50–95%.
+        </p>
+    </div>
+
+    <div class="faq-item">
+        <h3>Which file types and languages does it support?</h3>
+        <p>
+            Full Roslyn support for C#, Razor, VB.NET, and .NET project files (.csproj, .props, .config, .xml).
+            Comment-strip and whitespace-collapse support for JavaScript, TypeScript, Python, HTML,
+            CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown.
+        </p>
+    </div>
+
+    <div class="faq-item">
+        <h3>Which AI tools and editors does it work with?</h3>
+        <p>
+            Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and any
+            MCP client that communicates over stdio.
+        </p>
+    </div>
+
+    <div class="faq-item">
+        <h3>How do I install TokenSaver?</h3>
+        <p>
+            The <a href="install">install page</a> has one-click install buttons, per-client configuration
+            snippets, and upgrade and uninstall instructions.
+        </p>
+    </div>
+
+    <div class="faq-item">
+        <h3>Is TokenSaver free and open source?</h3>
+        <p>
+            Yes. TokenSaver is open source under the MIT license, the package is published on
+            <a href="https://www.nuget.org/packages/TokenSaver.Mcp/" target="_blank" rel="noopener">NuGet</a>,
+            and the source code is on
+            <a href="https://github.com/Byggarepop/TokenSaver" target="_blank" rel="noopener">GitHub</a>.
+        </p>
+    </div>
+</section>
+
+<script type="application/ld+json">
+{
+    "@@context": "https://schema.org",
+    "@@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@@type": "Question",
+            "name": "What is TokenSaver?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "TokenSaver is an MCP (Model Context Protocol) server for .NET developers. It gives AI coding assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform, so the assistant reads the same code using far fewer tokens — with no loss of logic."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "How much can TokenSaver reduce token usage?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "It depends on the tool and the file. A signatures-only outline of a C# file saves 70–95%, a lossless full-file minify saves 20–50%, and the focused tools save 15–40% measured against reading only the relevant code. On C# files the typical reduction is 50–95%."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Which file types and languages does it support?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Full Roslyn support for C#, Razor, VB.NET, and .NET project files (.csproj, .props, .config, .xml). Comment-strip and whitespace-collapse support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Which AI tools and editors does it work with?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and any MCP client that communicates over stdio."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "How do I install TokenSaver?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "The install page at https://tokensavermcp.com/install has one-click install buttons, per-client configuration snippets, and upgrade and uninstall instructions."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Is TokenSaver free and open source?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Yes. TokenSaver is open source under the MIT license, the package is published on NuGet, and the source code is on GitHub at https://github.com/Byggarepop/TokenSaver."
+            }
+        }
+    ]
+}
+</script>
+
 <style>
     .hero {
         background: linear-gradient(135deg, #0d2b4e 0%, #1a4a7a 60%, #2d7dd2 100%);
@@ -191,6 +305,35 @@
     }
 
     .updated-at { font-size: 0.8rem; color: #6c757d; }
+
+    .faq-section {
+        max-width: 760px;
+        margin: 3rem auto 0;
+        padding: 0 0.25rem;
+    }
+
+    .faq-section > h2 {
+        margin: 0 0 1.5rem;
+        font-size: 1.4rem;
+        font-weight: 600;
+    }
+
+    .faq-item { margin-bottom: 1.5rem; }
+
+    .faq-item h3 {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: #1a4a7a;
+        margin: 0 0 0.4rem;
+    }
+
+    .faq-item p {
+        margin: 0;
+        color: #444;
+        line-height: 1.6;
+    }
+
+    .faq-item a { color: #2d7dd2; }
 </style>
 
 @code {

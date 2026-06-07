@@ -1,0 +1,84 @@
+@page "/about"
+
+<PageTitle>About TokenSaver</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="About TokenSaver — an open-source MCP server that gives AI coding assistants token-efficient views of C#, Razor, and .NET source files using Roslyn." />
+    <link rel="canonical" href="https://tokensavermcp.com/about" />
+</HeadContent>
+
+<section class="about">
+    <h1>About TokenSaver</h1>
+
+    <h2>What it is</h2>
+    <p>
+        TokenSaver is an open-source <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">MCP</a>
+        (Model Context Protocol) server for .NET developers. It gives an AI coding assistant a token-efficient
+        view of C#, Razor, and .NET project files using the Roslyn compiler platform, so the assistant reads the
+        same code while spending far fewer tokens — with no loss of logic. Typical reduction is 50–95% on C# files.
+    </p>
+    <p>
+        Fewer tokens processed means lower cost, lower latency, and a smaller carbon footprint for AI-assisted
+        development. This site is the live dashboard tracking how many tokens the tools have saved across all
+        installs.
+    </p>
+
+    <h2>What the tools do</h2>
+    <ul>
+        <li><strong>Outline</strong> — signatures of every type and member with no bodies, for "what's in this file?"</li>
+        <li><strong>Focus</strong> — a named method or type with full bodies, plus signatures of what it references.</li>
+        <li><strong>Trace</strong> — find what calls a method or implements an interface across a whole project.</li>
+        <li><strong>Minify / Alias</strong> — lossless whole-file reduction, auto-dispatched by file extension.</li>
+    </ul>
+    <p><a href="capabilities">See the full list of capabilities →</a></p>
+
+    <h2>Supported languages</h2>
+    <p>
+        Full Roslyn support for C#, Razor, VB.NET, and .NET project files. Comment-strip and whitespace-collapse
+        support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown.
+        It works with Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and
+        any MCP client that speaks stdio.
+    </p>
+
+    <h2>Open source</h2>
+    <p>
+        TokenSaver is released under the MIT license. The package is published on
+        <a href="https://www.nuget.org/packages/TokenSaver.Mcp/" target="_blank" rel="noopener">NuGet</a>
+        and the source code is on
+        <a href="https://github.com/Byggarepop/TokenSaver" target="_blank" rel="noopener">GitHub</a>.
+    </p>
+
+    <h2>Get started</h2>
+    <p>
+        Head to the <a href="install">install page</a> for one-click install buttons, per-client configuration
+        snippets, and upgrade and uninstall instructions.
+    </p>
+</section>
+
+<style>
+    .about {
+        max-width: 760px;
+        margin: 0 auto;
+        line-height: 1.65;
+        color: #333;
+    }
+
+    .about h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 1.5rem;
+    }
+
+    .about h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a4a7a;
+        margin: 2rem 0 0.6rem;
+    }
+
+    .about p { margin: 0 0 1rem; }
+    .about ul { margin: 0 0 1rem; padding-left: 1.25rem; }
+    .about li { margin-bottom: 0.4rem; }
+    .about a { color: #2d7dd2; }
+</style>

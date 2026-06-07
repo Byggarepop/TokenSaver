@@ -1,4 +1,46 @@
+# All crawlers (including AI search bots) may index everything except /admin/.
 User-agent: *
+Disallow: /admin/
+Allow: /
+
+# Explicit allow rules for AI search engine crawlers.
+User-agent: GPTBot
+Disallow: /admin/
+Allow: /
+
+User-agent: ChatGPT-User
+Disallow: /admin/
+Allow: /
+
+User-agent: OAI-SearchBot
+Disallow: /admin/
+Allow: /
+
+User-agent: ClaudeBot
+Disallow: /admin/
+Allow: /
+
+User-agent: Claude-Web
+Disallow: /admin/
+Allow: /
+
+User-agent: PerplexityBot
+Disallow: /admin/
+Allow: /
+
+User-agent: Google-Extended
+Disallow: /admin/
+Allow: /
+
+User-agent: Amazonbot
+Disallow: /admin/
+Allow: /
+
+User-agent: Applebot-Extended
+Disallow: /admin/
+Allow: /
+
+User-agent: cohere-ai
 Disallow: /admin/
 Allow: /
 
