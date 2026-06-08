@@ -40,6 +40,8 @@ These scan an entire project directory in one call — no need to know which fil
 |---|---|
 | `TraceCallers(projectPath, methodName)` | Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers "what calls X across the whole codebase?" |
 | `TraceImplementors(projectPath, interfaceName)` | Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers "what implements IFoo?" |
+| `TraceDiRegistrations(projectPath, typeName)` | Finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table of `file:line`, method, `ServiceType -> ImplType`, and key. Answers "where is IFoo wired, and to what?" |
+| `MapProject(projectPath, nameFilter?)` | Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. |
 
 Both accept a directory path or `.csproj` file — `obj/` and `bin/` are excluded automatically.
 
@@ -71,4 +73,4 @@ Every invocation is counted at **[tokensavermcp.com](https://tokensavermcp.com)*
 | **Primary** (Roslyn, full support) | C# `.cs`, Razor `.razor`, VB.NET `.vb`, .NET project files `.csproj .props .config .xml` |
 | **Basic** (comment-strip + whitespace collapse) | JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, X++, Markdown |
 
-Cross-file traversal tools (`TraceCallers`, `TraceImplementors`) are **C# only**.
+Cross-file traversal tools (`TraceCallers`, `TraceImplementors`, `TraceDiRegistrations`, `MapProject`) are **C# only**.

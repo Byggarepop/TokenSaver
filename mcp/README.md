@@ -26,7 +26,7 @@ Works with:
 
 ## What the tools do
 
-All ten tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
+All twelve tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
 basic-tier minifiers for other extensions.
 
 ### Single-file tools
@@ -76,6 +76,15 @@ to look in first. Both accept a directory path or `.csproj` file; `obj/` and
   type that implements or extends the named interface or base type, and returns
   a focused type view for each. Answers "what implements IFoo?" or "what extends
   BaseBar?" in a single call.
+- `TraceDiRegistrations(projectPath, typeName)` — finds every Dependency-
+  Injection registration referencing a type (interface or concrete) and returns
+  a compact table: `file:line`, method, `ServiceType -> ImplType`, and keyed
+  key. Answers "where is IFoo wired, and to what implementation?" — the question
+  a constructor caller-trace can't, since DI-built types are never `new`-ed.
+- `MapProject(projectPath, nameFilter=null)` — maps every type (class/struct/
+  record/interface/enum) to its `file:line`, kind, and base list. A compact
+  index for locating a type when you don't know its file; pass `nameFilter` to
+  narrow on large repos.
 
 Each tool result starts with a token-comparison header. For the focused tools
 (`FocusMethod`, `FocusMultipleMethods`, `FocusType`, `FocusCallers`) it has
