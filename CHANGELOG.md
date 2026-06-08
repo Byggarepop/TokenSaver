@@ -4,6 +4,25 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-06-08
+
+### New Tools
+- `trace_di_registrations` — discover every `Add`/`TryAdd`/`AddKeyed` registration for a type across the project; detects generic, `typeof()`, and factory-lambda forms (#86)
+- `map_project` — project-wide type-to-file map with kind and base list; opt-in via `TOKENSAVER_ENABLE_MAP_PROJECT=1` (#87, #89)
+
+### Improvements
+- Agentic-mode optimizations: parse cache avoids re-parsing the same syntax tree across consecutive tool calls (#87)
+- `trace_di_registrations` now recognizes `TryAddKeyed*` registrations (#88)
+- `docs/tools.json` is now the single source of truth for tool metadata; README and viewer tool grid are generated from it (#90)
+
+### Fixes
+- Removed duplicate tool cards in Capabilities.razor that caused a build failure (#91)
+
+### Other
+- Added MIT License
+- Startup log lines now show both UTC and local time (#85)
+
+
 ## [1.13.7] - 2026-06-07
 
 ### Fixed
