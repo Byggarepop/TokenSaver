@@ -91,13 +91,11 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    file:line, method, ServiceType -> ImplType, and keyed key. Then chain to
    FocusMethod / TraceImplementors if you need the implementation body. C# only.
 
-8. You don't yet know which file a type lives in, or want the lay of the land
-   before drilling in ("where is FooService?", "what types are in this project?",
-   "find types named *Repository") → call MapProject with the project directory
-   or .csproj path. One call maps every type to its file:line, kind, and base
-   list — use it INSTEAD OF a flurry of Grep/Glob calls to locate types, then
-   drill in with FocusMethod / FocusType. Pass nameFilter to narrow to a name
-   substring. Types only, not their members, so it stays cheap. C# only.
+8. You don't know which file a type is in, or want a project overview ("where is
+   FooService?", "find types named *Repository") → call MapProject with the
+   project directory or .csproj path. Maps every type to its file:line, kind, and
+   base list; use instead of Grep for type discovery, then drill in with
+   FocusMethod / FocusType. Pass nameFilter to narrow on large repos. C# only.
 
 SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.

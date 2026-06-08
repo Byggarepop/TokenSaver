@@ -665,14 +665,11 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Maps every type (class, struct, record, interface, enum) declared across a project to " +
-        "its file:line, kind, and base list — a compact index for navigation. CALL THIS FIRST " +
-        "when you don't yet know which file a type lives in: one call replaces a flurry of Grep/" +
-        "Glob calls to locate types, and gives an agent the lay of the land before drilling in " +
-        "with focus_method / focus_type. Pass the project root or .csproj path; obj/ and bin/ are " +
-        "excluded. Optionally pass nameFilter to return only types whose name contains it " +
-        "(case-insensitive). Output is one line per type, sorted by name. Types only (not their " +
-        "members) to stay token-cheap. C# only (.cs files).")]
+        "Maps every type (class/struct/record/interface/enum) in a project to its file:line, " +
+        "kind, and base list — a compact index for locating types when you don't know which " +
+        "file they're in. Prefer over Grep for type discovery, then drill in with focus_method/" +
+        "focus_type. Pass nameFilter (case-insensitive substring) to narrow on large repos. " +
+        "Project root or .csproj path; obj/ and bin/ excluded. C# only.")]
     public static string MapProject(
         [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
         [Description("Optional case-insensitive substring; only types whose name contains it are returned. Omit to list all types.")] string? nameFilter = null)
