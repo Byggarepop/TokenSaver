@@ -605,6 +605,65 @@ public static class FocusedEmitterTools
         }
     }
 
+    [McpServerTool, Description(
+        "Finds every Dependency-Injection registration across a project that references a " +
+        "named type (interface OR concrete), answering 'where is IFoo wired, and to what " +
+        "implementation?' — the question a constructor caller-trace CANNOT answer because " +
+        "DI-constructed types are never created with 'new'. Returns a compact table: " +
+        "file:line, registration method, ServiceType -> ImplType, lifetime, and keyed key. " +
+        "Detects Add/TryAdd{Scoped,Singleton,Transient}, AddKeyed*, in generic, typeof(), " +
+        "and factory-lambda forms. Pass the project root or .csproj path; obj/ and bin/ are " +
+        "excluded. Syntactic name matching (same approach as trace_implementors). C# only.")]
+    public static string TraceDiRegistrations(
+        [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
+        [Description("The service or implementation type name to find registrations for (simple name, e.g. 'IFoo').")] string typeName)
+    {
+        try
+        {
+            var traversal = new ProjectTraversal(projectPath);
+            var registrations = traversal.FindDiRegistrations(typeName);
+
+            if (registrations.Count == 0)
+                return $"// TraceDiRegistrations: no DI registrations referencing '{typeName}' found in {traversal.FileCount} file(s) under {Path.GetFileName(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}.";
+
+            // Column widths for an aligned, scannable table.
+            var locations = registrations
+                .Select(r => $"{Path.GetFileName(r.FilePath)}:{r.Line}")
+                .ToList();
+            int locWidth = locations.Max(l => l.Length);
+            int methodWidth = registrations.Max(r => r.Method.Length);
+
+            var sb = new System.Text.StringBuilder();
+            var lineCache = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            int totalBefore = 0;
+
+            for (int i = 0; i < registrations.Count; i++)
+            {
+                var r = registrations[i];
+                var arrow = $"{r.ServiceType} -> {r.ImplType}";
+                var keyPart = r.Key is null ? "" : $"   key=\"{r.Key}\"";
+                sb.AppendLine($"{locations[i].PadRight(locWidth)}  {r.Method.PadRight(methodWidth)}  {arrow}{keyPart}");
+
+                // Baseline = the raw source line a grep-and-read user would have to read instead.
+                if (!lineCache.TryGetValue(r.FilePath, out var fileLines))
+                    lineCache[r.FilePath] = fileLines = File.ReadAllLines(r.FilePath);
+                if (r.Line >= 1 && r.Line <= fileLines.Length)
+                    totalBefore += TokenCounter.Count(fileLines[r.Line - 1]);
+            }
+
+            var table = sb.ToString();
+            var header = BuildHeader(totalBefore, TokenCounter.Count(table), "TraceDiRegistrations", "C#",
+                $"type={typeName} found={registrations.Count} files={traversal.FileCount}",
+                sessionKey: $"TraceDiRegistrations:{typeName}");
+
+            return header + $"// {registrations.Count} registration(s) referencing '{typeName}' (scanned {traversal.FileCount} files)\n\n" + table;
+        }
+        catch (Exception ex)
+        {
+            return $"ERROR: {ex.Message}";
+        }
+    }
+
     private static bool TryGetCached(string filePath, string key, int depth, bool minify, string toolName, out string output)
     {
         if (!EmissionCache.TryGet(filePath, key, depth, minify, out output, out var before, out var after))

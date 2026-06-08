@@ -3,7 +3,7 @@
 ## Token-efficient source context via the `tokensaver` MCP server
 
 This workspace has the `tokensaver` MCP server registered. It exposes
-**eight** tools that produce token-reduced views of source files, plus two
+**eight** tools that produce token-reduced views of source files, plus three
 **cross-file traversal tools** for project-wide queries. **Prefer these
 tools over reading whole files** — they typically save 30-95% of tokens
 with no loss of logic.
@@ -107,6 +107,16 @@ with no loss of logic.
    and the interface/base type name. Returns a focused type view for each
    implementor found across the project. **C# only.**
 
+9. **The user asks where a type is wired in Dependency Injection** ("where is
+   `IFoo` registered?", "what's `IFoo` wired to?", "is `Foo` a singleton?"), or
+   a constructor caller-trace for a DI-constructed type came back empty (no
+   `new` because the container builds it) → call `TraceDiRegistrations` with the
+   project directory or `.csproj` path and the type name (interface OR
+   concrete). Returns a compact table of every `Add`/`TryAdd`/`AddKeyed`
+   registration referencing it: `file:line`, method, `ServiceType -> ImplType`,
+   and keyed key. Chain to `FocusMethod` / `TraceImplementors` for the body.
+   **C# only.**
+
 ### Note on `#` references and Active Document (user-facing reminder)
 
 VS Copilot's `#FileName.cs` syntax and the **Active Document** context button
@@ -156,6 +166,13 @@ target do you read from disk, and then only the lines containing the match
 string (the insertion region ±5) — never the whole file, and never before
 the tool. Tool output is a reasoning aid, not a representation of the file's
 real content.
+
+**Mid-edit-flow is the trap, not the first read.** The requirement is
+per-file, every time — each new supported file you open for comprehension
+resets it. Having used a tool earlier in the task, or having edited another
+file already, does not license a raw read of the next file just to understand
+it. That momentum hits hardest in the second half of a task; that is exactly
+when to run the tool instead.
 
 ### When NOT to use these tools
 
