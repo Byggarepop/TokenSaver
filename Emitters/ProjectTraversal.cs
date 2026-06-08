@@ -34,6 +34,7 @@ public sealed class ProjectTraversal
         "AddScoped", "AddSingleton", "AddTransient",
         "TryAddScoped", "TryAddSingleton", "TryAddTransient",
         "AddKeyedScoped", "AddKeyedSingleton", "AddKeyedTransient",
+        "TryAddKeyedScoped", "TryAddKeyedSingleton", "TryAddKeyedTransient",
     };
 
     private readonly List<(string Path, SyntaxTree Tree)> _files;
@@ -187,8 +188,9 @@ public sealed class ProjectTraversal
         }
 
         // Keyed registrations take the key as the first non-type argument (string or identifier).
+        // Match on "Keyed" anywhere in the name so both AddKeyed* and TryAddKeyed* are covered.
         string? key = null;
-        if (callee.Identifier.Text.StartsWith("AddKeyed", StringComparison.Ordinal) && args is not null)
+        if (callee.Identifier.Text.Contains("Keyed", StringComparison.Ordinal) && args is not null)
         {
             var keyArg = args.Arguments
                 .Select(a => a.Expression)
