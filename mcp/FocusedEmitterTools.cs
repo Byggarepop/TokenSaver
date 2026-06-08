@@ -669,11 +669,20 @@ public static class FocusedEmitterTools
         "kind, and base list — a compact index for locating types when you don't know which " +
         "file they're in. Prefer over Grep for type discovery, then drill in with focus_method/" +
         "focus_type. Pass nameFilter (case-insensitive substring) to narrow on large repos. " +
-        "Project root or .csproj path; obj/ and bin/ excluded. C# only.")]
+        "Project root or .csproj path; obj/ and bin/ excluded. C# only. DISABLED BY DEFAULT: " +
+        "returns a disabled notice unless the user has set TOKENSAVER_ENABLE_MAP_PROJECT=1 — " +
+        "if you get that notice, do not retry; fall back to Grep or focus_type / outline.")]
     public static string MapProject(
         [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
         [Description("Optional case-insensitive substring; only types whose name contains it are returned. Omit to list all types.")] string? nameFilter = null)
     {
+        if (!MapProjectEnabled())
+            return "// MapProject is disabled by default. An unfiltered project-wide type map " +
+                   "can be very large, so this tool is opt-in. To enable it, set the environment " +
+                   "variable TOKENSAVER_ENABLE_MAP_PROJECT=1 in the MCP server's launch " +
+                   "configuration and restart the server. Until then, locate types with Grep " +
+                   "or focus_type / outline_c_sharp_file instead.";
+
         try
         {
             var traversal = new ProjectTraversal(projectPath);
@@ -721,6 +730,15 @@ public static class FocusedEmitterTools
         {
             return $"ERROR: {ex.Message}";
         }
+    }
+
+    // MapProject is opt-in: an unfiltered project-wide type map can run to tens of
+    // thousands of tokens, so it stays off unless the user explicitly enables it via
+    // TOKENSAVER_ENABLE_MAP_PROJECT. Accepts "1" or "true" (case-insensitive).
+    private static bool MapProjectEnabled()
+    {
+        var value = Environment.GetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT");
+        return value == "1" || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryGetCached(string filePath, string key, int depth, bool minify, string toolName, out string output)
