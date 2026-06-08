@@ -43,7 +43,7 @@
     <div class="caveat-title">First call in a session</div>
     <p>
         When an AI session starts, the model loads the server instructions and all tool
-        descriptions before any tool is invoked — roughly <strong>3,300 tokens</strong> of fixed
+        descriptions before any tool is invoked — roughly <strong>4,200 tokens</strong> of fixed
         overhead. TokenSaver deducts this cost from the savings reported on the first tool call
         of each session, so the number you see is always the <em>net</em> saving, not a gross figure
         that ignores startup cost. Subsequent calls in the same session show full savings with no
@@ -102,6 +102,18 @@
             <div class="tool-desc">Scans the whole project and returns a focused type view for every class that implements an interface or extends a base type. Replaces grep + manual navigation.</div>
             <div class="tool-example">&ldquo;What implements IOrderRepository?&rdquo;</div>
             <div class="tool-savings">50 – 80 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Trace DI registrations</div>
+            <div class="tool-desc">Finds every Dependency-Injection registration for a type and returns a compact table — file:line, lifetime, and service → implementation. Answers "where is this wired, and to what?", which a constructor search can't, since DI types are never newed.</div>
+            <div class="tool-example">&ldquo;Where is IOrderRepository registered, and what's it wired to?&rdquo;</div>
+            <div class="tool-savings">50 – 80 %</div>
+        </div>
+        <div class="tool-card">
+            <div class="tool-name">Map project</div>
+            <div class="tool-desc">Maps every type in the project to its file:line, kind, and base list — a compact index for locating a type when you don't know its file, instead of a burst of greps. Pass a name filter to narrow on large repos.</div>
+            <div class="tool-example">&ldquo;Where is FooService? What types are in this project?&rdquo;</div>
+            <div class="tool-savings">Discovery</div>
         </div>
         <div class="tool-card">
             <div class="tool-name">Minify C# file</div>
@@ -434,6 +446,12 @@
             ".cs",
             "What implements IOrderRepository?",
             "Trace implementors scans the whole project and returns a focused type view for every class that implements an interface or extends a base type.",
+            50, 80),
+
+        new("C# trace DI registrations",
+            ".cs",
+            "Where is IOrderRepository registered, and what's it wired to?",
+            "Trace DI registrations scans the project for Add/TryAdd/AddKeyed calls referencing the type and returns a compact table of file:line, lifetime, and service → implementation — the wiring a constructor search can't surface.",
             50, 80),
 
         new("C# minify (Roslyn)",

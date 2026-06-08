@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 const string ServerInstructions = """
-This server (tokensaver) exposes ten tools that produce TOKEN-REDUCED views
+This server (tokensaver) exposes twelve tools that produce TOKEN-REDUCED views
 of source files. PREFER these tools over reading whole files whenever the
 task involves a supported file type — they save 30-95% of tokens with no
 loss of logic.
@@ -90,6 +90,12 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    a compact table of every Add/TryAdd/AddKeyed registration referencing it:
    file:line, method, ServiceType -> ImplType, and keyed key. Then chain to
    FocusMethod / TraceImplementors if you need the implementation body. C# only.
+
+8. You don't know which file a type is in, or want a project overview ("where is
+   FooService?", "find types named *Repository") → call MapProject with the
+   project directory or .csproj path. Maps every type to its file:line, kind, and
+   base list; use instead of Grep for type discovery, then drill in with
+   FocusMethod / FocusType. Pass nameFilter to narrow on large repos. C# only.
 
 SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.

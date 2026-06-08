@@ -171,6 +171,11 @@ internal static class Program
         Run("Traversal_FindDiRegistrations_HandlesQualifiedTypeNames", Traversal_FindDiRegistrations_HandlesQualifiedTypeNames);
         Run("Traversal_FindDiRegistrations_NonStringKey", Traversal_FindDiRegistrations_NonStringKey);
         Run("Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType", Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType);
+        Run("Traversal_MapTypes_ListsTypesWithKindAndBases", Traversal_MapTypes_ListsTypesWithKindAndBases);
+        Run("Traversal_MapTypes_NameFilterNarrows", Traversal_MapTypes_NameFilterNarrows);
+        Run("Traversal_MapTypes_ReturnsEmptyForNoMatch", Traversal_MapTypes_ReturnsEmptyForNoMatch);
+        Run("ParsedTreeCache_ReusesTreesAcrossTraversals", ParsedTreeCache_ReusesTreesAcrossTraversals);
+        Run("ParsedTreeCache_InvalidatesOnFileChange", ParsedTreeCache_InvalidatesOnFileChange);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
         Run("McpTool_SecondCallReturnsReparseSkipped", McpTool_SecondCallReturnsReparseSkipped);
         Run("Cache_MissOnFirstCall", Cache_MissOnFirstCall);
@@ -2982,6 +2987,104 @@ internal static class Program
             ok ? "empty list for unregistered type name"
                : $"unexpectedly returned {regs.Count} result(s)",
             (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_MapTypes_ListsTypesWithKindAndBases()
+    {
+        // TraversalDir: Alpha.cs (IShape interface, Circle : IShape), Beta.cs (Square : IShape, Drawer).
+        var t = new ProjectTraversal(TraversalDir);
+        var types = t.MapTypes();
+
+        var shape = types.FirstOrDefault(e => e.Name == "IShape");
+        var circle = types.FirstOrDefault(e => e.Name == "Circle");
+        var square = types.FirstOrDefault(e => e.Name == "Square");
+        var drawer = types.FirstOrDefault(e => e.Name == "Drawer");
+
+        var ok =
+            types.Count == 4 &&
+            shape is { Kind: "interface", Bases: null } && shape.FilePath.EndsWith("Alpha.cs") &&
+            circle is { Kind: "class", Bases: "IShape" } &&
+            square is { Kind: "class", Bases: "IShape" } && square.FilePath.EndsWith("Beta.cs") &&
+            drawer is { Kind: "class", Bases: null };
+
+        return new TestOutcome(ok,
+            ok ? "IShape/Circle/Square/Drawer mapped with correct kind and bases"
+               : $"count={types.Count} entries=[{string.Join("; ", types.Select(e => $"{e.Name}:{e.Kind}{(e.Bases is null ? "" : ":" + e.Bases)}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_MapTypes_NameFilterNarrows()
+    {
+        // Case-insensitive substring filter — "circ" matches only Circle.
+        var t = new ProjectTraversal(TraversalDir);
+        var types = t.MapTypes("circ");
+        var ok = types.Count == 1 && types[0].Name == "Circle";
+        return new TestOutcome(ok,
+            ok ? "nameFilter narrowed to Circle"
+               : $"count={types.Count} names=[{string.Join(",", types.Select(e => e.Name))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_MapTypes_ReturnsEmptyForNoMatch()
+    {
+        var t = new ProjectTraversal(TraversalDir);
+        var types = t.MapTypes("ZzzNoSuchType");
+        var ok = types.Count == 0;
+        return new TestOutcome(ok,
+            ok ? "empty list when no type name matches the filter"
+               : $"unexpectedly returned {types.Count} result(s)",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ParsedTreeCache_ReusesTreesAcrossTraversals()
+    {
+        // First traversal parses every file (all misses); a second over the same unchanged
+        // dir must reuse the cached trees (hits), paying no new parses.
+        ParsedTreeCache.Clear();
+
+        _ = new ProjectTraversal(TraversalDir);
+        var missesAfterFirst = ParsedTreeCache.Misses;
+        var hitsAfterFirst = ParsedTreeCache.Hits;
+
+        _ = new ProjectTraversal(TraversalDir);
+        var missesAfterSecond = ParsedTreeCache.Misses;
+        var hitsAfterSecond = ParsedTreeCache.Hits;
+
+        var ok =
+            missesAfterFirst > 0 && hitsAfterFirst == 0 &&     // cold: all parsed
+            missesAfterSecond == missesAfterFirst &&           // warm: no new parses
+            hitsAfterSecond == missesAfterFirst;               // warm: every file reused
+        return new TestOutcome(ok,
+            ok ? $"second traversal reused all {missesAfterFirst} trees (no re-parse)"
+               : $"misses {missesAfterFirst}->{missesAfterSecond}, hits {hitsAfterFirst}->{hitsAfterSecond}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome ParsedTreeCache_InvalidatesOnFileChange()
+    {
+        // Touching one file's mtime must re-parse only that file; siblings stay cached.
+        ParsedTreeCache.Clear();
+        _ = new ProjectTraversal(TraversalDir);
+        var missesAfterFirst = ParsedTreeCache.Misses;
+
+        var alpha = Path.Combine(TraversalDir, "Alpha.cs");
+        var original = File.GetLastWriteTimeUtc(alpha);
+        File.SetLastWriteTimeUtc(alpha, original.AddSeconds(1));
+        try
+        {
+            _ = new ProjectTraversal(TraversalDir);
+            var newMisses = ParsedTreeCache.Misses - missesAfterFirst;
+            var newHits = ParsedTreeCache.Hits;
+            var ok = newMisses == 1 && newHits == missesAfterFirst - 1; // one re-parse, rest reused
+            return new TestOutcome(ok,
+                ok ? "edited file re-parsed; unchanged siblings served from cache"
+                   : $"newMisses={newMisses} newHits={newHits} (expected 1 and {missesAfterFirst - 1})",
+                (0, 0, 0));
+        }
+        finally
+        {
+            File.SetLastWriteTimeUtc(alpha, original);
+        }
     }
 
     private static TestOutcome Traversal_AcceptsCsprojPath()

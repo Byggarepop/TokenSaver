@@ -13,6 +13,13 @@ public sealed record DiRegistration(
     string ServiceType, string ImplType, string? Key);
 
 /// <summary>
+/// One type declared in the project, as surfaced by <see cref="ProjectTraversal.MapTypes"/>.
+/// <paramref name="Bases"/> is null when the type has no base list.
+/// </summary>
+public sealed record TypeMapEntry(
+    string Name, string Kind, string FilePath, int Line, string? Bases, string Modifiers);
+
+/// <summary>
 /// Scans all .cs files in a project directory to support cross-file traversal queries.
 /// Uses syntax-tree analysis (no compilation), consistent with EmitCallers.
 /// </summary>
@@ -35,13 +42,18 @@ public sealed class ProjectTraversal
 
     public ProjectTraversal(string projectPath)
     {
-        var dir = ResolveDirectory(projectPath);
+        Root = ResolveDirectory(projectPath);
         _files = Directory
-            .EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories)
+            .EnumerateFiles(Root, "*.cs", SearchOption.AllDirectories)
             .Where(f => !IsExcluded(f))
-            .Select(f => (Path: f, Tree: CSharpSyntaxTree.ParseText(File.ReadAllText(f), path: f)))
+            // Discovery (enumeration) runs every call; only the read+parse is cached per
+            // file by mtime, so new/edited files are always picked up. See ParsedTreeCache.
+            .Select(f => (Path: f, Tree: ParsedTreeCache.GetOrParse(f)))
             .ToList();
     }
+
+    /// <summary>The resolved project root directory the scan was rooted at.</summary>
+    public string Root { get; }
 
     /// <summary>
     /// Returns paths of files that contain at least one method calling <paramref name="methodName"/>.
@@ -68,6 +80,19 @@ public sealed class ProjectTraversal
     public List<DiRegistration> FindDiRegistrations(string typeName) =>
         _files
             .SelectMany(f => GetDiRegistrations(f.Tree, f.Path, typeName))
+            .ToList();
+
+    /// <summary>
+    /// Returns every type (class/struct/record/interface/enum) declared in the project, with
+    /// its kind, declaring file, line, base list, and visibility modifiers. When
+    /// <paramref name="nameFilter"/> is non-empty, only types whose name contains it
+    /// (case-insensitive) are returned. The project entrypoint for "what types exist and where".
+    /// </summary>
+    public List<TypeMapEntry> MapTypes(string? nameFilter = null) =>
+        _files
+            .SelectMany(f => GetTypeEntries(f.Tree, f.Path))
+            .Where(e => string.IsNullOrWhiteSpace(nameFilter)
+                     || e.Name.Contains(nameFilter, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
     private static bool FileContainsCaller(SyntaxTree tree, string targetMethod)
@@ -178,6 +203,36 @@ public sealed class ProjectTraversal
         }
 
         return (service, impl, key);
+    }
+
+    private static readonly string[] InterestingModifiers =
+        { "public", "internal", "abstract", "static", "sealed" };
+
+    private static IEnumerable<TypeMapEntry> GetTypeEntries(SyntaxTree tree, string filePath)
+    {
+        var root = tree.GetCompilationUnitRoot();
+        foreach (var decl in root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
+        {
+            var kind = decl switch
+            {
+                EnumDeclarationSyntax => "enum",
+                TypeDeclarationSyntax t => t.Keyword.Text,
+                _ => "type"
+            };
+
+            var bases = decl.BaseList?.Types
+                .Select(bt => SimpleName(bt.Type))
+                .Where(n => n is not null)
+                .ToList();
+            var basesStr = bases is { Count: > 0 } ? string.Join(", ", bases) : null;
+
+            var modifiers = string.Join(" ", decl.Modifiers
+                .Select(m => m.Text)
+                .Where(InterestingModifiers.Contains));
+
+            var line = decl.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
+            yield return new TypeMapEntry(decl.Identifier.Text, kind, filePath, line, basesStr, modifiers);
+        }
     }
 
     /// <summary>Extracts the simple (unqualified) name from a type syntax node.</summary>

@@ -3,7 +3,7 @@
 ## Token-efficient source context via the `tokensaver` MCP server
 
 This workspace has the `tokensaver` MCP server registered. It exposes
-**eight** tools that produce token-reduced views of source files, plus three
+**eight** tools that produce token-reduced views of source files, plus four
 **cross-file traversal tools** for project-wide queries. **Prefer these
 tools over reading whole files** — they typically save 30-95% of tokens
 with no loss of logic.
@@ -116,6 +116,13 @@ with no loss of logic.
    registration referencing it: `file:line`, method, `ServiceType -> ImplType`,
    and keyed key. Chain to `FocusMethod` / `TraceImplementors` for the body.
    **C# only.**
+
+10. **You don't know which file a type is in**, or want a project overview
+    ("where is `FooService`?", "find types named `*Repository`") → call
+    `MapProject` with the project directory or `.csproj` path. Maps every type to
+    its `file:line`, kind, and base list; use **instead of** Grep for type
+    discovery, then drill in with `FocusMethod` / `FocusType`. Pass `nameFilter`
+    to narrow on large repos. **C# only.**
 
 ### Note on `#` references and Active Document (user-facing reminder)
 
