@@ -106,6 +106,26 @@ foreach ($t in $data.tools) {
 
 Splice-Section "$RepoRoot\TokenSaverViewer\wwwroot\llms.txt" 'tools' $sb.ToString().TrimEnd()
 
+# ===========================================================================
+# Capabilities.razor -- tool-grid cards
+# ===========================================================================
+
+$sb = New-Object System.Text.StringBuilder
+
+[void]$sb.AppendLine('<div class="tool-grid">')
+foreach ($t in $data.tools) {
+    if (-not $t.display_name) { continue }
+    [void]$sb.AppendLine('        <div class="tool-card">')
+    [void]$sb.AppendLine('            <div class="tool-name">'  + $t.display_name       + '</div>')
+    [void]$sb.AppendLine('            <div class="tool-desc">'  + $t.capabilities_desc  + '</div>')
+    [void]$sb.AppendLine('            <div class="tool-example">&ldquo;' + $t.example_prompt + '&rdquo;</div>')
+    [void]$sb.AppendLine('            <div class="tool-savings">' + $t.capabilities_savings + '</div>')
+    [void]$sb.AppendLine('        </div>')
+}
+[void]$sb.Append('    </div>')
+
+Splice-Section "$RepoRoot\TokenSaverViewer\Components\Pages\Capabilities.razor" 'tools' $sb.ToString()
+
 Write-Host ''
 Write-Host 'Done.'
 Write-Host 'Reminder: mcp/Program.cs ServerInstructions and .github/copilot-instructions.md are hand-maintained -- update those separately for rule changes.'
