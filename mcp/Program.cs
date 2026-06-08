@@ -96,6 +96,10 @@ TOOL SELECTION RULES — follow by default, no need to ask the user:
    project directory or .csproj path. Maps every type to its file:line, kind, and
    base list; use instead of Grep for type discovery, then drill in with
    FocusMethod / FocusType. Pass nameFilter to narrow on large repos. C# only.
+   DISABLED BY DEFAULT — an unfiltered map can be very large, so it is opt-in. If
+   the call returns a "disabled" notice, the user has not set
+   TOKENSAVER_ENABLE_MAP_PROJECT=1; do not retry — fall back to Grep, FocusType,
+   or OutlineCSharpFile for type discovery.
 
 SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
 (<50 lines), or when the user explicitly asks you to read the raw file.

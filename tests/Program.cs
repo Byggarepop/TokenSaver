@@ -177,6 +177,8 @@ internal static class Program
         Run("Traversal_MapTypes_NameFilterNarrows", Traversal_MapTypes_NameFilterNarrows);
         Run("Traversal_MapTypes_ReturnsEmptyForNoMatch", Traversal_MapTypes_ReturnsEmptyForNoMatch);
         Run("Traversal_MapTypes_ClassifiesKindsModifiersAndMultipleBases", Traversal_MapTypes_ClassifiesKindsModifiersAndMultipleBases);
+        Run("MapProject_DisabledByDefault_ReturnsNoticeWithoutTraversing", MapProject_DisabledByDefault_ReturnsNoticeWithoutTraversing);
+        Run("MapProject_EnabledViaEnv_ReturnsTypeTable", MapProject_EnabledViaEnv_ReturnsTypeTable);
         Run("ParsedTreeCache_ReusesTreesAcrossTraversals", ParsedTreeCache_ReusesTreesAcrossTraversals);
         Run("ParsedTreeCache_InvalidatesOnFileChange", ParsedTreeCache_InvalidatesOnFileChange);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
@@ -3037,6 +3039,52 @@ internal static class Program
             ok ? "empty list when no type name matches the filter"
                : $"unexpectedly returned {types.Count} result(s)",
             (0, 0, 0));
+    }
+
+    private static TestOutcome MapProject_DisabledByDefault_ReturnsNoticeWithoutTraversing()
+    {
+        // With the env var unset, the MapProject tool wrapper must short-circuit with a
+        // disabled notice — never the type table — so an agent cannot accidentally dump a
+        // project-wide map. The notice names the env var so the user knows how to opt in.
+        var prior = Environment.GetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT");
+        try
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT", null);
+            var output = TokenSaver.Mcp.FocusedEmitterTools.MapProject(TypeMapDir);
+            var ok = output.Contains("disabled by default")
+                  && output.Contains("TOKENSAVER_ENABLE_MAP_PROJECT")
+                  && !output.Contains("type(s) across");
+            return new TestOutcome(ok,
+                ok ? "disabled notice returned; no type table emitted"
+                   : $"unexpected output: {output[..Math.Min(120, output.Length)]}",
+                (0, 0, 0));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT", prior);
+        }
+    }
+
+    private static TestOutcome MapProject_EnabledViaEnv_ReturnsTypeTable()
+    {
+        // With the env var set to "1", the gate opens and the tool returns the real map.
+        var prior = Environment.GetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT");
+        try
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT", "1");
+            var output = TokenSaver.Mcp.FocusedEmitterTools.MapProject(TypeMapDir);
+            var ok = output.Contains("type(s) across")
+                  && output.Contains("Color")
+                  && !output.Contains("disabled by default");
+            return new TestOutcome(ok,
+                ok ? "gate opened; type table emitted with mapped types"
+                   : $"unexpected output: {output[..Math.Min(120, output.Length)]}",
+                (0, 0, 0));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TOKENSAVER_ENABLE_MAP_PROJECT", prior);
+        }
     }
 
     private static TestOutcome Traversal_FindDiRegistrations_KeyedTypeofAndFactoryForms()

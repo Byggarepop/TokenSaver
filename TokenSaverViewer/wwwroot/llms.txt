@@ -21,7 +21,7 @@ TokenSaver produces token-reduced views of source files so AI assistants spend f
 - `FocusCallers` / `TraceCallers` — find what calls a method, in one file or across a project
 - `TraceImplementors` — find every type implementing an interface or extending a base type
 - `TraceDiRegistrations` — find where a type is registered in dependency injection and what it's wired to
-- `MapProject` — map every type in the project to its file, kind, and base type (a navigation index)
+- `MapProject` — map every type in the project to its file, kind, and base type (a navigation index); disabled by default, enable with `TOKENSAVER_ENABLE_MAP_PROJECT=1`
 - `MinifyCSharpFile` / `MinifyFile` — lossless minify, auto-dispatched by file extension
 - `AliasCSharpFile` — minify plus short aliases for long private symbol names
 

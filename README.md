@@ -41,7 +41,7 @@ These scan an entire project directory in one call — no need to know which fil
 | `TraceCallers(projectPath, methodName)` | Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers "what calls X across the whole codebase?" |
 | `TraceImplementors(projectPath, interfaceName)` | Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers "what implements IFoo?" |
 | `TraceDiRegistrations(projectPath, typeName)` | Finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table of `file:line`, method, `ServiceType -> ImplType`, and key. Answers "where is IFoo wired, and to what?" |
-| `MapProject(projectPath, nameFilter?)` | Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. |
+| `MapProject(projectPath, nameFilter?)` | Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. **Disabled by default** (an unfiltered map can be large); enable with the `TOKENSAVER_ENABLE_MAP_PROJECT=1` environment variable. |
 
 Both accept a directory path or `.csproj` file — `obj/` and `bin/` are excluded automatically.
 

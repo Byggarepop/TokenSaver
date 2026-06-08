@@ -122,7 +122,10 @@ with no loss of logic.
     `MapProject` with the project directory or `.csproj` path. Maps every type to
     its `file:line`, kind, and base list; use **instead of** Grep for type
     discovery, then drill in with `FocusMethod` / `FocusType`. Pass `nameFilter`
-    to narrow on large repos. **C# only.**
+    to narrow on large repos. **C# only. Disabled by default** — opt in via the
+    `TOKENSAVER_ENABLE_MAP_PROJECT=1` env var. If the call returns a "disabled"
+    notice, the var is unset; don't retry — fall back to `Grep`, `FocusType`, or
+    `OutlineCSharpFile`.
 
 ### Note on `#` references and Active Document (user-facing reminder)
 
