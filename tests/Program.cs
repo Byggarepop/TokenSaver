@@ -171,9 +171,12 @@ internal static class Program
         Run("Traversal_FindDiRegistrations_HandlesQualifiedTypeNames", Traversal_FindDiRegistrations_HandlesQualifiedTypeNames);
         Run("Traversal_FindDiRegistrations_NonStringKey", Traversal_FindDiRegistrations_NonStringKey);
         Run("Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType", Traversal_FindDiRegistrations_ReturnsEmptyForUnknownType);
+        Run("Traversal_FindDiRegistrations_KeyedTypeofAndFactoryForms", Traversal_FindDiRegistrations_KeyedTypeofAndFactoryForms);
+        Run("Traversal_FindDiRegistrations_ReportsAccurateFileAndLine", Traversal_FindDiRegistrations_ReportsAccurateFileAndLine);
         Run("Traversal_MapTypes_ListsTypesWithKindAndBases", Traversal_MapTypes_ListsTypesWithKindAndBases);
         Run("Traversal_MapTypes_NameFilterNarrows", Traversal_MapTypes_NameFilterNarrows);
         Run("Traversal_MapTypes_ReturnsEmptyForNoMatch", Traversal_MapTypes_ReturnsEmptyForNoMatch);
+        Run("Traversal_MapTypes_ClassifiesKindsModifiersAndMultipleBases", Traversal_MapTypes_ClassifiesKindsModifiersAndMultipleBases);
         Run("ParsedTreeCache_ReusesTreesAcrossTraversals", ParsedTreeCache_ReusesTreesAcrossTraversals);
         Run("ParsedTreeCache_InvalidatesOnFileChange", ParsedTreeCache_InvalidatesOnFileChange);
         Run("Traversal_AcceptsCsprojPath", Traversal_AcceptsCsprojPath);
@@ -3033,6 +3036,92 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "empty list when no type name matches the filter"
                : $"unexpectedly returned {types.Count} result(s)",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_KeyedTypeofAndFactoryForms()
+    {
+        // MoreRegistrations.cs is a SECOND wiring file in di/. Querying IWidget exercises the
+        // keyed+typeof and keyed+factory-lambda forms the single-file fixture never covers, and —
+        // because di/ now holds two files — proves cross-file aggregation stays correctly isolated
+        // (the five IFoo rows from Registrations.cs do not leak into an IWidget query and vice-versa).
+        var t = new ProjectTraversal(DiDir);
+        var regs = t.FindDiRegistrations("IWidget");
+
+        var keyedTypeof  = regs.FirstOrDefault(r => r.Method == "AddKeyedScoped");
+        var keyedFactory = regs.FirstOrDefault(r => r.Method == "AddKeyedSingleton");
+        var plain        = regs.FirstOrDefault(r => r.Method == "AddTransient");
+        var tryKeyed     = regs.FirstOrDefault(r => r.Method == "TryAddKeyedScoped");
+
+        var allInMoreFile = regs.Count > 0 && regs.All(r => Path.GetFileName(r.FilePath) == "MoreRegistrations.cs");
+
+        var ok =
+            regs.Count == 4 &&
+            keyedTypeof  is { ServiceType: "IWidget", ImplType: "KeyedWidget",   Key: "kw" } &&
+            keyedFactory is { ServiceType: "IWidget", ImplType: "FactoryWidget", Key: "fw" } &&
+            plain        is { ServiceType: "IWidget", ImplType: "Widget",        Key: null } &&
+            tryKeyed     is { ServiceType: "IWidget", ImplType: "Widget",        Key: "tk" } &&
+            allInMoreFile;
+
+        return new TestOutcome(ok,
+            ok ? "keyed+typeof, keyed+factory, TryAddKeyed and plain forms parsed; isolated to the second file"
+               : $"count={regs.Count} rows=[{string.Join("; ", regs.Select(r => $"{r.Method}:{r.ServiceType}->{r.ImplType}{(r.Key is null ? "" : $"@{r.Key}")} in {Path.GetFileName(r.FilePath)}"))}]",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome Traversal_FindDiRegistrations_ReportsAccurateFileAndLine()
+    {
+        // The DiRegistration.Line/FilePath drive the file:line shown in the tool table. Validate the
+        // pointer against the file content itself so the test stays robust to fixture edits: the
+        // reported line of the AddTransient<IWidget, Widget> call must contain that exact call text.
+        var t = new ProjectTraversal(DiDir);
+        var matches = t.FindDiRegistrations("IWidget").Where(r => r.Method == "AddTransient").ToList();
+        if (matches.Count != 1)
+            return new TestOutcome(false, $"expected one AddTransient row, got {matches.Count}", (0, 0, 0));
+
+        var reg = matches[0];
+        var inRange = reg.Line >= 1 && File.Exists(reg.FilePath);
+        var lineText = inRange ? File.ReadAllLines(reg.FilePath)[reg.Line - 1] : "";
+        var ok = inRange
+              && Path.GetFileName(reg.FilePath) == "MoreRegistrations.cs"
+              && lineText.Contains("AddTransient<IWidget, Widget>");
+
+        return new TestOutcome(ok,
+            ok ? $"FilePath/Line point exactly at the call (line {reg.Line})"
+               : $"file={Path.GetFileName(reg.FilePath)} line={reg.Line} text=\"{lineText.Trim()}\"",
+            (0, 0, 0));
+    }
+
+    private static readonly string TypeMapDir = Path.Combine(FixturesDir, "typemap");
+
+    private static TestOutcome Traversal_MapTypes_ClassifiesKindsModifiersAndMultipleBases()
+    {
+        // Shapes.cs covers the kinds and shapes the traversal/ fixture lacks: enum, struct, record,
+        // abstract/static/sealed modifiers, and a type with a base class plus two interfaces.
+        var t = new ProjectTraversal(TypeMapDir);
+        var types = t.MapTypes();
+
+        TypeMapEntry? By(string n) => types.FirstOrDefault(e => e.Name == n);
+        var color   = By("Color");
+        var point   = By("Point");
+        var money   = By("Money");
+        var animal  = By("Animal");
+        var dog     = By("Dog");
+        var helpers = By("Helpers");
+        var iwalk   = By("IWalk");
+
+        var ok =
+            color   is { Kind: "enum",      Bases: null,                  Modifiers: "public" } &&
+            point   is { Kind: "struct",    Bases: null,                  Modifiers: "internal" } &&
+            money   is { Kind: "record",    Bases: null,                  Modifiers: "public sealed" } &&
+            animal  is { Kind: "class",     Bases: null,                  Modifiers: "public abstract" } &&
+            dog     is { Kind: "class",     Bases: "Animal, IWalk, IRun", Modifiers: "public sealed" } &&
+            helpers is { Kind: "class",     Bases: null,                  Modifiers: "public static" } &&
+            iwalk   is { Kind: "interface", Bases: null };
+
+        return new TestOutcome(ok,
+            ok ? "enum/struct/record/abstract/static/sealed and multi-base list all classified correctly"
+               : $"entries=[{string.Join("; ", types.Select(e => $"{e.Name}:{e.Kind}[{e.Modifiers}]{(e.Bases is null ? "" : ":" + e.Bases)}"))}]",
             (0, 0, 0));
     }
 
