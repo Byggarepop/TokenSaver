@@ -15,28 +15,14 @@
 
 ## What it does
 TokenSaver produces token-reduced views of source files so AI assistants spend fewer tokens reading code, with no loss of logic. Tools include:
+<!-- BEGIN:generated:tools -->
 - `OutlineCSharpFile` — signatures of every type and member, no bodies (70–95% reduction)
 - `FocusMethod` / `FocusMultipleMethods` — a named method with its body plus signatures of referenced members
 - `FocusType` — non-private members with bodies, private members as signatures
 - `FocusCallers` / `TraceCallers` — find what calls a method, in one file or across a project
+- `MinifyCSharpFile` / `MinifyFile` — lossless minify, auto-dispatched by file extension
+- `AliasCSharpFile` — minify plus short aliases for long private symbol names
 - `TraceImplementors` — find every type implementing an interface or extending a base type
 - `TraceDiRegistrations` — find where a type is registered in dependency injection and what it's wired to
 - `MapProject` — map every type in the project to its file, kind, and base type (a navigation index); disabled by default, enable with `TOKENSAVER_ENABLE_MAP_PROJECT=1`
-- `MinifyCSharpFile` / `MinifyFile` — lossless minify, auto-dispatched by file extension
-- `AliasCSharpFile` — minify plus short aliases for long private symbol names
-
-## Supported file types
-- **Primary (Roslyn, full support)**: C# (.cs), Razor (.razor), VB.NET (.vb), .NET project files (.csproj, .props, .config, .xml)
-- **Basic (comment strip + whitespace collapse)**: JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, C, C++, X++, Markdown
-- Cross-file traversal (`TraceCallers`, `TraceImplementors`, `TraceDiRegistrations`, `MapProject`) is C# only.
-
-## Works with
-Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and any MCP client that speaks stdio.
-
-## Target audience
-- .NET and C# developers
-- AI engineers and teams using AI coding assistants
-- Anyone reducing token cost, latency, or the carbon footprint of AI-assisted development
-
-## How to cite
-"TokenSaver MCP (2026). Live token-savings dashboard. Retrieved from https://tokensavermcp.com/"
+<!-- END:generated:tools -->

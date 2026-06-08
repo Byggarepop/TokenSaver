@@ -29,38 +29,17 @@ Works with:
 All twelve tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
 basic-tier minifiers for other extensions.
 
+<!-- BEGIN:generated:tools -->
 ### Single-file tools
 
-- `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named
-  method with full body plus signatures of referenced members. `depth=1`
-  also includes bodies of private helper methods and properties accessed by
-  the focus method. `minify=true` strips comments, `#region`/`#endregion`
-  directives, and collapses whitespace. Pass the **class name** as `methodName`
-  to target a constructor. On a `NOT FOUND`, the response hints where to look
-  when the type is `partial` (a sibling file in the same namespace/folder) or
-  has a base list (an inherited member). **C# / Razor only.**
-- `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same
-  as `FocusMethod` but focuses on multiple methods in one parse pass. Class
-  names (constructors) can be mixed with method names. **C# / Razor only.**
-- `FocusType(filePath, typeName, minify=false)` — emit a named type with
-  non-private members shown as full bodies and private members as signatures
-  only. Best for "explain class X" questions when the file has multiple types
-  or private helpers dominate. **C# only.**
-- `FocusCallers(filePath, methodName, depth=0, minify=false)` — find all
-  methods in a **single file** that call the named method and return them as a
-  focused multi-method view. Answers "what calls X?" in one round-trip.
-  **C# only.** For project-wide search, use `TraceCallers`.
-- `OutlineCSharpFile(filePath)` — skeleton of a file: types and member
-  signatures, no bodies. Best for navigation ("what's in this file?").
-  **C# / Razor only.**
-- `MinifyCSharpFile(filePath)` — lossless minify of a whole C# file. Strips
-  comments, `#region`/`#endregion` directives, and whitespace; logic preserved
-  verbatim. **C# / Razor only.**
-- `MinifyFile(filePath)` — auto-dispatch by extension. Calls the Roslyn
-  minifier for C#/Razor; falls back to basic minification for other types.
-- `AliasCSharpFile(filePath)` — minify plus rename private symbols to short
-  codes (`M1`, `P1`, `F1`...). Useful on files with very long private names.
-  **C# / Razor only.**
+- `OutlineCSharpFile(filePath)` — skeleton of a file: types and member signatures, no bodies. Best for navigation ("what's in this file?"). **C# / Razor only.**
+- `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named method with full body plus signatures of referenced members. `depth=1` also includes bodies of private helper methods and properties accessed by the focus method. `minify=true` strips comments, `#region`/`#endregion` directives, and collapses whitespace. Pass the **class name** as `methodName` to target a constructor. On a `NOT FOUND`, the response hints where to look when the type is `partial` (a sibling file in the same namespace/folder) or has a base list (an inherited member). **C# / Razor / VB.NET only.**
+- `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same as `FocusMethod` but focuses on multiple methods in one parse pass. Class names (constructors) can be mixed with method names. **C# / Razor / VB.NET only.**
+- `FocusType(filePath, typeName, minify=false)` — emit a named type with non-private members shown as full bodies and private members as signatures only. Best for "explain class X" questions when the file has multiple types or private helpers dominate. **C# only.**
+- `FocusCallers(filePath, methodName, depth=0, minify=false)` — find all methods in a **single file** that call the named method and return them as a focused multi-method view. Answers "what calls X?" in one round-trip. For project-wide search, use `TraceCallers`. **C# only.**
+- `MinifyCSharpFile(filePath)` — lossless minify of a whole C# file. Strips comments, `#region`/`#endregion` directives, and whitespace; logic preserved verbatim. **C# / Razor only.**
+- `MinifyFile(filePath)` — auto-dispatch by extension. Calls the Roslyn minifier for C#/Razor; falls back to basic minification for other types.
+- `AliasCSharpFile(filePath)` — minify plus rename private symbols to short codes (`M1`, `P1`, `F1`...). Useful on files with very long private names. **C# / Razor only.**
 
 ### Cross-file traversal tools
 
@@ -68,23 +47,11 @@ These scan an entire project directory in one call — no need to know which fil
 to look in first. Both accept a directory path or `.csproj` file; `obj/` and
 `bin/` are excluded automatically. **C# only.**
 
-- `TraceCallers(projectPath, methodName, depth=0, minify=false)` — scans every
-  `.cs` file in the project and returns focused views of all methods that call
-  `methodName`, grouped by file. Answers "what calls X across the whole
-  codebase?" in a single call. Uses name-based matching, same as `FocusCallers`.
-- `TraceImplementors(projectPath, interfaceName, minify=false)` — finds every
-  type that implements or extends the named interface or base type, and returns
-  a focused type view for each. Answers "what implements IFoo?" or "what extends
-  BaseBar?" in a single call.
-- `TraceDiRegistrations(projectPath, typeName)` — finds every Dependency-
-  Injection registration referencing a type (interface or concrete) and returns
-  a compact table: `file:line`, method, `ServiceType -> ImplType`, and keyed
-  key. Answers "where is IFoo wired, and to what implementation?" — the question
-  a constructor caller-trace can't, since DI-built types are never `new`-ed.
-- `MapProject(projectPath, nameFilter=null)` — maps every type (class/struct/
-  record/interface/enum) to its `file:line`, kind, and base list. A compact
-  index for locating a type when you don't know its file; pass `nameFilter` to
-  narrow on large repos.
+- `TraceCallers(projectPath, methodName, depth=0, minify=false)` — scans every `.cs` file in the project and returns focused views of all methods that call `methodName`, grouped by file. Answers "what calls X across the whole codebase?" in a single call. Uses name-based matching, same as `FocusCallers`.
+- `TraceImplementors(projectPath, interfaceName, minify=false)` — finds every type that implements or extends the named interface or base type, and returns a focused type view for each. Answers "what implements IFoo?" or "what extends BaseBar?" in a single call.
+- `TraceDiRegistrations(projectPath, typeName)` — finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table: `file:line`, method, `ServiceType -> ImplType`, and keyed key. Answers "where is IFoo wired, and to what implementation?" — the question a constructor caller-trace can't, since DI-built types are never `new`-ed.
+- `MapProject(projectPath, nameFilter?)` — maps every type (class/struct/record/interface/enum) to its `file:line`, kind, and base list. A compact index for locating a type when you don't know its file; pass `nameFilter` to narrow on large repos. Disabled by default — set `TOKENSAVER_ENABLE_MAP_PROJECT=1` to enable.
+<!-- END:generated:tools -->
 
 Each tool result starts with a token-comparison header. For the focused tools
 (`FocusMethod`, `FocusMultipleMethods`, `FocusType`, `FocusCallers`) it has
