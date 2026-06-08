@@ -1,0 +1,132 @@
+{
+  "$comment": "Single source of truth for tool metadata. Run scripts/generate-docs.ps1 after edits.",
+  "tools": [
+    {
+      "name": "OutlineCSharpFile",
+      "signature": "OutlineCSharpFile(filePath)",
+      "category": "single_file",
+      "lang": "C# / Razor",
+      "reduction": "70–95%",
+      "readme_summary": "Signatures of every type and member — no bodies. Best for \"what's in this file?\"",
+      "mcp_readme_description": "skeleton of a file: types and member signatures, no bodies. Best for navigation (\"what's in this file?\").",
+      "llms_display": "`OutlineCSharpFile`",
+      "llms_summary": "signatures of every type and member, no bodies (70–95% reduction)"
+    },
+    {
+      "name": "FocusMethod",
+      "signature": "FocusMethod(filePath, methodName, depth=0, minify=false)",
+      "category": "single_file",
+      "lang": "C# / Razor / VB.NET",
+      "reduction": "15–40%*",
+      "readme_summary": "Named method with full body + signatures of referenced members. `depth=1` includes private helpers.",
+      "mcp_readme_description": "emit the named method with full body plus signatures of referenced members. `depth=1` also includes bodies of private helper methods and properties accessed by the focus method. `minify=true` strips comments, `#region`/`#endregion` directives, and collapses whitespace. Pass the **class name** as `methodName` to target a constructor. On a `NOT FOUND`, the response hints where to look when the type is `partial` (a sibling file in the same namespace/folder) or has a base list (an inherited member).",
+      "llms_display": "`FocusMethod` / `FocusMultipleMethods`",
+      "llms_summary": "a named method with its body plus signatures of referenced members"
+    },
+    {
+      "name": "FocusMultipleMethods",
+      "signature": "FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)",
+      "category": "single_file",
+      "lang": "C# / Razor / VB.NET",
+      "reduction": "15–40%*",
+      "readme_summary": "Same as above but multiple methods in one parse pass — deduplicates shared signatures.",
+      "mcp_readme_description": "same as `FocusMethod` but focuses on multiple methods in one parse pass. Class names (constructors) can be mixed with method names.",
+      "llms_skip": true
+    },
+    {
+      "name": "FocusType",
+      "signature": "FocusType(filePath, typeName, minify=false)",
+      "category": "single_file",
+      "lang": "C#",
+      "reduction": "15–40%*",
+      "readme_summary": "Non-private members with full bodies, private members as signatures only.",
+      "mcp_readme_description": "emit a named type with non-private members shown as full bodies and private members as signatures only. Best for \"explain class X\" questions when the file has multiple types or private helpers dominate.",
+      "llms_display": "`FocusType`",
+      "llms_summary": "non-private members with bodies, private members as signatures"
+    },
+    {
+      "name": "FocusCallers",
+      "signature": "FocusCallers(filePath, methodName, depth=0, minify=false)",
+      "category": "single_file",
+      "lang": "C#",
+      "reduction": "15–40%*",
+      "readme_summary": "All methods in a file that call a given method — focused view. Answers \"what calls X?\"",
+      "mcp_readme_description": "find all methods in a **single file** that call the named method and return them as a focused multi-method view. Answers \"what calls X?\" in one round-trip. For project-wide search, use `TraceCallers`.",
+      "llms_display": "`FocusCallers` / `TraceCallers`",
+      "llms_summary": "find what calls a method, in one file or across a project"
+    },
+    {
+      "name": "MinifyCSharpFile",
+      "signature": "MinifyCSharpFile(filePath)",
+      "category": "single_file",
+      "lang": "C# / Razor",
+      "reduction": "20–50%",
+      "readme_summary": "Lossless minify of an entire C# file — strips comments and whitespace, logic unchanged.",
+      "mcp_readme_description": "lossless minify of a whole C# file. Strips comments, `#region`/`#endregion` directives, and whitespace; logic preserved verbatim.",
+      "llms_display": "`MinifyCSharpFile` / `MinifyFile`",
+      "llms_summary": "lossless minify, auto-dispatched by file extension"
+    },
+    {
+      "name": "MinifyFile",
+      "signature": "MinifyFile(filePath)",
+      "category": "single_file",
+      "lang": "all supported types",
+      "reduction": "varies",
+      "readme_summary": "Auto-dispatch by extension. Covers C#, Razor, JS/TS, Python, HTML, CSS, JSON, YAML, XML, C, C++, X++, VB.NET.",
+      "mcp_readme_description": "auto-dispatch by extension. Calls the Roslyn minifier for C#/Razor; falls back to basic minification for other types.",
+      "llms_skip": true
+    },
+    {
+      "name": "AliasCSharpFile",
+      "signature": "AliasCSharpFile(filePath)",
+      "category": "single_file",
+      "lang": "C# / Razor",
+      "reduction": "30–60%",
+      "readme_summary": "Minify + rename private symbols to short codes (`M1`, `P1`...). Best on files with very long private names.",
+      "mcp_readme_description": "minify plus rename private symbols to short codes (`M1`, `P1`, `F1`...). Useful on files with very long private names.",
+      "llms_display": "`AliasCSharpFile`",
+      "llms_summary": "minify plus short aliases for long private symbol names"
+    },
+    {
+      "name": "TraceCallers",
+      "signature": "TraceCallers(projectPath, methodName, depth=0, minify=false)",
+      "category": "traversal",
+      "lang": "C#",
+      "readme_summary": "Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers \"what calls X across the whole codebase?\"",
+      "mcp_readme_description": "scans every `.cs` file in the project and returns focused views of all methods that call `methodName`, grouped by file. Answers \"what calls X across the whole codebase?\" in a single call. Uses name-based matching, same as `FocusCallers`.",
+      "llms_skip": true
+    },
+    {
+      "name": "TraceImplementors",
+      "signature": "TraceImplementors(projectPath, interfaceName, minify=false)",
+      "category": "traversal",
+      "lang": "C#",
+      "readme_summary": "Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers \"what implements IFoo?\"",
+      "mcp_readme_description": "finds every type that implements or extends the named interface or base type, and returns a focused type view for each. Answers \"what implements IFoo?\" or \"what extends BaseBar?\" in a single call.",
+      "llms_display": "`TraceImplementors`",
+      "llms_summary": "find every type implementing an interface or extending a base type"
+    },
+    {
+      "name": "TraceDiRegistrations",
+      "signature": "TraceDiRegistrations(projectPath, typeName)",
+      "category": "traversal",
+      "lang": "C#",
+      "readme_summary": "Finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table of `file:line`, method, `ServiceType -> ImplType`, and key. Answers \"where is IFoo wired, and to what?\"",
+      "mcp_readme_description": "finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table: `file:line`, method, `ServiceType -> ImplType`, and keyed key. Answers \"where is IFoo wired, and to what implementation?\" — the question a constructor caller-trace can't, since DI-built types are never `new`-ed.",
+      "llms_display": "`TraceDiRegistrations`",
+      "llms_summary": "find where a type is registered in dependency injection and what it's wired to"
+    },
+    {
+      "name": "MapProject",
+      "signature": "MapProject(projectPath, nameFilter?)",
+      "category": "traversal",
+      "lang": "C#",
+      "readme_summary": "Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. **Disabled by default** (an unfiltered map can be large); enable with the `TOKENSAVER_ENABLE_MAP_PROJECT=1` environment variable.",
+      "mcp_readme_description": "maps every type (class/struct/record/interface/enum) to its `file:line`, kind, and base list. A compact index for locating a type when you don't know its file; pass `nameFilter` to narrow on large repos.",
+      "llms_display": "`MapProject`",
+      "llms_summary": "map every type in the project to its file, kind, and base type (a navigation index); disabled by default, enable with `TOKENSAVER_ENABLE_MAP_PROJECT=1`",
+      "disabled_by_default": true,
+      "enable_env_var": "TOKENSAVER_ENABLE_MAP_PROJECT"
+    }
+  ]
+}

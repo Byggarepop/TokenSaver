@@ -17,6 +17,7 @@ See **[tokensavermcp.com/install](https://tokensavermcp.com/install)** for one-c
 
 ## What the tools do
 
+<!-- BEGIN:generated:tools -->
 ### Single-file tools
 
 | Tool | What it does | Reduction |
@@ -30,7 +31,7 @@ See **[tokensavermcp.com/install](https://tokensavermcp.com/install)** for one-c
 | `MinifyFile` | Auto-dispatch by extension. Covers C#, Razor, JS/TS, Python, HTML, CSS, JSON, YAML, XML, C, C++, X++, VB.NET. | varies |
 | `AliasCSharpFile` | Minify + rename private symbols to short codes (`M1`, `P1`...). Best on files with very long private names. | 30–60% |
 
-\* **Focus-tool figures are conservative** — measured against reading only the *relevant code* (the method plus the helpers it needs), not the whole file. Compared to reading the entire file the reduction is far higher (often 80–95%), but a careful reader wouldn't load the whole file to answer a single-method question. The whole-file tools (`OutlineCSharpFile`, `MinifyCSharpFile`) are measured against the whole file, since that *is* the real alternative.
+\* **Focus-tool figures are conservative** — measured against reading only the *relevant code* (the method plus the helpers it needs), not the whole file. Compared to reading the entire file the reduction is far higher (often 80%), but a careful reader would not load the whole file to answer a single-method question. The whole-file tools (`OutlineCSharpFile`, `MinifyCSharpFile`) are measured against the whole file, since that *is* the real alternative.
 
 ### Cross-file traversal tools
 
@@ -38,12 +39,13 @@ These scan an entire project directory in one call — no need to know which fil
 
 | Tool | What it does |
 |---|---|
-| `TraceCallers(projectPath, methodName)` | Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers "what calls X across the whole codebase?" |
-| `TraceImplementors(projectPath, interfaceName)` | Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers "what implements IFoo?" |
-| `TraceDiRegistrations(projectPath, typeName)` | Finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table of `file:line`, method, `ServiceType -> ImplType`, and key. Answers "where is IFoo wired, and to what?" |
-| `MapProject(projectPath, nameFilter?)` | Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. **Disabled by default** (an unfiltered map can be large); enable with the `TOKENSAVER_ENABLE_MAP_PROJECT=1` environment variable. |
+| `TraceCallers` | Finds every `.cs` file across the project where `methodName` is called, and returns a focused view of each caller method. Answers "what calls X across the whole codebase?" |
+| `TraceImplementors` | Finds every type that implements or extends a named interface/base across the project, and returns a focused type view for each. Answers "what implements IFoo?" |
+| `TraceDiRegistrations` | Finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table of `file:line`, method, `ServiceType -> ImplType`, and key. Answers "where is IFoo wired, and to what?" |
+| `MapProject` | Maps every type in the project to its `file:line`, kind, and base list — a compact index for locating a type when you don't know its file. Pass `nameFilter` to narrow. **Disabled by default** (an unfiltered map can be large); enable with the `TOKENSAVER_ENABLE_MAP_PROJECT=1` environment variable. |
 
 Both accept a directory path or `.csproj` file — `obj/` and `bin/` are excluded automatically.
+<!-- END:generated:tools -->
 
 ---
 
