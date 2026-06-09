@@ -48,8 +48,7 @@ public sealed class RazorEmitter : ILanguageEmitter
 
         var output = sb.ToString();
         var notes =
-            $"// Razor minify of {Path.GetFileName(filePath)}\n" +
-            $"// Markup processed by HtmlEmitter; @code by Roslyn\n";
+            $"// Razor minify of {Path.GetFileName(filePath)} — markup by HtmlEmitter; @code by Roslyn\n";
 
         return new LanguageEmitResult(
             Found: true,

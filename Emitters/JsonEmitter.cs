@@ -26,8 +26,7 @@ public sealed class JsonEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
         var notes =
-            $"// JSON minify of {Path.GetFileName(filePath)}\n" +
-            $"// Whitespace removed outside strings; // and /* */ comments stripped (JSONC)\n";
+            $"// JSON minify of {Path.GetFileName(filePath)} — whitespace removed outside strings; // and /* */ comments stripped (JSONC)\n";
 
         return new LanguageEmitResult(
             Found: true,

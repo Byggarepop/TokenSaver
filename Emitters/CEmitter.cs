@@ -18,8 +18,7 @@ public sealed class CEmitter : ILanguageEmitter
 
         var source = File.ReadAllText(filePath);
         var output = CppMinifier.StripAndCollapse(source);
-        var notes = $"// C minify of {Path.GetFileName(filePath)}\n" +
-                    $"// Comments stripped, whitespace collapsed, #directives preserved\n";
+        var notes = $"// C minify of {Path.GetFileName(filePath)} — comments stripped, whitespace collapsed, #directives preserved\n";
         return new LanguageEmitResult(Found: true, Output: output,
             OriginalChars: source.Length, OutputChars: output.Length, Notes: notes);
     }

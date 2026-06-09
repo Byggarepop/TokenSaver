@@ -30,8 +30,7 @@ public sealed class HtmlEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
         var notes =
-            $"<!-- HTML minify of {Path.GetFileName(filePath)} -->\n" +
-            $"<!-- Comments stripped, inter-tag whitespace collapsed -->\n";
+            $"<!-- HTML minify of {Path.GetFileName(filePath)} — comments stripped, inter-tag whitespace collapsed -->\n";
 
         return new LanguageEmitResult(
             Found: true,

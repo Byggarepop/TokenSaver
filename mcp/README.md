@@ -59,7 +59,7 @@ three lines:
 ```
 // [Focused Emitter] Tokens without tool: 16,800 → with tool: 5,200 (69% saved)
 // vs a targeted read of just the relevant code (7,400 tokens): 29% saved
-// session: 6 calls · raw saved 38,400 · net of 2,100 one-time MCP overhead = 36,300
+// session: 6 calls · saved 38,400 · net 36,300 after 2,100 overhead
 ```
 
 The **first line** is just this one call: how big the file was versus how big
@@ -104,8 +104,8 @@ keep using the tools and it turns positive.
 One more honesty detail. If the AI looks at the **same file more than once** in a
 session — say it focuses one method, then another, or outlines a file and later
 minifies it — reading that file is only worth its whole-file cost *once*. So on
-the second and later views the first line changes to `repeat view of this file
-this session — whole-file baseline already counted`, and the session total does
+the second and later views the first line changes to `repeat view — whole-file
+baseline already counted; adds N tokens`, and the session total does
 **not** credit the whole-file saving again. Without this, viewing one file five
 different ways would look like five separate big savings, which would overstate
 the real benefit. The running total counts each file's baseline a single time and

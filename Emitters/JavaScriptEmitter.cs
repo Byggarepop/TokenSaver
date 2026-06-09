@@ -31,8 +31,7 @@ public sealed class JavaScriptEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = JsLikeMinifier.StripAndCollapse(source);
         var notes =
-            $"// JS minify of {Path.GetFileName(filePath)}\n" +
-            $"// Comments stripped, whitespace collapsed (POC — no regex-literal awareness)\n";
+            $"// JS minify of {Path.GetFileName(filePath)} — comments stripped, whitespace collapsed (POC — no regex-literal awareness)\n";
 
         return new LanguageEmitResult(
             Found: true,

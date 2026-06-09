@@ -27,8 +27,7 @@ public sealed class TypeScriptEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = JsLikeMinifier.StripAndCollapse(source);
         var notes =
-            $"// TS minify of {Path.GetFileName(filePath)}\n" +
-            $"// Comments stripped, whitespace collapsed (POC — lexical only, type-only decls not removed)\n";
+            $"// TS minify of {Path.GetFileName(filePath)} — comments stripped, whitespace collapsed (POC — lexical only, type-only decls not removed)\n";
 
         return new LanguageEmitResult(
             Found: true,

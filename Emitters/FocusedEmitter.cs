@@ -298,13 +298,10 @@ public sealed class FocusedEmitter
         var originalLength = _tree.GetText().Length;
 
         var notes = new StringBuilder();
-        notes.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)}");
-        notes.AppendLine($"// Focus method(s): {allFocusMethods.Count} method(s) with full body ({string.Join(", ", foundNames)})");
+        var helperNote = depth >= 1 ? $" · helpers (depth {depth}): {expandedMethods.Count} full body" : "";
+        notes.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)} — {allFocusMethods.Count} method(s) full body ({string.Join(", ", foundNames)}){helperNote} · {referencedSymbols.Count} other symbols signatures only");
         if (notFound.Count > 0)
             notes.AppendLine($"// Not found: {string.Join(", ", notFound)}");
-        if (depth >= 1)
-            notes.AppendLine($"// Expanded helpers (depth {depth}): {expandedMethods.Count} private member(s) with full body");
-        notes.AppendLine($"// Other members: {referencedSymbols.Count} symbols referenced, signatures only");
 
         return new FocusResult(
             Found: true,
@@ -383,8 +380,7 @@ public sealed class FocusedEmitter
         var output = sb.ToString();
         var originalLength = _tree.GetText().Length;
         var notes =
-            $"// Type focus: {typeName} in {Path.GetFileName(_tree.FilePath)}\n" +
-            $"// {fullBodyCount} non-private member(s) with full body; {sigOnlyCount} private member(s) as signatures\n";
+            $"// Type focus: {typeName} in {Path.GetFileName(_tree.FilePath)} — {fullBodyCount} non-private member(s) full body; {sigOnlyCount} private member(s) as signatures\n";
 
         return new FocusResult(
             Found: true,
@@ -432,8 +428,7 @@ public sealed class FocusedEmitter
 
         var result = EmitMultiple(callerNames, depth);
         var notes =
-            $"// Callers of '{targetMethodName}' in {Path.GetFileName(_tree.FilePath)}\n" +
-            $"// {callerNames.Count} calling method(s): {string.Join(", ", callerNames)}\n";
+            $"// Callers of '{targetMethodName}' in {Path.GetFileName(_tree.FilePath)} — {callerNames.Count} calling method(s): {string.Join(", ", callerNames)}\n";
 
         return result with { Notes = notes };
     }
@@ -456,8 +451,7 @@ public sealed class FocusedEmitter
         var output = normalized.ToFullString();
         var originalLength = _tree.GetText().Length;
 
-        var notes = $"// Minified emission of {Path.GetFileName(_tree.FilePath)}\n" +
-                    $"// Comments stripped, whitespace collapsed — logic preserved verbatim\n";
+        var notes = $"// Minified emission of {Path.GetFileName(_tree.FilePath)} — comments stripped, whitespace collapsed, logic preserved verbatim\n";
 
         return new FocusResult(
             Found: true,
@@ -498,8 +492,7 @@ public sealed class FocusedEmitter
         var output = sb.ToString().TrimEnd() + "\n";
         var originalLength = _tree.GetText().Length;
         var notes =
-            $"// Outline of {Path.GetFileName(_tree.FilePath)}\n" +
-            $"// {typeCount} type(s), {memberCount} member(s) — signatures only, no bodies\n";
+            $"// Outline of {Path.GetFileName(_tree.FilePath)} — {typeCount} type(s), {memberCount} member(s), signatures only, no bodies\n";
 
         return new FocusResult(
             Found: true,
@@ -606,8 +599,7 @@ public sealed class FocusedEmitter
         var output = sb.ToString();
         var originalLength = _tree.GetText().Length;
 
-        var notes = $"// Aliased emission of {Path.GetFileName(_tree.FilePath)}\n" +
-                    $"// {renames.Count} private symbols renamed; ledger inlined; logic preserved\n";
+        var notes = $"// Aliased emission of {Path.GetFileName(_tree.FilePath)} — {renames.Count} private symbols renamed; ledger inlined; logic preserved\n";
 
         return new FocusResult(
             Found: true,
@@ -1033,12 +1025,8 @@ public sealed class FocusedEmitter
     private string BuildNotes(int focusCount, int refCount, TypeDeclarationSyntax type, int expandedCount, int depth)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)}");
-        sb.AppendLine($"// Focus method(s): {focusCount} overload(s) included with full body");
-        if (depth >= 1)
-            sb.AppendLine($"// Expanded helpers (depth {depth}): {expandedCount} private member(s) included with full body");
-        sb.AppendLine($"// Other members: {refCount} symbols referenced, signatures only");
-        sb.AppendLine($"// Containing type: {type.Identifier}");
+        var helperNote = depth >= 1 ? $" · helpers (depth {depth}): {expandedCount} full body" : "";
+        sb.AppendLine($"// Focused emission of {Path.GetFileName(_tree.FilePath)} — {focusCount} overload(s) full body{helperNote} · {refCount} other symbols signatures only · type: {type.Identifier}");
         return sb.ToString();
     }
 
