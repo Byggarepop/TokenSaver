@@ -48,8 +48,7 @@ public sealed class VBFocusedEmitter
     {
         var stripped = new CommentStripper().Visit(_root)!;
         var output = CollapseBlankRuns(stripped.ToFullString());
-        var notes = $"' Minified emission of {Path.GetFileName(_filePath)}\n" +
-                    $"' Comments stripped, blank runs collapsed — logic preserved verbatim\n";
+        var notes = $"' Minified emission of {Path.GetFileName(_filePath)} — comments stripped, blank runs collapsed, logic preserved verbatim\n";
         return new FocusResult(true, output, _originalChars, output.Length, "(minified)", notes);
     }
 
@@ -65,8 +64,7 @@ public sealed class VBFocusedEmitter
             sb.AppendLine();
         }
         var output = sb.ToString().TrimEnd() + "\n";
-        var notes = $"' Outline of {Path.GetFileName(_filePath)}\n" +
-                    $"' {typeCount} type(s), {memberCount} member(s) — signatures only, no bodies\n";
+        var notes = $"' Outline of {Path.GetFileName(_filePath)} — {typeCount} type(s), {memberCount} member(s), signatures only, no bodies\n";
         return new FocusResult(true, output, _originalChars, output.Length, "(outline)", notes);
     }
 
@@ -132,11 +130,9 @@ public sealed class VBFocusedEmitter
             sb.AppendLine($"' NOT FOUND: {string.Join(", ", notFound)}");
         var output = sb.ToString();
         var notesBuilder = new StringBuilder();
-        notesBuilder.AppendLine($"' Focused emission of {Path.GetFileName(_filePath)}");
-        notesBuilder.AppendLine($"' Focus method(s): {allFocusMethods.Count} with full body ({string.Join(", ", foundNames)})");
+        var helperNote = depth >= 1 ? $" · helpers (depth {depth}): {expandedMethods.Count} full body" : "";
+        notesBuilder.AppendLine($"' Focused emission of {Path.GetFileName(_filePath)} — {allFocusMethods.Count} method(s) full body ({string.Join(", ", foundNames)}){helperNote} · {referencedSymbols.Count} other symbols signatures only");
         if (notFound.Count > 0) notesBuilder.AppendLine($"' Not found: {string.Join(", ", notFound)}");
-        if (depth >= 1) notesBuilder.AppendLine($"' Expanded helpers (depth {depth}): {expandedMethods.Count}");
-        notesBuilder.AppendLine($"' Other members: {referencedSymbols.Count} symbols referenced, signatures only");
         return new FocusResult(true, output, _originalChars, output.Length, string.Join(", ", methodNames), notesBuilder.ToString())
         {
             RelevantSourceText = relevant.ToString()
@@ -178,8 +174,7 @@ public sealed class VBFocusedEmitter
         sb.AppendLine(targetType.EndBlockStatement.ToString().Trim());
         AppendNamespaceClose(sb, targetType);
         var output = sb.ToString();
-        var notes = $"' Type focus: {typeName} in {Path.GetFileName(_filePath)}\n" +
-                    $"' {fullBodyCount} non-private member(s) with full body; {sigOnlyCount} private member(s) as signatures\n";
+        var notes = $"' Type focus: {typeName} in {Path.GetFileName(_filePath)} — {fullBodyCount} non-private member(s) full body; {sigOnlyCount} private member(s) as signatures\n";
         return new FocusResult(true, output, _originalChars, output.Length, $"(type:{typeName})", notes)
         {
             RelevantSourceText = relevant.ToString()
@@ -200,8 +195,7 @@ public sealed class VBFocusedEmitter
             return new FocusResult(false, $"' No callers of '{targetMethodName}' found in source",
                 _originalChars, 0, $"(callers:{targetMethodName})", "");
         var result = EmitMultiple(callerNames, depth);
-        var notes = $"' Callers of '{targetMethodName}' in {Path.GetFileName(_filePath)}\n" +
-                    $"' {callerNames.Count} calling method(s): {string.Join(", ", callerNames)}\n";
+        var notes = $"' Callers of '{targetMethodName}' in {Path.GetFileName(_filePath)} — {callerNames.Count} calling method(s): {string.Join(", ", callerNames)}\n";
         return result with { Notes = notes };
     }
 
@@ -435,11 +429,8 @@ public sealed class VBFocusedEmitter
     private string BuildNotes(int focusCount, int refCount, TypeBlockSyntax type, int expandedCount, int depth)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"' Focused emission of {Path.GetFileName(_filePath)}");
-        sb.AppendLine($"' Focus method(s): {focusCount} overload(s) with full body");
-        if (depth >= 1) sb.AppendLine($"' Expanded helpers (depth {depth}): {expandedCount} private member(s)");
-        sb.AppendLine($"' Other members: {refCount} symbols referenced, signatures only");
-        sb.AppendLine($"' Containing type: {GetTypeName(type)}");
+        var helperNote = depth >= 1 ? $" · helpers (depth {depth}): {expandedCount} full body" : "";
+        sb.AppendLine($"' Focused emission of {Path.GetFileName(_filePath)} — {focusCount} overload(s) full body{helperNote} · {refCount} other symbols signatures only · type: {GetTypeName(type)}");
         return sb.ToString();
     }
 

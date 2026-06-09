@@ -44,9 +44,7 @@ public sealed class PythonEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = StripCommentsAndBlankRuns(source);
         var notes =
-            $"# Python minify of {Path.GetFileName(filePath)}\n" +
-            $"# '#' comments stripped, trailing whitespace removed, blank runs collapsed\n" +
-            $"# Indentation preserved (Python is indent-sensitive); docstrings preserved\n";
+            $"# Python minify of {Path.GetFileName(filePath)} — '#' comments stripped, blank runs collapsed; indentation and docstrings preserved\n";
 
         return new LanguageEmitResult(
             Found: true,

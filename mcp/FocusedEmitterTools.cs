@@ -807,7 +807,7 @@ public static class FocusedEmitterTools
         // state plainly that this view only adds its own output to the context.
         var callLine = firstView
             ? $"// [Focused Emitter] Tokens without tool: {before:N0}  →  with tool: {displayAfter:N0}  ({pct}% saved) — mode: {mode}\n"
-            : $"// [Focused Emitter] repeat view of this file this session — whole-file baseline already counted; this view adds {displayAfter:N0} tokens, no new whole-file saving — mode: {mode}\n";
+            : $"// [Focused Emitter] repeat view — whole-file baseline already counted; adds {displayAfter:N0} tokens — mode: {mode}\n";
 
         // Lower-bound baseline for the focused tools: the whole-file "without tool"
         // figure assumes the alternative was reading the entire file, which is a best
@@ -824,7 +824,7 @@ public static class FocusedEmitterTools
             targetedLine = $"// vs a targeted read of just the relevant code ({relevant:N0} tokens): {relevantPct}% {verb}\n";
         }
 
-        var sessionLine = $"// session: {calls} call{(calls == 1 ? "" : "s")} · raw saved {sessionSaved:N0} · net of {OverheadTokens:N0} one-time MCP overhead = {sessionNet:N0}\n";
+        var sessionLine = $"// session: {calls} call{(calls == 1 ? "" : "s")} · saved {sessionSaved:N0} · net {sessionNet:N0} after {OverheadTokens:N0} overhead\n";
         return callLine + targetedLine + sessionLine;
     }
 

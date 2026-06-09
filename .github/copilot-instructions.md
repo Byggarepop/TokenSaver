@@ -201,7 +201,7 @@ three lines:
 ```
 // [Focused Emitter] Tokens without tool: 7,083 → with tool: 3,133 (55% saved)
 // vs a targeted read of just the relevant code (4,200 tokens): 25% saved
-// session: 4 calls · raw saved 24,800 · net of 2,100 one-time MCP overhead = 22,700
+// session: 4 calls · saved 24,800 · net 22,700 after 2,100 overhead
 ```
 The first line compares against reading the **whole file** (a best case); the
 second, when present, compares against reading **only the relevant code** (a
@@ -211,8 +211,8 @@ were guaranteed. If the second line is present, prefer it or give the range, e.g
 "Used the focused emitter — saved ~25-55% tokens vs. reading the file."
 
 If you view the **same file more than once** in a session (a different method, or
-outline-then-minify), the first line is replaced by `repeat view of this file
-this session — whole-file baseline already counted ...`. A file only costs its
+outline-then-minify), the first line is replaced by `repeat view — whole-file
+baseline already counted; adds N tokens ...`. A file only costs its
 whole-file tokens once, so later views aren't credited that saving again and the
 session total counts each file's baseline a single time. Don't re-report the
 whole-file "% saved" for a repeat view — it was already counted on the first.

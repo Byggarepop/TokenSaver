@@ -410,7 +410,7 @@ internal static class Program
 
         // The repeat view drops the "% saved" headline (no "Tokens without tool")
         // and says so plainly — that headline repetition is what inflated summed savings.
-        var marksRepeat = secondFirstLine.Contains("repeat view of this file")
+        var marksRepeat = secondFirstLine.Contains("repeat view")
                        && !secondFirstLine.Contains("Tokens without tool");
         // Had we double-counted, cumulative saved would exceed one whole file. Honest
         // dedupe keeps it below the whole-file baseline, and below the first view's total.
@@ -2779,7 +2779,7 @@ internal static class Program
         return int.TryParse(raw, out var n) ? n : -1;
     }
 
-    // Parses the "session: N calls · raw saved X · net of O one-time MCP overhead = Y"
+    // Parses the "session: N calls · saved X · net Y after O overhead"
     // line into (rawSaved, net).
     private static (long saved, long net) ParseSession(string line)
     {
@@ -2790,7 +2790,7 @@ internal static class Program
             var raw = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value.Trim(), @"[\s,]", "");
             return long.TryParse(raw, out var n) ? n : long.MinValue;
         }
-        return (Grab(@"raw saved\s*(-?[\d\s,]+)"), Grab(@"=\s*(-?[\d\s,]+)"));
+        return (Grab(@"· saved\s*(-?[\d\s,]+)"), Grab(@"net\s*(-?[\d\s,]+)\s*after"));
     }
 
     private static void WriteReport()

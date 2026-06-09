@@ -17,8 +17,7 @@ public sealed class XppEmitter : ILanguageEmitter
 
         var source = File.ReadAllText(filePath);
         var output = XppMinifier.StripAndCollapse(source);
-        var notes = $"// X++ minify of {Path.GetFileName(filePath)}\n" +
-                    $"// Comments stripped, whitespace collapsed, #macro directives preserved\n";
+        var notes = $"// X++ minify of {Path.GetFileName(filePath)} — comments stripped, whitespace collapsed, #macro directives preserved\n";
         return new LanguageEmitResult(Found: true, Output: output,
             OriginalChars: source.Length, OutputChars: output.Length, Notes: notes);
     }

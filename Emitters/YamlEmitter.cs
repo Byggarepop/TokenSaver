@@ -37,9 +37,7 @@ public sealed class YamlEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
         var notes =
-            $"# YAML minify of {Path.GetFileName(filePath)}\n" +
-            $"# '#' comments stripped, trailing whitespace removed, blank runs collapsed\n" +
-            $"# Indentation preserved (YAML is indent-sensitive)\n";
+            $"# YAML minify of {Path.GetFileName(filePath)} — '#' comments stripped, blank runs collapsed; indentation preserved\n";
 
         return new LanguageEmitResult(
             Found: true,

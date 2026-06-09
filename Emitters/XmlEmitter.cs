@@ -34,8 +34,7 @@ public sealed class XmlEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
         var notes =
-            $"<!-- XML minify of {Path.GetFileName(filePath)} -->\n" +
-            $"<!-- <!-- --> comments stripped, trailing whitespace removed, blank runs collapsed -->\n";
+            $"<!-- XML minify of {Path.GetFileName(filePath)} — comments stripped, trailing whitespace removed, blank runs collapsed -->\n";
 
         return new LanguageEmitResult(
             Found: true,

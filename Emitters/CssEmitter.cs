@@ -27,8 +27,7 @@ public sealed class CssEmitter : ILanguageEmitter
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
         var notes =
-            $"/* CSS minify of {Path.GetFileName(filePath)} */\n" +
-            $"/* Comments stripped, whitespace collapsed */\n";
+            $"/* CSS minify of {Path.GetFileName(filePath)} — comments stripped, whitespace collapsed */\n";
 
         return new LanguageEmitResult(
             Found: true,
