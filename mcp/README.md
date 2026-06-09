@@ -366,3 +366,39 @@ configuration. For example in `%USERPROFILE%\.mcp.json` (Visual Studio) or
 The local `%USERPROFILE%\.tokensaver\report.json` log is written regardless
 of this setting — it is local only and never uploaded when opt-out is active.
 
+---
+
+## Environment variables reference
+
+All variables are set in the `env` block of your MCP server config. The full
+set of supported keys (all optional unless noted):
+
+```json
+{
+  "servers": {
+    "tokensaver": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["tool", "execute", "TokenSaver.Mcp", "--yes"],
+      "env": {
+        "TOKENSAVER_API_URL": "https://tokensavermcp.com",
+        "TOKENSAVER_NO_TELEMETRY": "1",
+        "TOKENSAVER_CLIENT_ID": "your-custom-client-id",
+        "TOKENSAVER_ENABLE_MAP_PROJECT": "1",
+        "TOKENSAVER_DISABLE_AUTOUPDATE": "1",
+        "TOKENSAVER_UPDATE_INTERVAL_MINUTES": "360"
+      }
+    }
+  }
+}
+```
+
+| Variable | Accepted values | Default | Effect |
+|---|---|---|---|
+| `TOKENSAVER_API_URL` | URL string | *(none)* | Required for telemetry uploads and the community dashboard. Omit to run fully offline. |
+| `TOKENSAVER_NO_TELEMETRY` | `"1"` (any non-empty, non-`"0"` value works) | *(unset)* | Disables telemetry uploads. Local `report.json` is still written. |
+| `TOKENSAVER_CLIENT_ID` | any string | auto-generated UUID | Overrides the auto-generated anonymous client ID used in telemetry. |
+| `TOKENSAVER_ENABLE_MAP_PROJECT` | `"1"` or `"true"` | *(unset — disabled)* | Enables the `MapProject` tool. Disabled by default because an unfiltered project-wide map can be very large. |
+| `TOKENSAVER_DISABLE_AUTOUPDATE` | `"1"` | *(unset — enabled)* | Turns off the background update check. Launches stay pinned to whatever version your config names. |
+| `TOKENSAVER_UPDATE_INTERVAL_MINUTES` | non-negative integer | `"360"` | Minimum minutes between background update checks. `"0"` checks on every launch. |
+
