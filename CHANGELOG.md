@@ -2,7 +2,7 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
-## [Unreleased]
+## [1.14.1] — 2026-06-11
 
 ### Improvements
 - Fixed MCP context overhead trimmed: `ServerInstructions` compacted from 2,207 to 1,583 tokens with no rule removed — selection rules now precede the supported-types table so clients that truncate long instructions keep the behavior-critical part — and emitter result banners collapsed from 2–5 lines to a single line, with a shorter `session:` header line (#94)
