@@ -20,8 +20,7 @@ public sealed class MarkdownEmitter : ILanguageEmitter
 
         var source = File.ReadAllText(filePath);
         var output = Strip(source);
-        var notes = $"<!-- Markdown minify of {Path.GetFileName(filePath)} -->\n"
-                  + $"<!-- HTML comments stripped, consecutive blank lines collapsed -->\n";
+        var notes = $"<!-- Markdown minify of {Path.GetFileName(filePath)} — HTML comments stripped, consecutive blank lines collapsed -->\n";
         return new LanguageEmitResult(Found: true, Output: output,
             OriginalChars: source.Length, OutputChars: output.Length, Notes: notes);
     }

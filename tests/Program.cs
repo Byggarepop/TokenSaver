@@ -157,6 +157,7 @@ internal static class Program
         Run("Md_Minify_StripsHtmlComments", Md_Minify_StripsHtmlComments);
         Run("Md_Minify_CollapsesBlankRuns", Md_Minify_CollapsesBlankRuns);
         Run("Md_Minify_PreservesIndentation", Md_Minify_PreservesIndentation);
+        Run("Md_Minify_NoteIsSingleLine", Md_Minify_NoteIsSingleLine);
 
         // ---------- ProjectTraversal ----------
         Run("Traversal_FindCallerFiles_FindsFileWithCaller", Traversal_FindCallerFiles_FindsFileWithCaller);
@@ -193,7 +194,7 @@ internal static class Program
 
         // ---------- dnx background auto-update / config pinning ----------
         Run("AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers", AutoUpdate_IsDnxEntry_RecognizesDnxAndSkipsOthers);
-        Run("AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps", AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps);
+        Run("AutoUpdate_SetPinnedVersion_InsertsReplacesNoOpsAndNeverDowngrades", AutoUpdate_SetPinnedVersion_InsertsReplacesNoOpsAndNeverDowngrades);
         Run("AutoUpdate_IsNewer_ComparesCoreVersions", AutoUpdate_IsNewer_ComparesCoreVersions);
         Run("AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated", AutoUpdate_PinInFlat_RepinsAndPreservesUnrelated);
         Run("AutoUpdate_PinInVsCode_RepinsNestedEntry", AutoUpdate_PinInVsCode_RepinsNestedEntry);
@@ -2478,7 +2479,7 @@ internal static class Program
             (0, 0, 0));
     }
 
-    private static TestOutcome AutoUpdate_SetPinnedVersion_InsertsReplacesAndNoOps()
+    private static TestOutcome AutoUpdate_SetPinnedVersion_InsertsReplacesNoOpsAndNeverDowngrades()
     {
         var insert = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--yes");
         var ch1 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(insert, "1.99.1");
@@ -2490,10 +2491,14 @@ internal static class Program
 
         var ch3 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(replace, "1.99.1");
 
-        var ok = ch1 && inserted && ch2 && replaced && !ch3;
+        var dev = MakeDnxEntry("tool", "execute", "TokenSaver.Mcp", "--version", "9.9.9-dev", "--yes");
+        var ch4 = TokenSaver.Mcp.RegisterCommand.SetPinnedVersion(dev, "1.99.1");
+        var devKept = ArgsCsv(dev) == "tool,execute,TokenSaver.Mcp,--version,9.9.9-dev,--yes";
+
+        var ok = ch1 && inserted && ch2 && replaced && !ch3 && !ch4 && devKept;
         return new TestOutcome(ok,
-            ok ? "insert after package id; replace existing; no-op when unchanged"
-               : $"insert(ch={ch1},ok={inserted}) replace(ch={ch2},ok={replaced}) noop(ch={ch3})",
+            ok ? "insert after package id; replace existing; no-op when unchanged; newer pin kept"
+               : $"insert(ch={ch1},ok={inserted}) replace(ch={ch2},ok={replaced}) noop(ch={ch3}) downgrade(ch={ch4},kept={devKept})",
             (0, 0, 0));
     }
 
@@ -3364,6 +3369,19 @@ internal static class Program
             ok ? "leading indentation preserved for code block and nested list"
                : $"indentedCode={hasIndentedCode} nestedList={hasNestedList}",
             TokenSaving(r.OriginalChars, r.OutputChars));
+    }
+
+    private static TestOutcome Md_Minify_NoteIsSingleLine()
+    {
+        var path = Fixture("sample.md");
+        var r = new MarkdownEmitter().Minify(path);
+
+        var lines = r.Notes.TrimEnd('\n').Split('\n');
+        var ok = lines.Length == 1;
+        return new TestOutcome(ok,
+            ok ? "banner note is a single line"
+               : $"banner note has {lines.Length} lines",
+            (0, 0, 0));
     }
 
     private sealed record TestOutcome(bool Passed, string Notes, (int before, int after, double percent) Tokens);

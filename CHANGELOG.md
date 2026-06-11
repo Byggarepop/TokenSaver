@@ -4,6 +4,10 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Fixes
+- Background self-update no longer downgrades a config pinned to a newer version than the discovered latest (e.g. a local dev build) — `SetPinnedVersion` refuses to lower an existing pin
+- Markdown minify banner note collapsed to a single line, matching the other emitters
+
 ## [1.14.0] — 2026-06-08
 
 ### New Tools
