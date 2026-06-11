@@ -4,6 +4,9 @@ All notable changes to TokenSaver.Mcp are documented here.
 
 ## [Unreleased]
 
+### Improvements
+- Fixed MCP context overhead trimmed: `ServerInstructions` compacted from 2,207 to 1,583 tokens with no rule removed — selection rules now precede the supported-types table so clients that truncate long instructions keep the behavior-critical part — and emitter result banners collapsed from 2–5 lines to a single line, with a shorter `session:` header line (#94)
+
 ### Fixes
 - Background self-update no longer downgrades a config pinned to a newer version than the discovered latest (e.g. a local dev build) — `SetPinnedVersion` refuses to lower an existing pin (#96)
 - Markdown minify banner note collapsed to a single line, matching the other emitters (#96)
