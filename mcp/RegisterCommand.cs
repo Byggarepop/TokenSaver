@@ -327,8 +327,9 @@ internal static class RegisterCommand
 
     /// <summary>
     /// Ensures a dnx entry's args pin <c>--version &lt;version&gt;</c>. Replaces an existing
-    /// pinned value, or inserts the flag right after the package id. Returns true if the
-    /// args were changed.
+    /// pinned value, or inserts the flag right after the package id. Never downgrades:
+    /// an entry already pinned to a newer version (e.g. a local dev build resolved from a
+    /// private feed) is left untouched. Returns true if the args were changed.
     /// </summary>
     internal static bool SetPinnedVersion(JsonObject entry, string version)
     {
@@ -339,6 +340,8 @@ internal static class RegisterCommand
             if (args[i]?.GetValue<string>() != "--version") continue;
             if (i + 1 < args.Count && args[i + 1]?.GetValue<string>() == version)
                 return false;                        // already pinned to this version
+            if (i + 1 < args.Count && args[i + 1]?.GetValue<string>() is string pinned && IsNewer(pinned, version))
+                return false;                        // never downgrade a newer pin (e.g. a local dev build)
             if (i + 1 < args.Count) args[i + 1] = version;
             else args.Add(version);
             return true;

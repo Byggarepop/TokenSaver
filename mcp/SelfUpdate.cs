@@ -46,6 +46,8 @@ internal static class SelfUpdate
             // them would skip the re-pin even when the configs still pin an older
             // version. Pinning is idempotent (SetPinnedVersion no-ops when already at
             // the target), so re-pinning unconditionally only rewrites stale configs.
+            // SetPinnedVersion also refuses to downgrade a config whose pin is newer
+            // than `latest` (e.g. a local dev build), so dev setups survive this check.
             bool repinned = RegisterCommand.PinDnxEntriesToVersion(latest);
             if (repinned)
                 StartupLog.Write($"self-update: prefetched {latest} (running {current}); configs re-pinned");
