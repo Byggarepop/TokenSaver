@@ -76,7 +76,7 @@ foreach ($t in $single) {
     [void]$sb.AppendLine("| ``$($t.name)`` | $($t.readme_summary) | $reduction |")
 }
 [void]$sb.AppendLine()
-[void]$sb.AppendLine("\* **Focus-tool figures are conservative** $dash measured against reading only the *relevant code* (the method plus the helpers it needs), not the whole file. Compared to reading the entire file the reduction is far higher (often 80$dash95%), but a careful reader would not load the whole file to answer a single-method question. The whole-file tools (``OutlineCSharpFile``, ``MinifyCSharpFile``) are measured against the whole file, since that *is* the real alternative.")
+[void]$sb.AppendLine("\* Reductions are measured against reading the **whole file** $dash the real alternative when you'd otherwise load it. The **end-to-end** saving on a task is smaller, because a capable model already reads somewhat selectively; it is largest on smaller/cheaper models and large files (see *Token savings in practice* below).")
 [void]$sb.AppendLine()
 [void]$sb.AppendLine('### Cross-file traversal tools')
 [void]$sb.AppendLine()

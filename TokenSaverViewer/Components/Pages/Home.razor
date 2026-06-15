@@ -132,18 +132,21 @@
     <div class="faq-item">
         <h3>What is TokenSaver?</h3>
         <p>
-            TokenSaver is an MCP (Model Context Protocol) server for .NET developers. It gives AI coding
-            assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler
-            platform, so the assistant reads the same code using far fewer tokens — with no loss of logic.
+            TokenSaver is an MCP (Model Context Protocol) server for .NET developers — a structural warm start
+            for AI coding agents. Instead of loading whole files into the assistant, it hands the model a cheap
+            map of your code (every type and member as a signature, each tagged with its line range) using the
+            Roslyn compiler platform, so the model reads only the slice it needs instead of slurping the file.
         </p>
     </div>
 
     <div class="faq-item">
         <h3>How much can TokenSaver reduce token usage?</h3>
         <p>
-            It depends on the tool and the file. A signatures-only outline of a C# file saves 70–95%, a
-            lossless full-file minify saves 20–50%, and the focused tools save 15–40% measured against reading
-            only the relevant code. On C# files the typical reduction is 50–95%.
+            Per read, a signatures-only outline of a C# file saves 70–95% versus loading the whole file (up to
+            90% on a large file). The end-to-end saving on a real task is smaller and depends on the model:
+            roughly 1% on a top-tier model that already reads tightly, ~5–7% on a mid-tier model, and ~8% on a
+            smaller, cheaper model. The leaner the model, the more it over-reads on its own — so a warm start
+            helps most for agents running on small/cheap models and for large codebases.
         </p>
     </div>
 
@@ -152,7 +155,7 @@
         <p>
             Full Roslyn support for C#, Razor, VB.NET, and .NET project files (.csproj, .props, .config, .xml).
             Comment-strip and whitespace-collapse support for JavaScript, TypeScript, Python, HTML,
-            CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown.
+            CSS/SCSS/LESS, JSON, YAML, C, C++, and X++.
         </p>
     </div>
 
@@ -193,7 +196,7 @@
             "name": "What is TokenSaver?",
             "acceptedAnswer": {
                 "@@type": "Answer",
-                "text": "TokenSaver is an MCP (Model Context Protocol) server for .NET developers. It gives AI coding assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform, so the assistant reads the same code using far fewer tokens — with no loss of logic."
+                "text": "TokenSaver is an MCP (Model Context Protocol) server for .NET developers — a structural warm start for AI coding agents. Instead of loading whole files into the assistant, it hands the model a cheap map of your code (every type and member as a signature, each tagged with its line range) using the Roslyn compiler platform, so the model reads only the slice it needs instead of slurping the file."
             }
         },
         {
@@ -201,7 +204,7 @@
             "name": "How much can TokenSaver reduce token usage?",
             "acceptedAnswer": {
                 "@@type": "Answer",
-                "text": "It depends on the tool and the file. A signatures-only outline of a C# file saves 70–95%, a lossless full-file minify saves 20–50%, and the focused tools save 15–40% measured against reading only the relevant code. On C# files the typical reduction is 50–95%."
+                "text": "Per read, a signatures-only outline of a C# file saves 70–95% versus loading the whole file (up to 90% on a large file). The end-to-end saving on a real task is smaller and depends on the model: roughly 1% on a top-tier model that already reads tightly, ~5–7% on a mid-tier model, and ~8% on a smaller, cheaper model. The leaner the model, the more it over-reads on its own — so a warm start helps most for agents running on small/cheap models and for large codebases."
             }
         },
         {
@@ -209,7 +212,7 @@
             "name": "Which file types and languages does it support?",
             "acceptedAnswer": {
                 "@@type": "Answer",
-                "text": "Full Roslyn support for C#, Razor, VB.NET, and .NET project files (.csproj, .props, .config, .xml). Comment-strip and whitespace-collapse support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown."
+                "text": "Full Roslyn support for C#, Razor, VB.NET, and .NET project files (.csproj, .props, .config, .xml). Comment-strip and whitespace-collapse support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, and X++."
             }
         },
         {

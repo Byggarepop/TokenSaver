@@ -91,7 +91,7 @@ public sealed class FocusedEmitter
     /// from a signature. Pass the class name as <paramref name="focusMethodName"/>
     /// to target a constructor.
     /// </summary>
-    public FocusResult Emit(string focusMethodName, int depth = 0)
+    public FocusResult Emit(string focusMethodName, int depth = 0, bool bodiesOnly = false)
     {
         var root = _tree.GetCompilationUnitRoot();
 
@@ -175,10 +175,14 @@ public sealed class FocusedEmitter
         //    full-bodied + expanded helpers full-bodied + everything else reduced to signatures.
         var sb = new StringBuilder();
         var relevant = new StringBuilder();
-        AppendUsings(sb, root);
-        AppendNamespaceOpen(sb, containingType);
-        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods, relevant);
-        AppendNamespaceClose(sb, containingType);
+        if (!bodiesOnly)
+        {
+            AppendUsings(sb, root);
+            AppendNamespaceOpen(sb, containingType);
+        }
+        AppendTypeWithFocus(sb, containingType, focusMethods, referencedSymbols, expandedMethods, relevant, bodiesOnly);
+        if (!bodiesOnly)
+            AppendNamespaceClose(sb, containingType);
 
         var output = sb.ToString();
         var originalLength = _tree.GetText().Length;
@@ -206,7 +210,7 @@ public sealed class FocusedEmitter
     /// separate <see cref="Emit"/> calls.
     /// </para>
     /// </summary>
-    public FocusResult EmitMultiple(IReadOnlyList<string> methodNames, int depth = 0)
+    public FocusResult EmitMultiple(IReadOnlyList<string> methodNames, int depth = 0, bool bodiesOnly = false)
     {
         var nameSet = new HashSet<string>(methodNames, StringComparer.Ordinal);
         var root = _tree.GetCompilationUnitRoot();
@@ -280,12 +284,15 @@ public sealed class FocusedEmitter
 
         var sb = new StringBuilder();
         var relevant = new StringBuilder();
-        AppendUsings(sb, root);
+        if (!bodiesOnly)
+            AppendUsings(sb, root);
         foreach (var (type, methods) in byType)
         {
-            AppendNamespaceOpen(sb, type!);
-            AppendTypeWithFocus(sb, type!, methods, referencedSymbols, expandedMethods, relevant);
-            AppendNamespaceClose(sb, type!);
+            if (!bodiesOnly)
+                AppendNamespaceOpen(sb, type!);
+            AppendTypeWithFocus(sb, type!, methods, referencedSymbols, expandedMethods, relevant, bodiesOnly);
+            if (!bodiesOnly)
+                AppendNamespaceClose(sb, type!);
             sb.AppendLine();
         }
 
@@ -520,10 +527,24 @@ public sealed class FocusedEmitter
             }
             var sig = ToSignature(member);
             if (sig is null) continue;
-            sb.AppendLine($"{indent}    {sig}");
+            sb.AppendLine($"{indent}    {sig}{LineSpanComment(member)}");
             memberCount++;
         }
         sb.AppendLine($"{indent}}}");
+    }
+
+    /// <summary>
+    /// Returns a trailing <c>  // L{start}-{end}</c> comment giving the member's
+    /// 1-based start/end lines in the original file, so a caller can Read or edit
+    /// exactly that range without re-reading the whole file. Single-line members
+    /// collapse to <c>// L{n}</c>.
+    /// </summary>
+    private static string LineSpanComment(SyntaxNode node)
+    {
+        var span = node.GetLocation().GetLineSpan();
+        var start = span.StartLinePosition.Line + 1;
+        var end = span.EndLinePosition.Line + 1;
+        return start == end ? $"  // L{start}" : $"  // L{start}-{end}";
     }
 
     /// <summary>
@@ -841,21 +862,28 @@ public sealed class FocusedEmitter
         List<MemberDeclarationSyntax> focusMethods,
         HashSet<ISymbol> referenced,
         HashSet<ISymbol> expandedMethods,
-        StringBuilder? relevantSink = null)
+        StringBuilder? relevantSink = null,
+        bool bodiesOnly = false)
     {
-        var modifiers = string.Join(" ", type.Modifiers.Select(m => m.Text));
-        var kind = type.Keyword.Text;
-
-        var baseList = type.BaseList?.ToString() ?? "";
-        sb.AppendLine($"{modifiers} {kind} {type.Identifier}{type.TypeParameterList} {baseList}".Trim());
-        sb.AppendLine("{");
+        // bodiesOnly: the caller has already seen this file's outline this session, so the
+        // class shell and unchanged referenced signatures are redundant — emit just the
+        // requested bodies (focus methods + expanded helpers) to neutralise the double-view.
+        if (!bodiesOnly)
+        {
+            var modifiers = string.Join(" ", type.Modifiers.Select(m => m.Text));
+            var kind = type.Keyword.Text;
+            var baseList = type.BaseList?.ToString() ?? "";
+            sb.AppendLine($"{modifiers} {kind} {type.Identifier}{type.TypeParameterList} {baseList}".Trim());
+            sb.AppendLine("{");
+        }
 
         foreach (var member in type.Members)
         {
             if (focusMethods.Contains(member))
             {
                 // Focus method: full body
-                sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
+                sb.AppendLine($"{(bodiesOnly ? "" : "    ")}{LineSpanComment(member).Trim()}");
+                sb.AppendLine(IndentLines(member.ToFullString().Trim(), bodiesOnly ? "" : "    "));
                 sb.AppendLine();
                 relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
@@ -873,21 +901,25 @@ public sealed class FocusedEmitter
             // Expanded helper: emit full body so the AI sees real logic, not a guess
             if (expandedMethods.Contains(memberSymbol))
             {
-                sb.AppendLine(IndentLines(member.ToFullString().Trim(), "    "));
+                sb.AppendLine($"{(bodiesOnly ? "" : "    ")}{LineSpanComment(member).Trim()}");
+                sb.AppendLine(IndentLines(member.ToFullString().Trim(), bodiesOnly ? "" : "    "));
                 sb.AppendLine();
                 relevantSink?.AppendLine(member.ToFullString().Trim());
                 continue;
             }
 
-            // Other referenced members: signature only
+            // Other referenced members: signature only — omitted in bodiesOnly mode since
+            // the outline already listed every signature.
+            if (bodiesOnly) continue;
             if (!referenced.Contains(memberSymbol)) continue;
 
             var sig = ToSignature(member);
             if (sig is not null)
-                sb.AppendLine($"    {sig}");
+                sb.AppendLine($"    {sig}{LineSpanComment(member)}");
         }
 
-        sb.AppendLine("}");
+        if (!bodiesOnly)
+            sb.AppendLine("}");
     }
 
     /// <summary>

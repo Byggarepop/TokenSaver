@@ -9,114 +9,50 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 const string ServerInstructions = """
-This server (tokensaver) exposes twelve tools that produce TOKEN-REDUCED views
-of source files. PREFER these tools over reading whole files whenever the
-task involves a supported file type — they save 30-95% of tokens with no
-loss of logic. Supported types are listed after the rules.
+This server (tokensaver) gives a model a cheap STRUCTURAL WARM START in an
+unfamiliar codebase, then gets out of the way. It exposes three tools. Prefer
+them for the cases below; for everything else your own Grep + a narrow Read
+(offset+limit) is the leanest path — do not reach for a tool when a targeted
+Read will do.
 
 TOOL SELECTION RULES — follow by default, no need to ask the user:
 
-1. Codebase navigation ("what's in this file?", "list the methods on Foo")
-   → OutlineCSharpFile. Signatures only, no bodies, typical 70-95% reduction.
-   C# only.
+1. Orient in a C#/VB file ("what's in this file?", "where do I add X?", or
+   before editing any file >=50 lines) -> OutlineCSharpFile. Returns every type
+   and member as a signature, NO bodies (typical 70-95% smaller), each tagged
+   with its source line range (// L31-44). To then read a body, Read that exact
+   range (offset+limit) — do NOT re-read the whole file. C#/VB only.
 
-2. User references a specific C# method ("look at Foo in Bar.cs", "speed up X")
-   → FocusMethod with methodName set, depth=1, and minify=true. depth=1
-   includes the bodies of private helpers; without those, your suggestions
-   will hallucinate helper logic. methodName also accepts a CLASS NAME to
-   target a constructor. C# only.
-   TWO OR MORE methods at once → FocusMultipleMethods with a comma-separated
-   methodNames list (class names allowed too); one parse, deduplicated
-   signatures — smaller than N separate FocusMethod calls.
-   On a NOT FOUND, act on any hint in the response: a partial type's member
-   may be in a sibling file (glob the folder for the type's other parts); a
-   type with a base list may inherit the member (focus the file declaring the
-   base type). Don't give up or guess the body.
+2. Read or compress a whole file of a supported type -> MinifyFile.
+   Auto-dispatches by extension; strips comments/whitespace losslessly. Use it
+   for non-C# files, or when you genuinely need a whole C# file rather than its
+   skeleton. For C#, prefer OutlineCSharpFile — it saves far more.
 
-3. Read or analyze a whole file of any supported type → MinifyFile.
-   Auto-dispatches by extension. For C#, MinifyCSharpFile is equivalent
-   (back-compat).
+3. Where is a type wired in DI, and to what / what lifetime? ->
+   TraceDiRegistrations with the project directory or .csproj path and the type
+   name (interface OR concrete). Returns a compact table: file:line, method,
+   ServiceType -> ImplType, lifetime, keyed key. C# only — this is the one thing
+   Grep cannot answer cleanly.
 
-4. C# file dominated by long private symbol names → consider AliasCSharpFile.
-   Private members renamed to short codes with a ledger. C# only.
+AFTER any tool call on a file, Read ONLY the lines you need to change
+(offset+limit, ~5 lines around the match) — never the whole file. Do NOT call
+any tool on a file under 50 lines; use Read. SKIP these tools for unsupported
+types (.txt, .sql, binary) or when the user asks for the raw file.
 
-5. What calls a method across the WHOLE PROJECT → TraceCallers with the
-   project directory or .csproj path and the method name. Use instead of
-   FocusCallers when you don't know which file to look in. C# only.
-   EXCEPTION — existence checks ("is X used?", "does anything reference X?"):
-   use Grep first; only escalate to TraceCallers when you need to see HOW
-   callers use the method. A widely-used method can cost 100K+ tokens.
+SUPPORTED TYPES (MinifyFile, by extension): C#/Razor, JavaScript, TypeScript,
+Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, XML/.NET project files (.csproj,
+.props, .targets, .config, .resx), C/C++, X++, VB.NET. OutlineCSharpFile: .cs,
+.razor.cs, .razor, .vb.
 
-6. What implements an interface or extends a base type → TraceImplementors
-   with the project directory or .csproj path and the type name. Returns a
-   focused type view per implementor found across the project. C# only.
+OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH: comments, XML docs and
+#regions are stripped; field initializers omitted; whitespace collapsed — the
+real file is conventionally formatted. When suggesting code, format it
+idiomatically and preserve existing comments.
 
-7. Where a type is registered / wired in DI, what it resolves to, or its
-   lifetime — OR a constructor caller-trace for a DI-constructed type came
-   back empty (the container builds it, no 'new') → TraceDiRegistrations with
-   the project directory or .csproj path and the type name (interface OR
-   concrete). Compact table of every Add/TryAdd/AddKeyed registration:
-   file:line, method, ServiceType -> ImplType, keyed key. Chain to
-   FocusMethod / TraceImplementors for the implementation body. C# only.
-
-8. Don't know which file a type is in, or want a project overview →
-   MapProject with the project directory or .csproj path; use instead of Grep
-   for type discovery, then drill in with FocusMethod / FocusType. Pass
-   nameFilter to narrow on large repos. C# only. DISABLED BY DEFAULT (opt-in
-   via TOKENSAVER_ENABLE_MAP_PROJECT=1); on a "disabled" notice do not retry —
-   fall back to Grep, FocusType, or OutlineCSharpFile.
-
-SKIP these tools for: unsupported file types (.txt, .sql, binary), small files
-(<50 lines), or when the user explicitly asks you to read the raw file.
-
-In agent / edit mode, comprehension still goes through a tokensaver tool
-FIRST — never Read a supported file just to understand it before editing.
-Only after the tool has shown you the target do you Read, and then only the
-lines containing the match string (±5) — never the whole file, and never
-before the tool. This applies per-file, every time: having used a tool
-earlier this turn, or having edited another file already, does NOT license a
-raw Read of the next file to understand it.
-
-SUPPORTED FILE TYPES (via MinifyFile, auto-dispatched by extension):
-  C#/Razor (.cs, .razor.cs, .razor) · JavaScript (.js, .mjs, .cjs, .jsx) ·
-  TypeScript (.ts, .tsx, .mts, .cts) · Python (.py, .pyi) · HTML (.html,
-  .htm) · CSS/SCSS/LESS · JSON/JSONC · YAML (.yaml, .yml) · XML/.NET project
-  (.xml, .csproj, .props, .targets, .config, .resx) · C (.c, .h) · C++ (.cpp,
-  .cc, .cxx, .hpp, .hh, .hxx, .inl) · X++ (.xpp) · VB.NET (.vb) · Markdown
-  (.md, .markdown)
-
-THE TOOL OUTPUT IS A SUMMARY VIEW, NOT THE SOURCE OF TRUTH:
-- Comments, XML docs, and #region directives are stripped; they exist in the
-  real file. Field signatures omit initializers ("private int _count;" not
-  "= 0").
-- Whitespace is collapsed (indent-sensitive formats keep indentation); the
-  real file is conventionally formatted.
-- AliasCSharpFile renames private C# symbols to short codes; the real file
-  uses the original names (the ledger maps back).
-- Tools NEVER return more tokens than the original file.
-
-When suggesting code or making edits, always:
-- Format suggested code idiomatically — no minification carried into output.
-- Preserve existing comments and doc comments when modifying a function.
-- Use original symbol names (not M1/P1/F1 aliases) in code the user will
-  paste into their file.
-
-REPORTING TO THE USER:
-Each tool result starts with a token-comparison header, up to three lines:
-"// [Focused Emitter] Tokens without tool: 7,083  →  with tool: 3,133 (55% saved)"
-"// vs a targeted read of just the relevant code (4,200 tokens): 25% saved"
-"// session: 4 calls · saved 24,800 · net 22,700 after 2,100 overhead"
-Line 1 compares against reading the WHOLE file (a best case); line 2, when
-present, against reading only the relevant code. Mention the savings in one
-short sentence; prefer line 2 or give the range — don't claim the whole-file
-figure as guaranteed. On a repeat view of the same file, line 1 becomes a
-"repeat view" note and the whole-file saving is not credited again — never
-re-report a whole-file "% saved" for a repeat view.
-
-NOTE: VS Copilot's #filename syntax and the Active Document context button
-inline the entire file BEFORE this server is consulted. For token reduction,
-reference files as plain text (e.g. "look at OnRunSql in SqlQuery.razor") and
-remove any # or Active Document reference; reserve those for small files.
+Each result starts with a token-comparison header: a whole-file baseline (a
+best case), a targeted-read baseline when available, and a running session
+total net of the one-time overhead. Mention savings in one short sentence;
+don't present the whole-file figure as guaranteed.
 """;
 
 var startupVersion = System.Reflection.Assembly.GetExecutingAssembly()

@@ -25,6 +25,7 @@ public static class FocusedEmitterTools
             Interlocked.Exchange(ref _sessionBefore, 0);
             Interlocked.Exchange(ref _sessionAfter, 0);
             _sessionSourcesCounted.Clear();
+            _sessionOutlined.Clear();
         }
     }
     private static int _overheadTokens;
@@ -38,6 +39,26 @@ public static class FocusedEmitterTools
     // because Windows paths are case-insensitive.
     private static readonly ConcurrentDictionary<string, byte> _sessionSourcesCounted =
         new(StringComparer.OrdinalIgnoreCase);
+
+    // Files that have been outlined this session. A focus on an already-outlined file is
+    // a double-view: the agent already holds every signature plus each member's line range,
+    // so a narrow Read of that range is cheaper than re-emitting the file through focus.
+    private static readonly ConcurrentDictionary<string, byte> _sessionOutlined =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Explains the bodies-only trim applied when focus runs on a file already outlined this
+    /// session — the class shell and unchanged signatures are dropped because the outline
+    /// already showed them, so a focus-after-outline costs almost nothing.
+    /// </summary>
+    private static string BodiesOnlyNote(bool bodiesOnly)
+    {
+        if (!bodiesOnly)
+            return "";
+        return "// Bodies-only: this file was outlined earlier this session, so usings, the " +
+               "class shell, and unchanged signatures are omitted (they're in that outline). " +
+               "Read a member's `// L..` range for full surrounding context.\n";
+    }
 
     public static int ComputeOverheadTokens(string serverInstructions)
     {
@@ -63,7 +84,7 @@ public static class FocusedEmitterTools
         }
         return TokenCounter.Count(sb.ToString());
     }
-    [McpServerTool, Description(
+    [Description(
         "Returns a focused subset of a C# or VB.NET file: the named method with full body, " +
         "plus the SIGNATURES of anything it references. Drops unrelated members " +
         "entirely. Use this when the user asks about a specific method — refactor, " +
@@ -76,7 +97,9 @@ public static class FocusedEmitterTools
         "If methodName contains a comma (e.g. 'Foo,Bar'), the call is routed to " +
         "focus_multiple_methods automatically — but prefer calling that tool " +
         "directly when you already know you want several methods. " +
-        "Supports .cs, .razor.cs, .razor, and .vb files.")]
+        "Supports .cs, .razor.cs, .razor, and .vb files. " +
+        "After calling this tool, do NOT Read the same file whole — " +
+        "Read only the lines you need to edit (offset+limit).")]
     public static string FocusMethod(
         [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath,
         [Description("The method name to focus on. Overloads are all included.")] string methodName,
@@ -110,7 +133,10 @@ public static class FocusedEmitterTools
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
-            var result = emitter.Emit(methodName, depth);
+            // If the file was already outlined this session, return bodies-only — the class
+            // shell and signatures are redundant — so a focus-after-outline costs almost nothing.
+            var bodiesOnly = _sessionOutlined.ContainsKey(filePath);
+            var result = emitter.Emit(methodName, depth, bodiesOnly);
 
             if (!result.Found)
             {
@@ -135,6 +161,7 @@ public static class FocusedEmitterTools
             var afterTokens = TokenCounter.Count(output);
             var relevantBaseline = RelevantBaseline(result);
             var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter", "C#", $"focus={methodName} depth={depth} minify={minify}", relevantBaseline, sessionKey: filePath)
+                 + BodiesOnlyNote(bodiesOnly)
                  + result.Notes
                  + "\n"
                  + output;
@@ -151,7 +178,7 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
+    [Description(
         "Same as focus_method but focuses on MULTIPLE named methods in a single call. " +
         "The file is parsed once and referenced signatures are deduplicated across all " +
         "focus methods — so the combined output is smaller than N separate focus_method " +
@@ -160,7 +187,9 @@ public static class FocusedEmitterTools
         "revealed a set of related methods to inspect. Provide method names as a " +
         "comma-separated list (e.g. 'ExecSql,ClearGrid,SetBusy'). depth=1 includes " +
         "private helper method and property bodies for ALL listed methods. " +
-        "Supports .cs, .razor.cs, .razor, and .vb files.")]
+        "Supports .cs, .razor.cs, .razor, and .vb files. " +
+        "After calling this tool, do NOT Read the same file whole — " +
+        "Read only the lines you need to edit (offset+limit).")]
     public static string FocusMultipleMethods(
         [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file.")] string filePath,
         [Description("Comma-separated method names, e.g. 'ExecSql,ClearGrid,SetBusy'.")] string methodNames,
@@ -197,7 +226,8 @@ public static class FocusedEmitterTools
                 return cached;
 
             var emitter = new FocusedEmitter(filePath);
-            var result = emitter.EmitMultiple(names, depth);
+            var bodiesOnly = _sessionOutlined.ContainsKey(filePath);
+            var result = emitter.EmitMultiple(names, depth, bodiesOnly);
 
             if (!result.Found)
             {
@@ -216,6 +246,7 @@ public static class FocusedEmitterTools
             var afterTokens = TokenCounter.Count(output);
             var relevantBaseline = RelevantBaseline(result);
             var fullOutput = BuildHeader(beforeTokens, afterTokens, "Focused Emitter (multi)", "C#", $"focus=[{string.Join(",", names)}] depth={depth} minify={minify}", relevantBaseline, sessionKey: filePath)
+                 + BodiesOnlyNote(bodiesOnly)
                  + result.Notes
                  + "\n"
                  + output;
@@ -232,35 +263,76 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
-        "Returns a lossless minified copy of a C# file: comments and XML docs " +
-        "are stripped, whitespace is collapsed, but every line of LOGIC is " +
-        "preserved verbatim (Roslyn parses and re-emits the syntax tree). Use " +
-        "this when the AI genuinely needs the entire file — for cross-cutting " +
-        "questions, multi-method analysis, or when you don't yet know which " +
-        "method matters. Typical reduction: 20-50% depending on comment density.")]
-    public static string MinifyCSharpFile(
-        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath)
+    [Description(
+        "Cross-file form of FocusMultipleMethods: focuses methods from SEVERAL " +
+        "files in one round-trip. spec is 'fileA|m1,m2;fileB|m3' — '|' splits a " +
+        "path from its comma-separated method names, ';' splits files (class " +
+        "names allowed; already-outlined files auto-trim to bodies-only). " +
+        "C#/VB.NET only.")]
+    public static string FocusMethodsAcrossFiles(
+        [Description("'fileA|m1,m2;fileB|m3' groups.")] string spec,
+        [Description("0 = signatures for callees (default); 1 = include private helper bodies.")] int depth = 0,
+        [Description("If true, strip comments/whitespace for extra savings.")] bool minify = false)
     {
         try
         {
-            var originalText = File.ReadAllText(filePath);
-            var emitter = new FocusedEmitter(filePath);
-            var result = emitter.EmitMinified();
+            var groups = spec
+                .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
-            var bodyCs = result.FocusedChars >= result.OriginalChars
-                ? originalText
-                : result.Output;
+            if (groups.Count == 0)
+                return "ERROR: No file groups provided. Expected 'fileA.cs|Foo,Bar;fileB.cs|Baz'.";
 
-            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(bodyCs), "MinifyCSharpFile", "C#", "whole-file lossless minify", sessionKey: filePath)
-                 + result.Notes
-                 + "\n"
-                 + bodyCs;
+            var sections = new List<string>(groups.Count);
+            var fileCount = 0;
+            foreach (var group in groups)
+            {
+                var sep = group.IndexOf('|');
+                if (sep < 0)
+                {
+                    sections.Add($"ERROR: Group '{group}' is missing the '|' between the file path and its method names.");
+                    continue;
+                }
+
+                var filePath = group[..sep].Trim();
+                var methodNames = group[(sep + 1)..].Trim();
+                if (filePath.Length == 0 || methodNames.Length == 0)
+                {
+                    sections.Add($"ERROR: Group '{group}' must be 'filePath|method1,method2'.");
+                    continue;
+                }
+
+                fileCount++;
+                sections.Add(FocusMultipleMethods(filePath, methodNames, depth, minify));
+            }
+
+            // Each section carries its own per-file header/ledger from FocusMultipleMethods;
+            // a single lead line records that this was one round-trip across N files.
+            var lead = $"// [Focused Emitter (across {fileCount} file{(fileCount == 1 ? "" : "s")})] one call — bodies focused per file below\n";
+            return lead + string.Join("\n\n", sections);
         }
         catch (Exception ex)
         {
+            LogInvocation("Focused Emitter (across files)", "C#", "EXCEPTION", 0, 0);
             return $"ERROR: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Minify only strips comments/whitespace — bodies are kept verbatim, so on
+    /// body-dense code (few comments) the saving is small. When token reduction
+    /// lands under ~30% on a C# file, nudge toward the bodyless tools that save
+    /// far more. Uses the same token counts as the header so the percentages agree.
+    /// Returns "" for non-C# files (they have no outline/focus tool) and for
+    /// reductions at or above the threshold.
+    /// </summary>
+    private static string LowSavingNudge(int beforeTokens, int afterTokens, bool csharp)
+    {
+        if (!csharp || beforeTokens == 0) return "";
+        var reduction = 1.0 - (double)afterTokens / beforeTokens;
+        if (reduction >= 0.30) return "";
+        return $"// Low saving ({reduction:P0}) — this file is body-dense, not comment-heavy. " +
+               "For navigation use outline_c_sharp_file; for one method use focus_method — both drop bodies and save far more.\n";
     }
 
     [McpServerTool, Description(
@@ -273,12 +345,15 @@ public static class FocusedEmitterTools
         "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
         "C (.c, .h), C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl), " +
         "X++ (.xpp — C-style comment strip + whitespace collapse), " +
-        "VB.NET (.vb — Roslyn comment strip + blank-run collapse), " +
-        "and Markdown (.md, .markdown — HTML comments stripped, blank-run collapse). " +
+        "and VB.NET (.vb — Roslyn comment strip + blank-run collapse). " +
         "Code minifiers strip comments and collapse whitespace. " +
-        "Indent-sensitive formats (Python, YAML, Markdown) preserve leading indentation. " +
+        "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
         "Use this when working in a polyglot codebase or when reading " +
-        "config/project files.")]
+        "config/project files. " +
+        "Do NOT call on files under 50 lines — the tool-call overhead exceeds " +
+        "the savings; use the Read tool instead. " +
+        "After calling this tool on a C# file, do NOT Read the same file whole — " +
+        "use focus_method then Read only the changed lines (offset+limit).")]
     public static string MinifyFile(
         [Description("Absolute path to a source file. Language is detected by extension.")] string filePath)
     {
@@ -295,8 +370,11 @@ public static class FocusedEmitterTools
                 ? originalText
                 : result.Output;
 
-            return BuildHeader(TokenCounter.Count(originalText), TokenCounter.Count(body), "MinifyFile", emitter.Language, $"{emitter.Language} minify", sessionKey: filePath)
+            var beforeTokens = TokenCounter.Count(originalText);
+            var afterTokens = TokenCounter.Count(body);
+            return BuildHeader(beforeTokens, afterTokens, "MinifyFile", emitter.Language, $"{emitter.Language} minify", sessionKey: filePath)
                  + result.Notes
+                 + LowSavingNudge(beforeTokens, afterTokens, csharp: emitter.Language == "C#")
                  + "\n"
                  + body;
         }
@@ -311,14 +389,26 @@ public static class FocusedEmitterTools
         "signature, with NO method/property bodies. Useful for codebase " +
         "navigation questions like 'what's in this file?' or 'where would I " +
         "add X?' where bodies aren't needed. Typical reduction: 70-95% on " +
-        "large files. Much cheaper than MinifyCSharpFile when the task is " +
+        "large files. Much cheaper than MinifyFile when the task is " +
         "discovery rather than understanding implementation. " +
-        "Supports .cs, .razor.cs, .razor, and .vb files.")]
+        "Supports .cs, .razor.cs, .razor, and .vb files. " +
+        "Each member is annotated with its source line range, e.g. " +
+        "`public Task Foo();  // L31-44`. " +
+        "Do NOT call on files under 50 lines — the tool-call overhead exceeds " +
+        "the savings; use the Read tool instead. " +
+        "After calling this tool, to read a method body Read its printed `// L..` " +
+        "line-range (Read with offset+limit) — do NOT Read the whole file. FocusMethod " +
+        "on an already-outlined file auto-trims to bodies-only (signatures are not " +
+        "repeated), so it is cheap too; a narrow Read of the line-range is leanest.")]
     public static string OutlineCSharpFile(
         [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file.")] string filePath)
     {
         try
         {
+            // Record that this file was outlined so a later focus on it can suggest a
+            // narrow Read of the printed line-range instead of a redundant second view.
+            _sessionOutlined.TryAdd(filePath, 0);
+
             if (IsVbFile(filePath))
             {
                 var vb = new VBFocusedEmitter(filePath);
@@ -340,38 +430,11 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
-        "Returns a minified C# file with PRIVATE methods, properties, fields, " +
-        "and events renamed to short codes (M1, P1, F1, E1...). A symbol ledger " +
-        "is prepended so the AI can map back. Public/internal/protected names are " +
-        "left alone — they may be called from other files we can't see. Best on " +
-        "files with many long private symbol names. On files with few or short " +
-        "private members, the ledger overhead can outweigh savings — use the " +
-        "plain minify tool instead in that case.")]
-    public static string AliasCSharpFile(
-        [Description("Absolute path to a .cs, .razor.cs, or .razor file. For .razor, only the @code / @functions blocks are analyzed.")] string filePath)
-    {
-        try
-        {
-            var emitter = new FocusedEmitter(filePath);
-            var result = emitter.EmitAliased();
-
-            return BuildHeader(TokenCounter.Count(File.ReadAllText(filePath)), TokenCounter.Count(result.Output), "AliasCSharpFile", "C#", "aliased + minified", sessionKey: filePath)
-                 + result.Notes
-                 + "\n"
-                 + result.Output;
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
-
-    [McpServerTool, Description(
+    [Description(
         "Returns a focused view of a NAMED TYPE in a C# or VB.NET file: non-private members " +
         "(public, protected, internal/Friend) are shown with their full bodies; private " +
         "members are shown as signatures only. Sits between outline_c_sharp_file " +
-        "(all signatures) and minify_c_sharp_file (everything) in terms of detail. " +
+        "(all signatures) and minify_file (everything) in terms of detail. " +
         "Best when: the file contains multiple types and you only need one; or you " +
         "want the full contract/behaviour of a class but can skip its private " +
         "implementation noise. Supply the simple class/record/interface name, not " +
@@ -434,7 +497,7 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
+    [Description(
         "Finds all methods in a C# or VB.NET file that CALL a given method name, then returns " +
         "them as a focused multi-method view (full bodies + shared signatures). " +
         "USE FOR DISCOVERY ONLY — call this when you do not yet know which methods call the target. " +
@@ -499,7 +562,7 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
+    [Description(
         "PROJECT-WIDE version of focus_callers. Scans every .cs file in a project " +
         "directory and returns focused views of ALL methods that call the named method, " +
         "grouped by file. Answers 'what calls X across the whole codebase?' in one call. " +
@@ -554,7 +617,7 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
+    [Description(
         "Finds all types (classes, structs, records) across a project that implement or " +
         "extend a named interface or base type, then returns a focused type view for each. " +
         "Answers 'what implements IFoo?' or 'what extends BaseBar?' in one call. " +
@@ -664,7 +727,7 @@ public static class FocusedEmitterTools
         }
     }
 
-    [McpServerTool, Description(
+    [Description(
         "Maps every type (class/struct/record/interface/enum) in a project to its file:line, " +
         "kind, and base list — a compact index for locating types when you don't know which " +
         "file they're in. Prefer over Grep for type discovery, then drill in with focus_method/" +

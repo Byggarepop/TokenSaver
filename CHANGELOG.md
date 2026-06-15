@@ -2,6 +2,22 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [Unreleased]
+
+### Changed — stripped to a warm-start tool set
+- Reduced the advertised MCP surface from 11 tools to **3**: `OutlineCSharpFile`
+  (structural warm start), `MinifyFile` (whole-file, all languages), and
+  `TraceDiRegistrations` (DI wiring — the one discovery grep can't do cleanly).
+  The focus/trace family (`FocusMethod`, `FocusMultipleMethods`,
+  `FocusMethodsAcrossFiles`, `FocusType`, `FocusCallers`, `TraceCallers`,
+  `TraceImplementors`, `MapProject`) is no longer registered as an MCP tool.
+- Fixed per-session overhead dropped **4,134 → 1,504 tokens** (−64%):
+  `ServerInstructions` rewritten for the 3-tool set and 8 tool schemas removed.
+  Rationale: a controlled A/B (outline-only vs full toolset vs no-MCP) showed the
+  focus/trace tools added no measured token value on scoped tasks; the durable win
+  is a cheap structural warm start, after which `Grep` + a narrow `Read` of the
+  outline's line-ranges does the rest.
+
 ## [1.14.1] — 2026-06-11
 
 ### Improvements

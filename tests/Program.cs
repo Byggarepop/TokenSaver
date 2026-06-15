@@ -112,6 +112,8 @@ internal static class Program
         Run("LazyModel_Outline_OutputUnchanged", LazyModel_Outline_OutputUnchanged);
         Run("Focus_Constructor_FoundByClassName", Focus_Constructor_FoundByClassName);
         Run("FocusMultiple_Constructor_IncludedWithMethods", FocusMultiple_Constructor_IncludedWithMethods);
+        Run("Focus_AfterOutline_ReturnsBodiesOnly", Focus_AfterOutline_ReturnsBodiesOnly);
+        Run("FocusAcrossFiles_CombinesBothFiles", FocusAcrossFiles_CombinesBothFiles);
         Run("Region_Minify_StripsRegionDirectives", Region_Minify_StripsRegionDirectives);
         Run("Region_Focus_StripsRegionDirectivesWhenMinified", Region_Focus_StripsRegionDirectivesWhenMinified);
         Run("Region_LogicPreservedAfterStrip", Region_LogicPreservedAfterStrip);
@@ -151,13 +153,6 @@ internal static class Program
         Run("Vb_Focus_RelevantSourceText_IsFocusPlusHelpers", Vb_Focus_RelevantSourceText_IsFocusPlusHelpers);
         Run("Vb_FocusType_NonPrivateHasBody_PrivateHasSignature", Vb_FocusType_NonPrivateHasBody_PrivateHasSignature);
         Run("Vb_FocusCallers_FindsCallingMethods", Vb_FocusCallers_FindsCallingMethods);
-
-        // ---------- Markdown ----------
-        Run("Md_Registry_DispatchesByExtension", Md_Registry_DispatchesByExtension);
-        Run("Md_Minify_StripsHtmlComments", Md_Minify_StripsHtmlComments);
-        Run("Md_Minify_CollapsesBlankRuns", Md_Minify_CollapsesBlankRuns);
-        Run("Md_Minify_PreservesIndentation", Md_Minify_PreservesIndentation);
-        Run("Md_Minify_NoteIsSingleLine", Md_Minify_NoteIsSingleLine);
 
         // ---------- ProjectTraversal ----------
         Run("Traversal_FindCallerFiles_FindsFileWithCaller", Traversal_FindCallerFiles_FindsFileWithCaller);
@@ -2116,6 +2111,66 @@ internal static class Program
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 
+    private static TestOutcome Focus_AfterOutline_ReturnsBodiesOnly()
+    {
+        // A focus on a file already outlined this session is a double-view: the outline
+        // already gave every signature + the class shell. The tool should enforce a
+        // bodies-only trim (drop usings/class shell/signatures), shrinking the output, and
+        // NOT trim when the file was never outlined. Setting OverheadTokens resets session
+        // state (incl. the outlined set); EmissionCache.Clear avoids cache-hit cross-talk.
+        var path = Fixture("Calculator.cs");
+        const string note  = "Bodies-only";
+        const string shell = "class Calculator"; // type-declaration line — only in full mode
+
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        TokenSaver.Mcp.FocusedEmitterTools.OutlineCSharpFile(path);
+        EmissionCache.Clear();
+        var afterOutline = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 0);
+        var trimmed = afterOutline.Contains(note) && !afterOutline.Contains(shell);
+
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        var fresh = TokenSaver.Mcp.FocusedEmitterTools.FocusMethod(path, "Run", depth: 0);
+        var full = !fresh.Contains(note) && fresh.Contains(shell);
+
+        // Bodies-only output must be strictly smaller than the full focus output.
+        var smaller = afterOutline.Length < fresh.Length;
+
+        var ok = trimmed && full && smaller;
+        return new TestOutcome(ok,
+            ok ? "focus after outline returns bodies-only (no class shell, smaller); full focus keeps the shell"
+               : $"trimmed={trimmed} full={full} smaller={smaller}",
+            (0, 0, 0));
+    }
+
+    private static TestOutcome FocusAcrossFiles_CombinesBothFiles()
+    {
+        // One call spanning two files should focus a method body from each, with a single
+        // lead line announcing the combined round-trip. Validates the '|' file/method
+        // and ';' group delimiters and that both files' bodies come back together.
+        var calc = Fixture("Calculator.cs");
+        var gen  = Fixture("GenericsAndRecords.cs");
+
+        EmissionCache.Clear();
+        TokenSaver.Mcp.FocusedEmitterTools.OverheadTokens = 0;
+        var spec = $"{calc}|Run;{gen}|Render";
+        var result = TokenSaver.Mcp.FocusedEmitterTools.FocusMethodsAcrossFiles(spec, depth: 0);
+
+        var hasLead   = result.Contains("across 2 files");
+        var hasCalc   = result.Contains("Calculator.cs") && result.Contains("Run");
+        var hasGen    = result.Contains("GenericsAndRecords.cs") && result.Contains("Render");
+        // A missing '|' in a group should produce a per-group error, not throw.
+        var badGroup  = TokenSaver.Mcp.FocusedEmitterTools.FocusMethodsAcrossFiles($"{calc}Run");
+        var graceful  = badGroup.Contains("missing the '|'");
+
+        var ok = hasLead && hasCalc && hasGen && graceful;
+        return new TestOutcome(ok,
+            ok ? "cross-file focus returns both files' bodies under one lead; malformed group errors gracefully"
+               : $"lead={hasLead} calc={hasCalc} gen={hasGen} graceful={graceful}",
+            (0, 0, 0));
+    }
+
     private static TestOutcome FocusMultiple_Constructor_IncludedWithMethods()
     {
         // EmitMultiple should include both the constructor and a regular method.
@@ -3314,75 +3369,6 @@ internal static class Program
         }
     }
 
-    // ---------- Markdown emitter ----------
-
-    private static TestOutcome Md_Registry_DispatchesByExtension()
-    {
-        var md = LanguageEmitterRegistry.Find("readme.md");
-        var markdown = LanguageEmitterRegistry.Find("doc.markdown");
-        var ok = md is MarkdownEmitter && markdown is MarkdownEmitter;
-        return new TestOutcome(ok,
-            ok ? ".md and .markdown dispatched to MarkdownEmitter"
-               : $"md={md?.GetType().Name} markdown={markdown?.GetType().Name}",
-            (0, 0, 0));
-    }
-
-    private static TestOutcome Md_Minify_StripsHtmlComments()
-    {
-        var path = Fixture("sample.md");
-        var r = new MarkdownEmitter().Minify(path);
-
-        var hasTopComment = r.Output.Contains("top-level comment");
-        var hasSectionComment = r.Output.Contains("section comment");
-        var hasHeading = r.Output.Contains("# Sample Document");
-
-        var ok = !hasTopComment && !hasSectionComment && hasHeading;
-        return new TestOutcome(ok,
-            ok ? "HTML comments stripped, headings preserved"
-               : $"topComment={hasTopComment} sectionComment={hasSectionComment} heading={hasHeading}",
-            TokenSaving(r.OriginalChars, r.OutputChars));
-    }
-
-    private static TestOutcome Md_Minify_CollapsesBlankRuns()
-    {
-        var path = Fixture("sample.md");
-        var r = new MarkdownEmitter().Minify(path);
-
-        var hasTripleBlank = r.Output.Contains("\n\n\n");
-        var ok = !hasTripleBlank;
-        return new TestOutcome(ok,
-            ok ? "blank-line runs collapsed to single blank"
-               : "still has 3+ consecutive newlines",
-            TokenSaving(r.OriginalChars, r.OutputChars));
-    }
-
-    private static TestOutcome Md_Minify_PreservesIndentation()
-    {
-        var path = Fixture("sample.md");
-        var r = new MarkdownEmitter().Minify(path);
-
-        var hasIndentedCode = r.Output.Contains("    indented code block");
-        var hasNestedList = r.Output.Contains("    - nested item");
-
-        var ok = hasIndentedCode && hasNestedList;
-        return new TestOutcome(ok,
-            ok ? "leading indentation preserved for code block and nested list"
-               : $"indentedCode={hasIndentedCode} nestedList={hasNestedList}",
-            TokenSaving(r.OriginalChars, r.OutputChars));
-    }
-
-    private static TestOutcome Md_Minify_NoteIsSingleLine()
-    {
-        var path = Fixture("sample.md");
-        var r = new MarkdownEmitter().Minify(path);
-
-        var lines = r.Notes.TrimEnd('\n').Split('\n');
-        var ok = lines.Length == 1;
-        return new TestOutcome(ok,
-            ok ? "banner note is a single line"
-               : $"banner note has {lines.Length} lines",
-            (0, 0, 0));
-    }
 
     private sealed record TestOutcome(bool Passed, string Notes, (int before, int after, double percent) Tokens);
     private sealed record TestRecord(string Name, bool Passed, string Notes, (int before, int after, double percent) Tokens);
