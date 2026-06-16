@@ -92,6 +92,8 @@ internal static class Program
         Run("Razor_MultipleCodeBlocks_BothBlocksMerged", Razor_MultipleCodeBlocks_BothBlocksMerged);
         Run("Razor_Focus_FindsMethodInFirstCodeBlock", Razor_Focus_FindsMethodInFirstCodeBlock);
         Run("Razor_BracesInStrings_DoNotCorruptExtraction", Razor_BracesInStrings_DoNotCorruptExtraction);
+        Run("Razor_Outline_LineRangesMatchOriginalFile", Razor_Outline_LineRangesMatchOriginalFile);
+        Run("Razor_Outline_SingleBlockLineRanges", Razor_Outline_SingleBlockLineRanges);
         Run("C_Registry_DispatchesByExtension", C_Registry_DispatchesByExtension);
         Run("C_Minify_StripsComments", C_Minify_StripsComments);
         Run("C_Minify_PreservesPreprocessorDirectives", C_Minify_PreservesPreprocessorDirectives);
@@ -1552,6 +1554,61 @@ internal static class Program
         return new TestOutcome(ok,
             ok ? "} inside string literal did not truncate first @code block"
                : $"ExecSql={hasExecSql} ClearGrid={hasClearGrid} (brace-in-string corruption likely)",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    // The // L.. range an outline prints for a member must point at the member's REAL
+    // line in the .razor file (so a narrow Read of that range lands on the right code).
+    // Returns the 1-based start line the outline printed for `member`, or -1 if absent.
+    private static int OutlineRangeStart(string outlineOutput, string member)
+    {
+        foreach (var line in outlineOutput.Split('\n'))
+        {
+            if (!line.Contains(member)) continue;
+            var marker = line.IndexOf("// L", StringComparison.Ordinal);
+            if (marker < 0) continue;
+            int p = marker + 4;
+            var digits = "";
+            while (p < line.Length && char.IsDigit(line[p])) { digits += line[p]; p++; }
+            return digits.Length > 0 ? int.Parse(digits) : -1;
+        }
+        return -1;
+    }
+
+    private static TestOutcome Razor_Outline_LineRangesMatchOriginalFile()
+    {
+        // multi-code-block.razor: ExecSql 13-17, ClearGrid 19-22 live in the FIRST @code
+        // block; _selectedIndex is at line 27 in the SECOND block. All ranges must reflect
+        // real file lines across both blocks, not synthetic-class offsets.
+        var path = Fixture("multi-code-block.razor");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var exec = OutlineRangeStart(r.Output, "ExecSql");
+        var clear = OutlineRangeStart(r.Output, "ClearGrid");
+        var selected = OutlineRangeStart(r.Output, "_selectedIndex");
+
+        var ok = r.Found && exec == 13 && clear == 19 && selected == 27;
+        return new TestOutcome(ok,
+            ok ? "outline line ranges match real .razor lines across both @code blocks (ExecSql=13, ClearGrid=19, _selectedIndex=27)"
+               : $"ExecSql={exec} (want 13), ClearGrid={clear} (want 19), _selectedIndex={selected} (want 27)",
+            TokenSaving(r.OriginalChars, r.FocusedChars));
+    }
+
+    private static TestOutcome Razor_Outline_SingleBlockLineRanges()
+    {
+        // code-block-offset.razor pushes @code down past markup + a <style> block:
+        // _counter is on line 16 and DoWork on lines 18-20. A buggy preprocessor that
+        // renumbers from the synthetic class would report these ~11 lines too low.
+        var path = Fixture("code-block-offset.razor");
+        var r = new FocusedEmitter(path).EmitOutline();
+
+        var counter = OutlineRangeStart(r.Output, "_counter");
+        var work = OutlineRangeStart(r.Output, "DoWork");
+
+        var ok = r.Found && counter == 16 && work == 18;
+        return new TestOutcome(ok,
+            ok ? "outline line ranges survive a deep @code offset (_counter=16, DoWork=18)"
+               : $"_counter={counter} (want 16), DoWork={work} (want 18)",
             TokenSaving(r.OriginalChars, r.FocusedChars));
     }
 

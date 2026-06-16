@@ -1,0 +1,22 @@
+@page "/offset"
+@using System.Text
+
+<div class="wrapper">
+    <h1>Heading</h1>
+    <p>Line of markup</p>
+    <p>Another line</p>
+    <button @onclick="DoWork">Go</button>
+</div>
+
+<style>
+    .wrapper { padding: 2rem; }
+</style>
+
+@code {
+    private int _counter;
+
+    private void DoWork()
+    {
+        _counter++;
+    }
+}

@@ -2,6 +2,17 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [Unreleased]
+
+### Fixed
+- `OutlineCSharpFile` on `.razor` files now reports **correct `// L..` line ranges**.
+  The Razor preprocessor previously rebuilt the `@code`/`@functions` C# into a fresh
+  synthetic class, so every member's line number was offset by however far the `@code`
+  block sat in the file — a narrow `Read` of a printed range landed on the wrong lines.
+  Extraction is now line-aligned: each extracted line keeps its original position, so
+  the ranges map straight back to the real `.razor` file. (Surfaced once the warm-start
+  flow — outline then Read the line-range — became the primary path.)
+
 ## [1.15.0] — 2026-06-16
 
 ### Changed — stripped to a warm-start tool set
