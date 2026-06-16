@@ -46,7 +46,7 @@
     <div class="caveat-title">First call in a session</div>
     <p>
         When an AI session starts, the model loads the server instructions and all tool
-        descriptions before any tool is invoked — roughly <strong>4,200 tokens</strong> of fixed
+        descriptions before any tool is invoked — roughly <strong>1,400 tokens</strong> of fixed
         overhead. TokenSaver deducts this cost from the savings reported on the first tool call
         of each session, so the number you see is always the <em>net</em> saving, not a gross figure
         that ignores startup cost. Subsequent calls in the same session show full savings with no
@@ -57,11 +57,9 @@
 <section class="tools">
     <h2>The tools</h2>
     <p style="opacity:.75;font-size:.9rem;margin:.25rem 0 1.25rem;">
-        Percentages are conservative: the focus tools are measured against reading just
-        the relevant code (the method plus its helpers), while whole-file tools like
-        outline and minify compare against the whole file. Measured against reading the
-        entire file the focus figures are far higher — but a careful reader wouldn't load
-        the whole file to answer a single-method question.
+        Percentages compare against reading the whole file — the real alternative when
+        you'd otherwise load it. The end-to-end saving on a task is smaller, and is
+        largest on smaller / cheaper models and large files.
     </p>
 <!-- BEGIN:generated:tools -->
 <div class="tool-grid">
@@ -90,9 +88,9 @@
 <section class="examples">
     <h2>Try saying things like…</h2>
     <p style="opacity:.75;font-size:.9rem;margin:.25rem 0 1.25rem;">
-        Focus-tool percentages are conservative — measured against reading just the
-        relevant code (the method plus the helpers it needs), not the whole file.
-        Outline and minify compare against the whole file, since that is the real alternative.
+        Percentages compare against reading the whole file — the real alternative. The
+        end-to-end saving on a task is smaller and depends on the model: largest on
+        smaller / cheaper models, near noise on a top-tier model that already reads tightly.
     </p>
 
     @{bool shownAdditionalHeader = false;}
@@ -359,8 +357,8 @@
         // ----- Primary: .NET / C# / Razor — fully supported and tested -----
         new("C# outline",
             ".cs",
-            "What's in FocusedEmitter.cs?",
-            "Outline tool returns just the type and method signatures — no bodies.",
+            "What's in OrderService.cs?",
+            "Outline tool returns just the type and method signatures — no bodies — each tagged with its line range, so you can then read just the lines you need.",
             70, 95),
 
         new("C# trace DI registrations",
