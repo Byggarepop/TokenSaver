@@ -2,10 +2,18 @@
 
 <!-- mcp-name: io.github.Byggarepop/tokensaver -->
 
-An MCP server built for **.NET developers** — it gives your AI assistant a
-token-efficient view of C#, Razor, and .NET project files using the Roslyn
-compiler platform. Typical reduction: **50–95 %** on C# files with no loss
-of logic.
+A **structural warm start** for AI coding agents in .NET. Instead of loading
+whole files into your assistant, TokenSaver hands it a cheap map of your code —
+every type and member as a signature, each tagged with its line range — so the
+model reads only the slice it needs instead of slurping the file. Built on the
+Roslyn compiler platform.
+
+**Where it pays off:** outlining a file costs **70–95 % fewer tokens** than
+reading it — up to **90 % on a large file**. The end-to-end win is biggest on
+**smaller / cheaper models** (which over-read the most) and on **large
+codebases**: on real tasks it trims a Haiku-class model's token use by ~8 %, and
+the savings climb with file size. A top-tier model already reads tightly, so it
+sees less benefit — the leaner the model, the more a warm start helps.
 
 Works with:
 - **Visual Studio 2026** (GitHub Copilot Chat)
@@ -26,20 +34,14 @@ Works with:
 
 ## What the tools do
 
-All twelve tools are **C#/Razor-first**. `MinifyFile` also dispatches to the
-basic-tier minifiers for other extensions.
+`OutlineCSharpFile` and `TraceDiRegistrations` are **C#/Razor-first**;
+`MinifyFile` dispatches by extension to minifiers for every supported language.
 
 <!-- BEGIN:generated:tools -->
 ### Single-file tools
 
 - `OutlineCSharpFile(filePath)` — skeleton of a file: types and member signatures, no bodies. Best for navigation ("what's in this file?"). **C# / Razor only.**
-- `FocusMethod(filePath, methodName, depth=0, minify=false)` — emit the named method with full body plus signatures of referenced members. `depth=1` also includes bodies of private helper methods and properties accessed by the focus method. `minify=true` strips comments, `#region`/`#endregion` directives, and collapses whitespace. Pass the **class name** as `methodName` to target a constructor. On a `NOT FOUND`, the response hints where to look when the type is `partial` (a sibling file in the same namespace/folder) or has a base list (an inherited member). **C# / Razor / VB.NET only.**
-- `FocusMultipleMethods(filePath, methodNames, depth=0, minify=false)` — same as `FocusMethod` but focuses on multiple methods in one parse pass. Class names (constructors) can be mixed with method names. **C# / Razor / VB.NET only.**
-- `FocusType(filePath, typeName, minify=false)` — emit a named type with non-private members shown as full bodies and private members as signatures only. Best for "explain class X" questions when the file has multiple types or private helpers dominate. **C# only.**
-- `FocusCallers(filePath, methodName, depth=0, minify=false)` — find all methods in a **single file** that call the named method and return them as a focused multi-method view. Answers "what calls X?" in one round-trip. For project-wide search, use `TraceCallers`. **C# only.**
-- `MinifyCSharpFile(filePath)` — lossless minify of a whole C# file. Strips comments, `#region`/`#endregion` directives, and whitespace; logic preserved verbatim. **C# / Razor only.**
-- `MinifyFile(filePath)` — auto-dispatch by extension. Calls the Roslyn minifier for C#/Razor; falls back to basic minification for other types.
-- `AliasCSharpFile(filePath)` — minify plus rename private symbols to short codes (`M1`, `P1`, `F1`...). Useful on files with very long private names. **C# / Razor only.**
+- `MinifyFile(filePath)` — lossless minify of a whole file, auto-dispatched by extension. Calls the Roslyn minifier for C#/Razor (strips comments, `#region` directives, and whitespace; logic preserved verbatim); falls back to basic minification for other types.
 
 ### Cross-file traversal tools
 
@@ -47,15 +49,11 @@ These scan an entire project directory in one call — no need to know which fil
 to look in first. Both accept a directory path or `.csproj` file; `obj/` and
 `bin/` are excluded automatically. **C# only.**
 
-- `TraceCallers(projectPath, methodName, depth=0, minify=false)` — scans every `.cs` file in the project and returns focused views of all methods that call `methodName`, grouped by file. Answers "what calls X across the whole codebase?" in a single call. Uses name-based matching, same as `FocusCallers`.
-- `TraceImplementors(projectPath, interfaceName, minify=false)` — finds every type that implements or extends the named interface or base type, and returns a focused type view for each. Answers "what implements IFoo?" or "what extends BaseBar?" in a single call.
 - `TraceDiRegistrations(projectPath, typeName)` — finds every Dependency-Injection registration referencing a type (interface or concrete) and returns a compact table: `file:line`, method, `ServiceType -> ImplType`, and keyed key. Answers "where is IFoo wired, and to what implementation?" — the question a constructor caller-trace can't, since DI-built types are never `new`-ed.
-- `MapProject(projectPath, nameFilter?)` — maps every type (class/struct/record/interface/enum) to its `file:line`, kind, and base list. A compact index for locating a type when you don't know its file; pass `nameFilter` to narrow on large repos. Disabled by default — set `TOKENSAVER_ENABLE_MAP_PROJECT=1` to enable.
 <!-- END:generated:tools -->
 
-Each tool result starts with a token-comparison header. For the focused tools
-(`FocusMethod`, `FocusMultipleMethods`, `FocusType`, `FocusCallers`) it has
-three lines:
+Each tool result starts with a token-comparison header. For `OutlineCSharpFile`
+it has up to three lines:
 ```
 // [Focused Emitter] Tokens without tool: 16,800 → with tool: 5,200 (69% saved)
 // vs a targeted read of just the relevant code (7,400 tokens): 29% saved
@@ -129,9 +127,8 @@ Measured against this project's own `FocusedEmitter.cs` (9,261 tokens raw):
 | Question type | Tool used | Tokens sent to AI | Reduction |
 |---|---|---|---|
 | "What's in this file?" | `OutlineCSharpFile` | 1,039 | **89 %** |
-| "Explain the `Emit` method" | `FocusMethod` (depth=1, minify) | 1,437 | **84 %** |
-| "Explain `EmitOutline` and `EmitMinified`" | `FocusMultipleMethods` (minify) | 424 | **95 %** |
-| "Audit the whole file" | `MinifyCSharpFile` | 5,525 | 40 % |
+| "Read one method body" | `OutlineCSharpFile` + a narrow `Read` of its `// L..` range | ~300 | **~95 %** |
+| "Audit the whole file" | `MinifyFile` | 5,525 | 40 % |
 
 The focus example includes `Emit`'s full body, the bodies of 6 private
 helpers it calls, and signatures of 45 other referenced symbols — enough
@@ -269,7 +266,7 @@ Two one-time steps (skip step 1 if you used `register` above).
 - *View → Output*, channel = *GitHub Copilot*. On startup you should see:
   ```
   Successfully started MCP server 'tokensaver'
-  Loaded assets for MCP server 'tokensaver' with 10 tools, 0 prompts, and 0 resources.
+  Loaded assets for MCP server 'tokensaver' with 3 tools, 0 prompts, and 0 resources.
   ```
 - Send a normal prompt in Copilot Chat (no `#` reference):
   > Look at the `OnInitializedAsync` method in `C:\path\to\Foo.cs` and explain it.
@@ -398,7 +395,6 @@ set of supported keys (all optional unless noted):
 | `TOKENSAVER_API_URL` | URL string | *(none)* | Required for telemetry uploads and the community dashboard. Omit to run fully offline. |
 | `TOKENSAVER_NO_TELEMETRY` | `"1"` (any non-empty, non-`"0"` value works) | *(unset)* | Disables telemetry uploads. Local `report.json` is still written. |
 | `TOKENSAVER_CLIENT_ID` | any string | auto-generated UUID | Overrides the auto-generated anonymous client ID used in telemetry. |
-| `TOKENSAVER_ENABLE_MAP_PROJECT` | `"1"` or `"true"` | *(unset — disabled)* | Enables the `MapProject` tool. Disabled by default because an unfiltered project-wide map can be very large. |
 | `TOKENSAVER_DISABLE_AUTOUPDATE` | `"1"` | *(unset — enabled)* | Turns off the background update check. Launches stay pinned to whatever version your config names. |
 | `TOKENSAVER_UPDATE_INTERVAL_MINUTES` | non-negative integer | `"360"` | Minimum minutes between background update checks. `"0"` checks on every launch. |
 

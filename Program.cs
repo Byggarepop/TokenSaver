@@ -153,9 +153,9 @@ $reminder = @"
 You are about to Read a C# file ($path) with the built-in Read tool.
 
 Prefer the roslyn-lean MCP server (registered for this project):
-  - minify_c_sharp_file : lossless ~20-50% reduction for whole-file reads
+  - minify_file         : lossless ~20-50% reduction for whole-file reads
   - focus_method        : when you need a specific method (use depth=1)
-  - alias_c_sharp_file  : files dominated by long private symbol names
+  - outline_c_sharp_file: signatures only — best for "what's in this file?"
 
 ONLY use Read directly when you need exact on-disk text for an Edit call,
 or when the user explicitly asked for the raw file. Otherwise, cancel

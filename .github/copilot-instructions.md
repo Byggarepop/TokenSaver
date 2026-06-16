@@ -2,11 +2,11 @@
 
 ## Token-efficient source context via the `tokensaver` MCP server
 
-This workspace has the `tokensaver` MCP server registered. It exposes
-**eight** tools that produce token-reduced views of source files, plus four
-**cross-file traversal tools** for project-wide queries. **Prefer these
-tools over reading whole files** — they typically save 30-95% of tokens
-with no loss of logic.
+This workspace has the `tokensaver` MCP server registered. It gives the model
+a cheap **structural warm start** in an unfamiliar codebase and then gets out
+of the way. It exposes **three** tools. Prefer them for the cases below; for
+everything else, your own `Grep` plus a narrow `Read` (the relevant lines only)
+is the leanest path — don't reach for a tool when a targeted read will do.
 
 > **Visual Studio 2026 — use Copilot Chat.**  MCP tools fire in both Ask
 > and Agent mode. Open the Copilot Chat panel and ask your question there;
@@ -30,102 +30,35 @@ with no loss of logic.
 | C++ | `.cpp`, `.cc`, `.cxx`, `.hpp`, `.hh`, `.hxx`, `.inl` | same as C |
 | X++ | `.xpp` | `//` + `/* */` strip, whitespace collapse, `#macro` directives preserved |
 | VB.NET | `.vb` | Roslyn comment strip (`'` and `REM`), blank-run collapse |
-| Markdown | `.md`, `.markdown` | HTML comments stripped, blank-run collapse |
 
 ### Tool selection rules — follow these by default, no need to ask
 
-1. **The user wants codebase navigation** ("what's in this file?", "where would
-   I add X?", "list the methods on `Foo`") → call `OutlineCSharpFile`.
-   Signatures only, no bodies, typical 70-95% reduction. C# only.
+1. **Orient in a C#/VB file** — "what's in this file?", "where would I add X?",
+   or before editing any file ≥50 lines → call `OutlineCSharpFile`. Returns
+   every type and member as a signature, NO bodies (typical 70-95% reduction),
+   each tagged with its source line range (`// L31-44`). **To then read a body,
+   `Read` that exact range** (offset+limit) — do not re-read the whole file.
+   C#/VB only.
 
-2. **The user references a specific C# method** ("look at `Foo` in `Bar.cs`",
-   "speed up `OnInitializedAsync`", "translate this WinForms method to Razor")
-   → call `FocusMethod` with `methodName` set, `depth=1`, and `minify=true`.
-   Use `depth=1` so you see the bodies of private helpers the focus method
-   calls — without those, your suggestions will hallucinate helper logic.
+2. **Read or compress a whole file of any supported type** → call `MinifyFile`.
+   Auto-dispatches by extension (see the table above) and strips
+   comments/whitespace losslessly. Use it for non-C# files, or when you
+   genuinely need a whole C# file rather than its skeleton. For C#, prefer
+   `OutlineCSharpFile` — it saves far more.
 
-   **`methodName` also accepts a class name to target a constructor** — e.g.
-   `FocusMethod(filePath, "MyService")` returns the `MyService(...)` constructor body.
+3. **Where is a type wired in Dependency Injection, and to what / what
+   lifetime?** ("where is `IFoo` registered?", "is `Foo` a singleton?"), or a
+   constructor caller-trace for a DI-constructed type came back empty (the
+   container builds it, no `new`) → call `TraceDiRegistrations` with the project
+   directory or `.csproj` path and the type name (interface OR concrete).
+   Returns a compact table of every `Add`/`TryAdd`/`AddKeyed` registration:
+   `file:line`, method, `ServiceType -> ImplType`, lifetime, keyed key. **C#
+   only** — this is the one thing `Grep` cannot answer cleanly.
 
-   **The user references two or more C# methods at once**, or you already know
-   from a prior outline/NOT FOUND which methods are relevant
-   → call `FocusMultipleMethods` with a comma-separated `methodNames` list
-   (e.g. `"ExecSql,ClearGrid,SetBusy"`). The file is parsed once and shared
-   signatures are deduplicated — smaller output than N separate `FocusMethod`
-   calls and one round-trip instead of N. Class names (constructors) are
-   accepted alongside method names.
-
-   **On a `NOT FOUND`, act on any hint in the response.** When the file's type
-   is `partial`, the member may be in a sibling file in the same namespace/folder
-   — glob that folder for the type's other parts and focus the right one. When
-   the type has a base list, the member may be inherited — focus the file that
-   declares the base type. Don't give up or guess the body.
-
-3. **The user wants you to read or analyze a whole file of any supported type**
-   → call `MinifyFile`. It auto-dispatches by extension and works for every
-   format in the table above. For C# specifically, `MinifyCSharpFile` is
-   equivalent (back-compat).
-
-4. **The user wants to understand a specific C# class** ("explain class X",
-   "what does FooService do?", "show me the public API of Bar") and either the
-   file has multiple types or you want to skip private implementation noise
-   → call `FocusType` with the simple class/record/interface name. Shows all
-   non-private members with full bodies and private members as signatures only.
-   Cheaper than `MinifyCSharpFile` when private methods dominate file length.
-
-5. **The user asks what calls a given method and you don't yet know which
-   methods are the callers** ("where is X used?", "what calls BuildHeader?",
-   "who invokes OnSave?")
-   → call `FocusCallers` for **discovery only**. Once you know the caller
-   names (e.g. from a prior outline or focus result), stop — use
-   `FocusMultipleMethods` on the known names instead. Never call `FocusCallers`
-   when the callers' bodies are already in context. Avoid it when callers are
-   large methods: the tool emits their full bodies and savings drop to ~0%.
-
-6. **The user is working with a C# file dominated by long private symbol names**
-   (repositories, validators, mappers with verbose internal naming)
-   → consider `AliasCSharpFile` instead. The result has private members
-   renamed to short codes (M1, P1, F1...) with a ledger at the top. Worth it
-   only when private names are long; on small files the ledger overhead can
-   wipe out the savings. C# only — no equivalent for other languages.
-
-7. **The user asks what calls a given method across the whole project**
-   ("what calls X anywhere?", "find all callers of BuildHeader", "who calls
-   this across the codebase?") → call `TraceCallers` with the project directory
-   or `.csproj` path and the method name. Returns focused caller views from
-   every file that calls it, in one call. Use instead of `FocusCallers` when
-   you don't know which file to look in. **C# only.**
-   **Exception — existence checks**: if the question is "is X used?", "is X
-   called anywhere?", or "does anything reference X?", use `Grep` first. Only
-   escalate to `TraceCallers` if you need to see HOW callers use the method,
-   not just confirm it is called. A widely-used method can cost 100K+ tokens
-   with TraceCallers.
-
-8. **The user asks what implements an interface or extends a base type**
-   ("what implements IFoo?", "what extends BaseBar?", "show me all emitters")
-   → call `TraceImplementors` with the project directory or `.csproj` path
-   and the interface/base type name. Returns a focused type view for each
-   implementor found across the project. **C# only.**
-
-9. **The user asks where a type is wired in Dependency Injection** ("where is
-   `IFoo` registered?", "what's `IFoo` wired to?", "is `Foo` a singleton?"), or
-   a constructor caller-trace for a DI-constructed type came back empty (no
-   `new` because the container builds it) → call `TraceDiRegistrations` with the
-   project directory or `.csproj` path and the type name (interface OR
-   concrete). Returns a compact table of every `Add`/`TryAdd`/`AddKeyed`
-   registration referencing it: `file:line`, method, `ServiceType -> ImplType`,
-   and keyed key. Chain to `FocusMethod` / `TraceImplementors` for the body.
-   **C# only.**
-
-10. **You don't know which file a type is in**, or want a project overview
-    ("where is `FooService`?", "find types named `*Repository`") → call
-    `MapProject` with the project directory or `.csproj` path. Maps every type to
-    its `file:line`, kind, and base list; use **instead of** Grep for type
-    discovery, then drill in with `FocusMethod` / `FocusType`. Pass `nameFilter`
-    to narrow on large repos. **C# only. Disabled by default** — opt in via the
-    `TOKENSAVER_ENABLE_MAP_PROJECT=1` env var. If the call returns a "disabled"
-    notice, the var is unset; don't retry — fall back to `Grep`, `FocusType`, or
-    `OutlineCSharpFile`.
+**Everything else is `Grep` + a narrow `Read`.** After an outline you have each
+member's line range — read exactly that range to see one body, or grep the
+folder to find callers/implementors/usages. Don't reach for a tool when a
+targeted read or grep already answers the question.
 
 ### Note on `#` references and Active Document (user-facing reminder)
 
@@ -138,19 +71,18 @@ our token-reduction tools entirely and send the full raw file to the model.
 **To benefit from token reduction, type the file or method name as plain
 text and remove any Active Document / `#` reference** — e.g.
 `"Why does OnRunSql hang on the second call in SqlQuery.razor?"`.
-Copilot will then invoke `focus_method` and only pull in the relevant slice.
-Reserve `#` references or Active Document for small files where reduction
-doesn't matter.
+Copilot will then invoke `outline_c_sharp_file` and you read only the relevant
+slice. Reserve `#` references or Active Document for small files where
+reduction doesn't matter.
 
 ### Important: the tool output is a summary view, not the source of truth
 
-When `MinifyCSharpFile`, `AliasCSharpFile`, or `FocusMethod` (with `minify=true`)
+When `MinifyFile` or `OutlineCSharpFile`
 return code, the result has been **transformed for token efficiency**:
 - Comments and XML doc comments are stripped.
 - `#region` / `#endregion` directives are stripped — pure organisation, no logic.
 - Field signatures omit initializers (e.g. `private int _count;` not `= 0`).
 - Indentation and blank lines are collapsed.
-- In `AliasCSharpFile`, private symbols are renamed to short codes.
 
 The **actual file on disk** is conventionally formatted: standard 4-space
 indentation, blank lines between members, XML doc comments on public APIs,
@@ -165,9 +97,8 @@ not its real shape.
    read the file from disk before editing if needed.
 3. **Add XML doc comments to new public methods/properties** following the
    project's convention.
-4. **Use original symbol names**, not the M1/P1/F1 aliases from the ledger,
-   when writing code the user will paste into their file. Use the ledger
-   only to understand the relationships.
+4. **Use the original symbol names** from the file when writing code the user
+   will paste into their file.
 
 If acting in agent / edit mode (directly modifying files), comprehension
 still goes through a tokensaver tool **first** — never read a supported file

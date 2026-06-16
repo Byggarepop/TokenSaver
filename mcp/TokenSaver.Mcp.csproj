@@ -49,7 +49,6 @@
     <Compile Include="..\Emitters\XppEmitter.cs" Link="Emitters\XppEmitter.cs" />
     <Compile Include="..\Emitters\RazorEmitter.cs" Link="Emitters\RazorEmitter.cs" />
     <Compile Include="..\Emitters\VBEmitter.cs" Link="Emitters\VBEmitter.cs" />
-    <Compile Include="..\Emitters\MarkdownEmitter.cs" Link="Emitters\MarkdownEmitter.cs" />
     <Compile Include="..\Emitters\VBFocusedEmitter.cs" Link="Emitters\VBFocusedEmitter.cs" />
     <Compile Include="..\Emitters\EmissionCache.cs" Link="Emitters\EmissionCache.cs" />
     <Compile Include="..\Emitters\ParsedTreeCache.cs" Link="Emitters\ParsedTreeCache.cs" />

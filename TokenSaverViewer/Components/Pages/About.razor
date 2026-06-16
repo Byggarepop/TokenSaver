@@ -3,7 +3,7 @@
 <PageTitle>About TokenSaver</PageTitle>
 
 <HeadContent>
-    <meta name="description" content="About TokenSaver — an open-source MCP server that gives AI coding assistants token-efficient views of C#, Razor, and .NET source files using Roslyn." />
+    <meta name="description" content="About TokenSaver — an open-source MCP server that gives AI coding agents a structural warm start in .NET code: a cheap signature map so the model reads only what it needs. Most effective on smaller, cheaper models." />
     <link rel="canonical" href="https://tokensavermcp.com/about" />
 </HeadContent>
 
@@ -13,30 +13,32 @@
     <h2>What it is</h2>
     <p>
         TokenSaver is an open-source <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">MCP</a>
-        (Model Context Protocol) server for .NET developers. It gives an AI coding assistant a token-efficient
-        view of C#, Razor, and .NET project files using the Roslyn compiler platform, so the assistant reads the
-        same code while spending far fewer tokens — with no loss of logic. Typical reduction is 50–95% on C# files.
+        (Model Context Protocol) server for .NET developers — a <strong>structural warm start</strong> for AI coding
+        agents. Instead of loading whole files into the assistant, it hands the model a cheap map of your code (every
+        type and member as a signature, each tagged with its line range) using the Roslyn compiler platform, so the
+        model reads only the slice it needs instead of slurping the file.
     </p>
     <p>
-        Fewer tokens processed means lower cost, lower latency, and a smaller carbon footprint for AI-assisted
-        development. This site is the live dashboard tracking how many tokens the tools have saved across all
-        installs.
+        Outlining a file costs 70–95% fewer tokens than reading it — up to 90% on a large file. The end-to-end
+        saving on a real task is smaller and scales inversely with how capable the model is: roughly 1% on a top-tier
+        model that already reads tightly, ~5–7% mid-tier, and ~8% on a smaller, cheaper model. The leaner the model,
+        the more it over-reads on its own — so TokenSaver helps most for <strong>agents running on small / cheap
+        models</strong> and for <strong>large codebases</strong>. It curbs wasteful reading; it does not change the
+        code the model writes. This site is the live dashboard tracking tokens saved across all installs.
     </p>
 
     <h2>What the tools do</h2>
     <ul>
-        <li><strong>Outline</strong> — signatures of every type and member with no bodies, for "what's in this file?"</li>
-        <li><strong>Focus</strong> — a named method or type with full bodies, plus signatures of what it references.</li>
-        <li><strong>Trace</strong> — find what calls a method, implements an interface, or where a type is registered in dependency injection, across a whole project.</li>
-        <li><strong>Map</strong> — index every type in a project to its file and base types, to locate code without knowing the file first.</li>
-        <li><strong>Minify / Alias</strong> — lossless whole-file reduction, auto-dispatched by file extension.</li>
+        <li><strong>Outline</strong> — signatures of every type and member with no bodies, each tagged with its line range. The warm-start primitive: orient, then read just the lines you need.</li>
+        <li><strong>Minify</strong> — lossless whole-file reduction, auto-dispatched by file extension, for non-C# files or when you genuinely need a whole file.</li>
+        <li><strong>Trace DI registrations</strong> — find where a type is wired in dependency injection and to what — the one question a text search can't answer cleanly.</li>
     </ul>
     <p><a href="capabilities">See the full list of capabilities →</a></p>
 
     <h2>Supported languages</h2>
     <p>
         Full Roslyn support for C#, Razor, VB.NET, and .NET project files. Comment-strip and whitespace-collapse
-        support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, X++, and Markdown.
+        support for JavaScript, TypeScript, Python, HTML, CSS/SCSS/LESS, JSON, YAML, C, C++, and X++.
         It works with Visual Studio 2026 (GitHub Copilot Chat), Claude Code, VS Code Copilot, Claude Desktop, and
         any MCP client that speaks stdio.
     </p>

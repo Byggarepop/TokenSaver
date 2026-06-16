@@ -1,6 +1,6 @@
 # TokenSaver
 
-> An MCP server for .NET developers that gives AI coding assistants a token-efficient view of C#, Razor, and .NET project files using the Roslyn compiler platform. Typical reduction: 50–95% on C# files with no loss of logic. tokensavermcp.com is the live dashboard tracking tokens saved across all installs.
+> An MCP server for .NET developers — a structural warm start for AI coding agents. It hands the model a cheap signature map of C#, Razor, and .NET project files (via the Roslyn compiler platform) so the model reads only the slice it needs instead of slurping whole files. Outlining a file saves 70–95% of tokens versus reading it (up to 90% on a large file); the end-to-end win is biggest on smaller/cheaper models and large codebases, where over-reading is the tax. tokensavermcp.com is the live dashboard tracking tokens saved across all installs.
 
 ## About
 - **Website**: https://tokensavermcp.com/
@@ -17,12 +17,6 @@
 TokenSaver produces token-reduced views of source files so AI assistants spend fewer tokens reading code, with no loss of logic. Tools include:
 <!-- BEGIN:generated:tools -->
 - `OutlineCSharpFile` — signatures of every type and member, no bodies (70–95% reduction)
-- `FocusMethod` / `FocusMultipleMethods` — a named method with its body plus signatures of referenced members
-- `FocusType` — non-private members with bodies, private members as signatures
-- `FocusCallers` / `TraceCallers` — find what calls a method, in one file or across a project
-- `MinifyCSharpFile` / `MinifyFile` — lossless minify, auto-dispatched by file extension
-- `AliasCSharpFile` — minify plus short aliases for long private symbol names
-- `TraceImplementors` — find every type implementing an interface or extending a base type
+- `MinifyFile` — lossless minify, auto-dispatched by file extension
 - `TraceDiRegistrations` — find where a type is registered in dependency injection and what it's wired to
-- `MapProject` — map every type in the project to its file, kind, and base type (a navigation index); disabled by default, enable with `TOKENSAVER_ENABLE_MAP_PROJECT=1`
 <!-- END:generated:tools -->
