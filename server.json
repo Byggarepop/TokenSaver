@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.Byggarepop/tokensaver",
   "title": "TokenSaver",
-  "description": "Token-efficient C#, Razor, and .NET file views for AI assistants. 50-95% token reduction via Roslyn.",
+  "description": "A structural warm start for AI coding agents in .NET — a cheap Roslyn signature map of C#/Razor/.NET files so the model reads only what it needs. Biggest win on smaller/cheaper models and large files.",
   "repository": {
     "url": "https://github.com/Byggarepop/TokenSaver",
     "source": "github"
   },
-  "version": "1.14.1",
+  "version": "1.15.0",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "TokenSaver.Mcp",
-      "version": "1.14.1",
+      "version": "1.15.0",
       "runtimeHint": "dnx",
       "runtimeArguments": [
         {

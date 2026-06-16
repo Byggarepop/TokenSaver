@@ -2,7 +2,7 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
-## [Unreleased]
+## [1.15.0] — 2026-06-16
 
 ### Changed — stripped to a warm-start tool set
 - Reduced the advertised MCP surface from 11 tools to **3**: `OutlineCSharpFile`
@@ -10,13 +10,23 @@ All notable changes to TokenSaver.Mcp are documented here.
   `TraceDiRegistrations` (DI wiring — the one discovery grep can't do cleanly).
   The focus/trace family (`FocusMethod`, `FocusMultipleMethods`,
   `FocusMethodsAcrossFiles`, `FocusType`, `FocusCallers`, `TraceCallers`,
-  `TraceImplementors`, `MapProject`) is no longer registered as an MCP tool.
-- Fixed per-session overhead dropped **4,134 → 1,504 tokens** (−64%):
-  `ServerInstructions` rewritten for the 3-tool set and 8 tool schemas removed.
+  `TraceImplementors`, `MapProject`) is no longer registered as an MCP tool (#99).
+- Fixed per-session overhead dropped **4,134 → 1,415 tokens** (−66%):
+  `ServerInstructions` rewritten for the 3-tool set, 8 tool schemas removed, and a
+  legacy duplicate `focus_method` registration (`FocusedEmissionTool`) deleted.
   Rationale: a controlled A/B (outline-only vs full toolset vs no-MCP) showed the
   focus/trace tools added no measured token value on scoped tasks; the durable win
   is a cheap structural warm start, after which `Grep` + a narrow `Read` of the
-  outline's line-ranges does the rest.
+  outline's line-ranges does the rest. On a real cheaper-model task this flips the
+  session ledger from net-negative to net-positive.
+- Removed the Markdown emitter.
+
+### Documentation
+- Reframed the README, NuGet readme, viewer pages, `llms.txt`, and registry
+  description around the warm start: it curbs wasteful reading, with the biggest win
+  on smaller/cheaper models (~8%) and large files. Dropped the "30–95% for everyone"
+  framing — the win scales inversely with model capability (~1% top-tier, ~5–7%
+  mid-tier, ~8% cheaper).
 
 ## [1.14.1] — 2026-06-11
 
