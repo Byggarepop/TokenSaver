@@ -2,7 +2,7 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
-## [Unreleased]
+## [1.15.1] — 2026-06-16
 
 ### Fixed
 - `OutlineCSharpFile` on `.razor` files now reports **correct `// L..` line ranges**.
