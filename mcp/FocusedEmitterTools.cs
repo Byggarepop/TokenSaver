@@ -332,28 +332,21 @@ public static class FocusedEmitterTools
         var reduction = 1.0 - (double)afterTokens / beforeTokens;
         if (reduction >= 0.30) return "";
         return $"// Low saving ({reduction:P0}) — this file is body-dense, not comment-heavy. " +
-               "For navigation use outline_c_sharp_file; for one method use focus_method — both drop bodies and save far more.\n";
+               "For navigation use outline_c_sharp_file (signatures only), then Read just the // L.. line-range you need.\n";
     }
 
     [McpServerTool, Description(
-        "Auto-dispatch minifier for any supported file type. Detects format from " +
-        "the file extension and applies a format-appropriate minifier. Currently " +
-        "supports C# (.cs, .razor.cs), Razor components (.razor — markup + @code " +
-        "combined), JavaScript (.js, .mjs, .cjs, .jsx), TypeScript (.ts, .tsx, " +
-        ".mts, .cts), Python (.py, .pyi), HTML (.html, .htm), CSS/SCSS/LESS " +
-        "(.css, .scss, .less), JSON/JSONC (.json, .jsonc), YAML (.yaml, .yml), " +
-        "XML/.NET project files (.xml, .csproj, .props, .targets, .config, .resx), " +
-        "C (.c, .h), C++ (.cpp, .cc, .cxx, .hpp, .hh, .hxx, .inl), " +
-        "X++ (.xpp — C-style comment strip + whitespace collapse), " +
-        "and VB.NET (.vb — Roslyn comment strip + blank-run collapse). " +
-        "Code minifiers strip comments and collapse whitespace. " +
+        "Read a whole file of a supported type COMPACTLY: auto-detects the format " +
+        "from the file extension and strips comments + collapses whitespace " +
+        "losslessly (logic unchanged). Best for non-C# files — JavaScript/TypeScript, " +
+        "Python, HTML, CSS/SCSS/LESS, JSON/JSONC, YAML, XML/.NET project files " +
+        "(.csproj, .props, .targets, .config, .resx), C/C++, X++, and VB.NET. " +
+        "For a C# file prefer outline_c_sharp_file (skeleton) — it saves far more; " +
+        "use MinifyFile on C# only when you genuinely need the whole file. " +
         "Indent-sensitive formats (Python, YAML) preserve leading indentation. " +
-        "Use this when working in a polyglot codebase or when reading " +
-        "config/project files. " +
-        "Do NOT call on files under 50 lines — the tool-call overhead exceeds " +
-        "the savings; use the Read tool instead. " +
-        "After calling this tool on a C# file, do NOT Read the same file whole — " +
-        "use focus_method then Read only the changed lines (offset+limit).")]
+        "Do NOT call on files under 50 lines — the tool-call overhead exceeds the " +
+        "savings; use the Read tool instead. After calling on a C# file, do NOT " +
+        "re-Read it whole — Read only the lines you need (offset+limit).")]
     public static string MinifyFile(
         [Description("Absolute path to a source file. Language is detected by extension.")] string filePath)
     {
@@ -385,21 +378,14 @@ public static class FocusedEmitterTools
     }
 
     [McpServerTool, Description(
-        "Returns a skeleton of a C# or VB.NET file: every type and every member as a " +
-        "signature, with NO method/property bodies. Useful for codebase " +
-        "navigation questions like 'what's in this file?' or 'where would I " +
-        "add X?' where bodies aren't needed. Typical reduction: 70-95% on " +
-        "large files. Much cheaper than MinifyFile when the task is " +
-        "discovery rather than understanding implementation. " +
-        "Supports .cs, .razor.cs, .razor, and .vb files. " +
-        "Each member is annotated with its source line range, e.g. " +
-        "`public Task Foo();  // L31-44`. " +
-        "Do NOT call on files under 50 lines — the tool-call overhead exceeds " +
-        "the savings; use the Read tool instead. " +
-        "After calling this tool, to read a method body Read its printed `// L..` " +
-        "line-range (Read with offset+limit) — do NOT Read the whole file. FocusMethod " +
-        "on an already-outlined file auto-trims to bodies-only (signatures are not " +
-        "repeated), so it is cheap too; a narrow Read of the line-range is leanest.")]
+        "CALL THIS FIRST before reading or editing any C#/VB file over ~50 lines: " +
+        "returns a skeleton — every type and member as a signature with its source " +
+        "line range (e.g. `public Task Foo();  // L31-44`), NO method/property " +
+        "bodies. Typically 70-95% smaller than the file. Ideal for 'what's in this " +
+        "file?' and 'where would I add X?'. Then Read ONLY the line-range you need " +
+        "(Read with offset+limit) — never re-read the whole file. Much cheaper than " +
+        "MinifyFile for discovery. Supports .cs, .razor.cs, .razor, and .vb. " +
+        "Do NOT call on files under ~50 lines — just Read them.")]
     public static string OutlineCSharpFile(
         [Description("Absolute path to a .cs, .razor.cs, .razor, or .vb file.")] string filePath)
     {
@@ -676,7 +662,7 @@ public static class FocusedEmitterTools
         "file:line, registration method, ServiceType -> ImplType, lifetime, and keyed key. " +
         "Detects Add/TryAdd{Scoped,Singleton,Transient}, AddKeyed*, in generic, typeof(), " +
         "and factory-lambda forms. Pass the project root or .csproj path; obj/ and bin/ are " +
-        "excluded. Syntactic name matching (same approach as trace_implementors). C# only.")]
+        "excluded. Syntactic name matching. C# only.")]
     public static string TraceDiRegistrations(
         [Description("Absolute path to a project folder or .csproj file. All .cs files under it (excluding obj/ and bin/) are scanned.")] string projectPath,
         [Description("The service or implementation type name to find registrations for (simple name, e.g. 'IFoo').")] string typeName)
