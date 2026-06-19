@@ -2,6 +2,18 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [1.15.2] — 2026-06-19
+
+### Fixed
+- Tool descriptions and the runtime low-saving nudge no longer reference tools removed in
+  the 3-tool strip. `MinifyFile`, `OutlineCSharpFile`, and the nudge pointed the model at
+  `focus_method`, and `TraceDiRegistrations` referenced `trace_implementors` — none of which
+  are registered tools, so a model following that guidance reached for a tool that doesn't
+  exist and fell back to reading the whole file. They now point at `outline_c_sharp_file`
+  plus a narrow `Read`. `OutlineCSharpFile` and `MinifyFile` also lead with an imperative
+  trigger ("call this first before reading a C#/VB file over ~50 lines") so the host model
+  reaches for them earlier. Descriptions only — no behaviour change (#103).
+
 ## [1.15.1] — 2026-06-16
 
 ### Fixed
