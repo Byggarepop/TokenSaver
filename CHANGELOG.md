@@ -2,6 +2,18 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [1.15.3] — 2026-06-25
+
+### Added
+- The package now carries the `McpServer` package type alongside `DotnetTool`, so it is
+  discoverable under nuget.org's "MCP Server" package-type filter. Both types ship in the same
+  `.nupkg`; the `dnx`/`dotnet tool` install path is unchanged (#106).
+
+### Changed
+- Releases now publish the Official MCP Registry listing automatically from the tag pipeline
+  (NuGet via Trusted Publishing/OIDC, then `mcp-publisher` via GitHub OIDC), replacing the
+  manual `mcp-publisher publish` step. `server.json` moved to `.mcp/server.json` (#106).
+
 ## [1.15.2] — 2026-06-19
 
 ### Fixed
