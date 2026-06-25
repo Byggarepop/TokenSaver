@@ -2,6 +2,13 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [1.15.4] — 2026-06-25
+
+### Fixed
+- The `.nupkg` now ships `.mcp/server.json` inside the package, so nuget.org can generate the
+  VS Code MCP server configuration from it. 1.15.3 tagged the package as an `McpServer` but did
+  not embed the manifest, so nuget.org reported it could not generate the config entry (#108).
+
 ## [1.15.3] — 2026-06-25
 
 ### Added
