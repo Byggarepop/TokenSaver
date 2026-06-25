@@ -18,7 +18,7 @@
          tool install path is unaffected. -->
     <PackageType>McpServer</PackageType>
     <PackageId>TokenSaver.Mcp</PackageId>
-    <Version>1.15.3</Version>
+    <Version>1.15.4</Version>
     <Authors>Sebastian Larsson</Authors>
     <Description>MCP server for .NET developers — gives AI assistants a token-efficient view of C#, VB, Razor, and .NET project files using the Roslyn compiler platform. Reduces tokens by 50-95% with no loss of logic.</Description>
     <PackageTags>mcp;dotnet;csharp;visualbasic;razor;roslyn;copilot;tokens;llm;tokensaver</PackageTags>
@@ -29,6 +29,10 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <!-- Pack the MCP manifest into the package's .mcp/ folder so nuget.org can generate the VS Code
+         MCP server config from it. The committed file lives at the repo-root .mcp/; the release
+         workflow also re-stamps its version to the tag before publishing the registry listing. -->
+    <None Include="..\.mcp\server.json" Pack="true" PackagePath="\.mcp\" />
   </ItemGroup>
 
   <ItemGroup>
