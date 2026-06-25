@@ -12,6 +12,11 @@
     <!-- dotnet tool packaging -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>tokensaver-mcp</ToolCommandName>
+    <!-- PackAsTool stamps the DotnetTool package type (so `dotnet tool`/`dnx` install works); this
+         adds McpServer alongside it (both end up in the .nuspec <packageTypes>) so the package also
+         surfaces under nuget.org's "MCP Server" package-type filter. The two types coexist — the
+         tool install path is unaffected. -->
+    <PackageType>McpServer</PackageType>
     <PackageId>TokenSaver.Mcp</PackageId>
     <Version>1.15.2</Version>
     <Authors>Sebastian Larsson</Authors>
