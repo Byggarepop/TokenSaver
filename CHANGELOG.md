@@ -2,6 +2,15 @@
 
 All notable changes to TokenSaver.Mcp are documented here.
 
+## [1.15.5] — 2026-06-25
+
+### Fixed
+- The embedded MCP manifest is now packed at `.mcp/server.json` instead of `.mcp//server.json`.
+  1.15.4 packed it with a trailing-separator `PackagePath`, which the Linux release runner
+  mis-joined into a double slash — so nuget.org still could not find the manifest and kept
+  reporting it could not generate the VS Code MCP config. The destination is now an explicit
+  forward-slash path including the filename (#109).
+
 ## [1.15.4] — 2026-06-25
 
 ### Fixed
